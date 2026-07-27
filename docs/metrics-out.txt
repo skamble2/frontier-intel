@@ -1,0 +1,395 @@
+
+#############################################################
+#  G · REGRESSION GUARDS — did the four fixes land?         #
+#############################################################
+
+--- G1 · resolve_lab hyphen fix: pct_inferred should collapse for DeepSeek ---
+    (was: DeepSeek 87.1% source_inferred because "DeepSeek-AI"/"DeepSeek-V4"
+     tokenised as one hyphenated token and never matched "DeepSeek")
+┌─────────────────┬──────────┬────────────────┬─────────────────┬──────────────┐
+│       lab       │ insights │ model_asserted │ source_inferred │ pct_inferred │
+├─────────────────┼──────────┼────────────────┼─────────────────┼──────────────┤
+│ Google DeepMind │ 152      │ 145            │ 7               │ 4.6          │
+│ Qwen            │ 140      │ 123            │ 17              │ 12.1         │
+│ Anthropic       │ 89       │ 89             │ 0               │ 0.0          │
+│ OpenAI          │ 50       │ 50             │ 0               │ 0.0          │
+│ Meta AI         │ 49       │ 49             │ 0               │ 0.0          │
+│ Mistral         │ 37       │ 37             │ 0               │ 0.0          │
+│ DeepSeek        │ 37       │ 37             │ 0               │ 0.0          │
+│ xAI             │ 2        │ 2              │ 0               │ 0.0          │
+└─────────────────┴──────────┴────────────────┴─────────────────┴──────────────┘
+
+--- G2 · per-insight verification logging: quote_unverified MUST appear ---
+    (was: failed quotes silently `continue`d, so D1 read 99.8% because
+     failures were no longer counted, not because they stopped happening)
+┌──────────────┬─────────────────────┬────┐
+│    stage     │       reason        │ n  │
+├──────────────┼─────────────────────┼────┤
+│ verification │ quote_unverified    │ 22 │
+│ stage1       │ near_duplicate      │ 5  │
+│ verification │ no_verified_insight │ 3  │
+└──────────────┴─────────────────────┴────┘
+
+--- G3 · evidence populations, kept apart ---
+┌──────────────────┬───────────────────┬────────────────┬──────────┐
+│ insight_evidence │ register_evidence │ total_evidence │ insights │
+├──────────────────┼───────────────────┼────────────────┼──────────┤
+│ 556              │ 1208              │ 1764           │ 556      │
+└──────────────────┴───────────────────┴────────────────┴──────────┘
+
+--- G4 · cap binding: is n=5 concentrated in LONG docs (legit) or SHORT (splitting)? ---
+┌─────────────┬─────────────────┬──────┬───────────┬───────────┐
+│ source_type │ insights_in_doc │ docs │ avg_chars │ min_chars │
+├─────────────┼─────────────────┼──────┼───────────┼───────────┤
+│ arxiv       │ 1               │ 9    │ 1682.0    │ 1170      │
+│ arxiv       │ 2               │ 5    │ 6221.0    │ 2336      │
+│ arxiv       │ 3               │ 5    │ 4139.0    │ 3199      │
+│ arxiv       │ 4               │ 3    │ 5864.0    │ 4571      │
+│ blog        │ 1               │ 14   │ 1583.0    │ 264       │
+│ blog        │ 2               │ 3    │ 27751.0   │ 10001     │
+│ blog        │ 3               │ 16   │ 12900.0   │ 4788      │
+│ blog        │ 4               │ 17   │ 10272.0   │ 4452      │
+│ blog        │ 5               │ 30   │ 13026.0   │ 6475      │
+│ github      │ 1               │ 34   │ 1897.0    │ 176       │
+│ github      │ 3               │ 1    │ 16060.0   │ 16060     │
+│ newsroom    │ 2               │ 1    │ 115190.0  │ 115190    │
+│ newsroom    │ 3               │ 1    │ 114098.0  │ 114098    │
+│ newsroom    │ 4               │ 7    │ 218068.0  │ 117884    │
+│ newsroom    │ 5               │ 8    │ 264854.0  │ 150755    │
+│ social      │ 1               │ 114  │ 323.0     │ 131       │
+└─────────────┴─────────────────┴──────┴───────────┴───────────┘
+
+--- G5 · splitting signature: >1 insight of the SAME event_type in one doc ---
+┌────────────────────┬──────────────────┬───────────────┐
+│ docs_with_insights │ same_type_groups │ docs_affected │
+├────────────────────┼──────────────────┼───────────────┤
+│ 268                │ 84               │ 73            │
+└────────────────────┴──────────────────┴───────────────┘
+
+--- G5b · clustering: insights vs distinct clusters (cluster_id populated?) ---
+┌──────────┬─────────────────┬───────────────────┬──────────────────────┐
+│ insights │ cluster_id_null │ distinct_clusters │ insights_per_cluster │
+├──────────┼─────────────────┼───────────────────┼──────────────────────┤
+│ 556      │ 0               │ 531               │ 1.05                 │
+└──────────┴─────────────────┴───────────────────┴──────────────────────┘
+
+#############################################################
+#  M · STANDING METRICS                                     #
+#############################################################
+
+================ M1a · FUNNEL ================
+┌──────────────┬─────────────────┬─────────────────┬───────────────────┬──────────┐
+│ content_docs │ stage1_rejected │ stage2_rejected │ docs_with_insight │ insights │
+├──────────────┼─────────────────┼─────────────────┼───────────────────┼──────────┤
+│ 1049         │ 689             │ 95              │ 268               │ 556      │
+└──────────────┴─────────────────┴─────────────────┴───────────────────┴──────────┘
+
+================ M1b · REJECTION REASONS (noise-floor appendix) ================
+┌──────────────┬────────────────────────────┬─────┐
+│    stage     │           reason           │  n  │
+├──────────────┼────────────────────────────┼─────┤
+│ stage1       │ no_tracked_entity          │ 523 │
+│ stage1       │ not_lab_authored           │ 140 │
+│ stage2       │ low_substance              │ 93  │
+│ verification │ quote_unverified           │ 22  │
+│ stage1       │ social_thread_continuation │ 13  │
+│ stage1       │ x_handle_unverified        │ 6   │
+│ stage1       │ near_duplicate             │ 5   │
+│ stage2       │ classify_parse_error       │ 4   │
+│ verification │ no_verified_insight        │ 3   │
+│ stage1       │ social_reply_fragment      │ 2   │
+│ stage1       │ x_handle_not_found         │ 2   │
+└──────────────┴────────────────────────────┴─────┘
+
+================ M1c · YIELD BY SOURCE TYPE ================
+┌─────────────┬──────┬──────────┬──────────────────┐
+│ source_type │ docs │ insights │ insights_per_doc │
+├─────────────┼──────┼──────────┼──────────────────┤
+│ blog        │ 108  │ 286      │ 2.65             │
+│ social      │ 704  │ 114      │ 0.16             │
+│ newsroom    │ 24   │ 73       │ 3.04             │
+│ arxiv       │ 165  │ 46       │ 0.28             │
+│ github      │ 48   │ 37       │ 0.77             │
+└─────────────┴──────┴──────────┴──────────────────┘
+
+================ M1d · YIELD PER *SURVIVING* DOC (the honest ratio) ================
+    M1c divides by all docs incl. stage-1 rejects; this divides by docs that
+    actually reached extraction.
+┌─────────────┬────────────────┬──────────┬───────────────────┐
+│ source_type │ surviving_docs │ insights │ per_surviving_doc │
+├─────────────┼────────────────┼──────────┼───────────────────┤
+│ blog        │ 101            │ 286      │ 2.83              │
+│ social      │ 168            │ 114      │ 0.68              │
+│ newsroom    │ 17             │ 73       │ 4.29              │
+│ arxiv       │ 23             │ 46       │ 2.0               │
+│ github      │ 48             │ 37       │ 0.77              │
+└─────────────┴────────────────┴──────────┴───────────────────┘
+
+================ M2a · D1 HALLUCINATION CONTROL (insight evidence only) ================
+    D1 = kept / (kept + per-insight verification failures).
+    quote_unverified = a proposed insight whose quote did not verify (per insight).
+    no_verified_insight / quote_not_found = whole-document failures.
+┌───────────────┬────────────────────┬──────────────────┬─────────────────┐
+│ kept_insights │ per_insight_failed │ whole_doc_failed │ d1_pct_verified │
+├───────────────┼────────────────────┼──────────────────┼─────────────────┤
+│ 556           │ 22                 │ 3                │ 96.2            │
+└───────────────┴────────────────────┴──────────────────┴─────────────────┘
+
+================ M2b · VERIFICATION METHOD, BY POPULATION ================
+┌──────────────────────┬──────────────┬──────┐
+│      population      │ verification │  n   │
+├──────────────────────┼──────────────┼──────┤
+│ insight (extraction) │ exact        │ 556  │
+│ register (entity)    │ exact        │ 73   │
+│ register (entity)    │ structural   │ 1135 │
+└──────────────────────┴──────────────┴──────┘
+
+================ M3a · INSIGHTS PER DOCUMENT (distribution) ================
+┌────────────┬───────────┐
+│ n_insights │ documents │
+├────────────┼───────────┤
+│ 1          │ 171       │
+│ 2          │ 9         │
+│ 3          │ 23        │
+│ 4          │ 27        │
+│ 5          │ 38        │
+└────────────┴───────────┘
+
+================ M3b · QUOTE LENGTH IN WORDS — EXTRACTION ONLY (spec: 10-60) ================
+┌──────────────────────────┬─────┬──────┐
+│          bucket          │  n  │ pct  │
+├──────────────────────────┼─────┼──────┤
+│ 1. under 10 (under-spec) │ 45  │ 8.1  │
+│ 2. 10-19                 │ 130 │ 23.4 │
+│ 3. 20-29                 │ 199 │ 35.8 │
+│ 4. 30-39                 │ 124 │ 22.3 │
+│ 5. 40-49                 │ 38  │ 6.8  │
+│ 6. 50-60                 │ 15  │ 2.7  │
+│ 7. 61+ (over-spec)       │ 5   │ 0.9  │
+└──────────────────────────┴─────┴──────┘
+
+--- M3b2 · single headline compliance number ---
+┌────────────────┬─────────┬─────────────┐
+│ insight_quotes │ in_spec │ pct_in_spec │
+├────────────────┼─────────┼─────────────┤
+│ 556            │ 506     │ 91.0        │
+└────────────────┴─────────┴─────────────┘
+
+================ M3c · CLAIM LENGTH IN WORDS ================
+┌───────┬───────┬───────┐
+│ min_w │ avg_w │ max_w │
+├───────┼───────┼───────┤
+│ 4     │ 22.7  │ 46    │
+└───────┴───────┴───────┘
+
+================ M3d · RECENCY PROFILE (docs per month) ================
+┌─────────┬──────┐
+│  month  │ docs │
+├─────────┼──────┤
+│ 2026-07 │ 432  │
+│ 2026-06 │ 152  │
+│ 2026-05 │ 93   │
+│ 2026-04 │ 53   │
+│ 2026-03 │ 41   │
+│ 2026-02 │ 43   │
+│ 2026-01 │ 14   │
+│ 2025-12 │ 33   │
+│ 2025-11 │ 26   │
+│ 2025-10 │ 7    │
+│ 2025-09 │ 13   │
+│ 2025-08 │ 10   │
+└─────────┴──────┘
+
+================ M3e · EVENT TYPE DISTRIBUTION (D2) ================
+┌────────────────┬─────┬──────┐
+│   event_type   │  n  │ pct  │
+├────────────────┼─────┼──────┤
+│ release        │ 177 │ 31.8 │
+│ research       │ 115 │ 20.7 │
+│ benchmark      │ 72  │ 12.9 │
+│ commercial     │ 54  │ 9.7  │
+│ infrastructure │ 46  │ 8.3  │
+│ other          │ 44  │ 7.9  │
+│ open_source    │ 41  │ 7.4  │
+│ personnel      │ 7   │ 1.3  │
+└────────────────┴─────┴──────┘
+
+================ M4b · REGISTER BALANCE (seeds / layer-below / insights per lab) ================
+┌─────────────────┬───────┬─────────────┬──────────┐
+│       lab       │ seeds │ layer_below │ insights │
+├─────────────────┼───────┼─────────────┼──────────┤
+│ Google DeepMind │ 7     │ 5           │ 152      │
+│ Qwen            │ 3     │ 5           │ 140      │
+│ Anthropic       │ 12    │ 0           │ 89       │
+│ OpenAI          │ 10    │ 4           │ 50       │
+│ Meta AI         │ 6     │ 0           │ 49       │
+│ DeepSeek        │ 2     │ 0           │ 37       │
+│ Mistral         │ 6     │ 10          │ 37       │
+│ xAI             │ 6     │ 0           │ 2        │
+└─────────────────┴───────┴─────────────┴──────────┘
+
+================ M4c · PERSON-LEVEL ATTRIBUTION COVERAGE (W1) ================
+    Low with_person is a stated coverage boundary: the register tracks N people,
+    the insight stream can only reference those it can resolve.
+┌──────────┬─────────────┬──────────┬──────────────┬────────────────────┐
+│ insights │ with_person │ with_lab │ unattributed │ people_in_register │
+├──────────┼─────────────┼──────────┼──────────────┼────────────────────┤
+│ 556      │ 11          │ 556      │ 0            │ 63                 │
+└──────────┴─────────────┴──────────┴──────────────┴────────────────────┘
+
+================ M4d · ENTITY RESOLUTION BY TIER / METHOD ================
+┌──────────┬─────────────────┬───────────────────┬────┐
+│ platform │ confidence_tier │ resolution_method │ n  │
+├──────────┼─────────────────┼───────────────────┼────┤
+│ arxiv    │ corroborated    │ coauthor_overlap  │ 33 │
+│ x        │ verbatim        │ self_link         │ 27 │
+│ lab_page │ verbatim        │ exact             │ 23 │
+│ arxiv    │ name_match_only │ exact             │ 7  │
+│ x        │ name_match_only │ exact             │ 6  │
+└──────────┴─────────────────┴───────────────────┴────┘
+
+================ M4e · EVENT ENTITIES BY KIND / ROLE / BASIS ================
+┌─────────────┬─────────┬─────────────────┬─────┐
+│ entity_kind │  role   │      basis      │  n  │
+├─────────────┼─────────┼─────────────────┼─────┤
+│ lab         │ subject │ model_asserted  │ 532 │
+│ lab         │ subject │ source_inferred │ 24  │
+│ person      │ subject │ model_asserted  │ 11  │
+└─────────────┴─────────┴─────────────────┴─────┘
+
+================ M5a · TOKENOMICS BY TASK ================
+┌──────────┬───────────────────────────┬───────┬─────────┬─────────┬────────┬──────────────┐
+│   task   │           model           │ calls │ tok_in  │ tok_out │  usd   │ usd_per_call │
+├──────────┼───────────────────────────┼───────┼─────────┼─────────┼────────┼──────────────┤
+│ judge    │ claude-sonnet-5           │ 1657  │ 1766075 │ 187732  │ 8.1142 │ 0.0049       │
+│ extract  │ claude-sonnet-5           │ 271   │ 508439  │ 118247  │ 3.299  │ 0.01217      │
+│ label    │ claude-sonnet-5           │ 385   │ 369625  │ 44768   │ 1.7804 │ 0.00462      │
+│ classify │ claude-haiku-4-5-20251001 │ 368   │ 249667  │ 24296   │ 0.3711 │ 0.00101      │
+│ channel  │ claude-haiku-4-5-20251001 │ 346   │ 162316  │ 23638   │ 0.2805 │ 0.00081      │
+└──────────┴───────────────────────────┴───────┴─────────┴─────────┴────────┴──────────────┘
+
+================ M5b · COST PER INSIGHT + HAIKU-GATE SAVING ================
+┌───────────┬──────────┬─────────────────┬──────────────────────┬─────────────────────┐
+│ total_usd │ insights │ usd_per_insight │ killed_by_haiku_gate │ pct_cost_in_extract │
+├───────────┼──────────┼─────────────────┼──────────────────────┼─────────────────────┤
+│ 13.8453   │ 556      │ 0.0249          │ 93                   │ 23.8                │
+└───────────┴──────────┴─────────────────┴──────────────────────┴─────────────────────┘
+
+================ M6a · FETCH STATUS ================
+    NOTE: a truncate+rebuild erases prior error/empty rows. If this shows only
+    ok, the error-handling paths are no longer *demonstrated* in the committed DB —
+    keep a prior DB or a log excerpt as the artifact.
+┌────────┬─────┐
+│ status │  n  │
+├────────┼─────┤
+│ empty  │ 6   │
+│ error  │ 5   │
+│ ok     │ 279 │
+└────────┴─────┘
+
+================ M6b · NON-OK FETCHES BY SOURCE ================
+┌────────────────────────────┬─────────────┬────────┬───┬───────────────────────────┐
+│            name            │ source_type │ status │ n │         last_try          │
+├────────────────────────────┼─────────────┼────────┼───┼───────────────────────────┤
+│ xAI page: x.ai             │ blog        │ error  │ 2 │ 2026-07-27T18:21:12+00:00 │
+│ @MikeLewis_Ai profile      │ social      │ error  │ 1 │ 2026-07-27T18:10:41+00:00 │
+│ @shaneglegg profile        │ social      │ error  │ 1 │ 2026-07-27T18:10:39+00:00 │
+│ @xai                       │ social      │ empty  │ 1 │ 2026-07-27T18:13:21+00:00 │
+│ arXiv au:"Greg Yang"       │ arxiv       │ empty  │ 1 │ 2026-07-27T18:16:46+00:00 │
+│ arXiv au:"Igor Babuschkin" │ arxiv       │ empty  │ 1 │ 2026-07-27T18:17:04+00:00 │
+│ arXiv au:"Yuhuai Wu"       │ arxiv       │ empty  │ 1 │ 2026-07-27T18:16:56+00:00 │
+│ arXiv au:"xAI"             │ arxiv       │ empty  │ 1 │ 2026-07-27T18:16:08+00:00 │
+│ xAI blog: x.ai             │ blog        │ error  │ 1 │ 2026-07-27T18:15:23+00:00 │
+│ xAI github: github.com     │ github      │ empty  │ 1 │ 2026-07-27T18:15:23+00:00 │
+└────────────────────────────┴─────────────┴────────┴───┴───────────────────────────┘
+
+================ M7 · LABS x EVENT TYPE (cross-tab for the report) ================
+┌─────────────────┬─────────┬──────────┬───────────┬───────┬────────────┬──────────┬───────────┬───────┬───────┐
+│       lab       │ release │ research │ benchmark │ infra │ commercial │ open_src │ personnel │ other │ total │
+├─────────────────┼─────────┼──────────┼───────────┼───────┼────────────┼──────────┼───────────┼───────┼───────┤
+│ Google DeepMind │ 45      │ 38       │ 7         │ 11    │ 25         │ 5        │ 0         │ 21    │ 152   │
+│ Qwen            │ 47      │ 28       │ 32        │ 3     │ 7          │ 23       │ 0         │ 0     │ 140   │
+│ Anthropic       │ 27      │ 17       │ 12        │ 3     │ 10         │ 1        │ 2         │ 17    │ 89    │
+│ OpenAI          │ 14      │ 14       │ 5         │ 4     │ 5          │ 1        │ 2         │ 5     │ 50    │
+│ Meta AI         │ 15      │ 6        │ 5         │ 21    │ 0          │ 2        │ 0         │ 0     │ 49    │
+│ Mistral         │ 16      │ 2        │ 5         │ 3     │ 5          │ 4        │ 1         │ 1     │ 37    │
+│ DeepSeek        │ 13      │ 10       │ 6         │ 1     │ 2          │ 5        │ 0         │ 0     │ 37    │
+│ xAI             │ 0       │ 0        │ 0         │ 0     │ 0          │ 0        │ 2         │ 0     │ 2     │
+└─────────────────┴─────────┴──────────┴───────────┴───────┴────────────┴──────────┴───────────┴───────┴───────┘
+
+#############################################################
+#  S · SCORING — populated after fli.score --bakeoff        #
+#############################################################
+
+================ S1 · MODELS IN THE BAKE-OFF (identical coverage = C16) ================
+┌────────────────────────┬────────┬────────┬───────┐
+│         model          │ events │ min_s  │ max_s │
+├────────────────────────┼────────┼────────┼───────┤
+│ baseline_corroboration │ 556    │ 1.0    │ 3.0   │
+│ baseline_recency       │ 556    │ 0.0    │ 1.0   │
+│ gbm_sklearn            │ 556    │ 0.006  │ 0.998 │
+│ hand_weights           │ 556    │ -3.745 │ 5.413 │
+│ logistic               │ 556    │ -5.608 │ 5.409 │
+└────────────────────────┴────────┴────────┴───────┘
+
+================ S2 · TOP-10 EVENTS (winning model, from insights.score) ================
+┌───────┬─────────────────┬────────────┬──────────────────────────────────────────────────────────────┐
+│ score │       lab       │ event_type │                            claim                             │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.998 │ Anthropic       │ commercial │ Claude Opus 4.8 is priced the same as Opus 4.7 for regular u │
+│       │                 │            │ sage a                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.996 │ Anthropic       │ commercial │ Claude Opus 4.7 is priced the same as its predecessor at $5  │
+│       │                 │            │ per mi                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.99  │ OpenAI          │ commercial │ Cars24 uses OpenAI-powered voice and chat agents to handle o │
+│       │                 │            │ ver 1                                                        │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.983 │ Anthropic       │ commercial │ Cognizant built an agentic contract-intelligence system for  │
+│       │                 │            │ a biop                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.971 │ Qwen            │ commercial │ Qwen2.5-Turbo maintains a price of ¥0.3 per 1M tokens while  │
+│       │                 │            │ proces                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.971 │ Google DeepMind │ commercial │ Google is committing $40 million in AI tokens and cloud cred │
+│       │                 │            │ its to                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.971 │ Google DeepMind │ commercial │ Google is committing $40 million in AI tokens and cloud cred │
+│       │                 │            │ its fo                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.97  │ DeepSeek        │ commercial │ DeepSeek reduced the input cache hit price across its entire │
+│       │                 │            │  API s                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.968 │ DeepSeek        │ commercial │ DeepSeek cut its API prices by more than 50%, effective imme │
+│       │                 │            │ diatel                                                       │
+├───────┼─────────────────┼────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.967 │ Google DeepMind │ commercial │ Gemini Omni Flash is priced at $0.10 per second of video out │
+│       │                 │            │ put, m                                                       │
+└───────┴─────────────────┴────────────┴──────────────────────────────────────────────────────────────┘
+
+================ S3 · PER-LAB SHARE OF TOP-30 (ranked-output fairness view) ================
+┌─────────────────┬──────────┐
+│       lab       │ in_top30 │
+├─────────────────┼──────────┤
+│ Google DeepMind │ 9        │
+│ Anthropic       │ 9        │
+│ OpenAI          │ 4        │
+│ DeepSeek        │ 4        │
+│ Meta AI         │ 3        │
+│ Qwen            │ 1        │
+└─────────────────┴──────────┘
+
+================ S4 · PAIRWISE LABELS (ground truth) ================
+┌────────┬─────┐
+│ winner │  n  │
+├────────┼─────┤
+│ a      │ 284 │
+│ b      │ 331 │
+└────────┴─────┘
+
+    NOTE: held-out pairwise accuracy, precision@10 / NDCG@20 per model,
+    logistic coefficients, GBM importances, the ablation, and per-lab
+    precision@10 are computed in fli/score.py (printed at --bakeoff) —
+    they are model-fit outputs, not SQL aggregates.
+
+================ DONE ================
