@@ -139,13 +139,13 @@ runnable and testable on its own.
 ## Two decisions worth knowing about
 
 **Editorial policy is configuration, not code.** What counts as
-"decision-relevant" is a business judgement, and the author of this repository
-is an engineer, not a portfolio manager. So it lives in
+"decision-relevant" is a business judgement, so it is configurable by the fund
+manager rather than hard-coded. It lives in
 [config/policy.yml](config/policy.yml) with a named owner, a version, and its
 provenance in BIT's own published theses. Every scored event records the policy
-version that produced it. The code contains no business judgement, and the
-owner field currently reads `unassigned` — which the system prints on every run
-rather than hiding.
+version that produced it, so any ranking can be traced back to the rules behind
+it. The owner field currently reads `unassigned` — which the system prints on
+every run rather than hiding.
 
 **Importance is not treated as ground truth.** Nobody here can credibly say
 which of two events matters more to a fund. Rather than pretend otherwise, the
