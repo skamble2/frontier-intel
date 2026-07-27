@@ -1,0 +1,17 @@
+anthropic>=0.117
+pydantic>=2.13
+# config/policy.yml holds the editorial policy (business decisions,
+# owned by a domain expert). It needs comments and nesting, so YAML —
+# and one real parser rather than the hand-rolled one it replaces.
+pyyaml>=6.0
+# Day 5 scoring (§10): SQL + scikit-learn over ~400 rows, no embeddings / vector
+# store / second DB (§24.3). LightGBM/XGBoost are optional contenders — the
+# bake-off runs and ships the winner without them (see docs/day5-scoring-spec.md).
+numpy>=1.26
+scikit-learn>=1.3
+
+# Report figures (docs/figures/*.png). Only fli.intelligence.evaluation
+# imports these, so the pipeline still runs without them installed.
+matplotlib>=3.7
+seaborn>=0.13
+pandas>=2.0

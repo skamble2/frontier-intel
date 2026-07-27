@@ -1,0 +1,138 @@
+# ACTIVE policy. Previous version preserved at config/policy.v2.yml.bak.
+#
+# What counts as decision-relevant to this fund.
+#
+# v3 splits what v2 conflated:
+#   channels  = the MECHANISM by which a lab event reaches a portfolio.
+#               General. Any technology fund has these. Swap nothing.
+#   positions = WHICH holdings exist, and the vocabulary that indicates
+#               exposure to each. BIT-specific. Swap this block for another
+#               fund and the system works unchanged.
+#
+# Why: v2 put sector nouns (health, broker, adtech) inside the
+# `competitive_displacement` lexicon, so any post mentioning health scored as
+# displacement whether or not anything was being displaced. That is what
+# falsified H2 on precision. Exposure and mechanism are different questions
+# and now have different homes.
+
+version: 3
+owner: "BIT PM — unassigned"    # a placeholder; nothing here has been reviewed
+effective_from: "2026-07-26"
+source: research/facts.md       # BIT's published materials, fetched 2026-07-22
+
+# ---------------------------------------------------------------------------
+# CHANNELS — general mechanism. These map onto the case brief's own examples:
+# "the semiconductor and energy supply chains", "a star researcher leaving a
+# lab to found a startup", "a capability jump that threatens a holding's moat".
+#
+# Terms match case-insensitively on WORD BOUNDARIES (D1), never as substrings.
+# Multi-word terms match as phrases.
+# ---------------------------------------------------------------------------
+channels:
+  compute_memory:           [gpu, gpus, h100, tpu, tpus, hbm, wafer, fab, flops, training run,
+                             cluster, clusters, accelerator, accelerators, inference cost, chip, chips]
+
+  # `energy` restored — dropped in the v2 edit, which cost a real signal:
+  # "expanding our work with the US Dept. of @ENERGY ... committing $40M in AI tokens"
+  # matched nothing at all.
+  energy_datacenter:        [megawatt, megawatts, gigawatt, gigawatts, datacenter, datacenters,
+                             data center, data centers, power, grid, cooling, campus, energy]
+
+  data_economics:           [licensing, license, training data, corpus, copyright, content deal,
+                             crawl, crawling, data partnership]
+
+  # STRIPPED of sector nouns. What remains are displacement MECHANISMS — verbs
+  # and commercial moves — not the industries they happen in. The industries
+  # now live under `positions.holdings[].exposure_terms`.
+  competitive_displacement: [deprecates, deprecated, replaces, replacing, undercuts,
+                             api pricing, price cut, free tier, open weights,
+                             general availability, bundled, bundling, acquires, acquisition]
+
+  talent_movement:          [joining, joins, hiring, hires, welcome to the team,
+                             appointed, appoints, departing, departs, stepping down, steps down,
+                             co-founder, cofounder, new role, leading our, will lead,
+                             leaving, left to join, poached, recruit, recruited]
+
+# An ordering, not weights. Every event type in the corpus must appear (C17).
+event_type_prior:
+  infrastructure: 5
+  commercial: 4
+  personnel: 4
+  release: 3
+  research: 2
+  open_source: 2
+  benchmark: 1
+  other: 0
+
+slate_k: 5
+
+hand_weights:
+  recency: 1.0
+  corroboration: 0.6
+  specificity: 0.5
+  attribution_confidence: 0.4
+  quote_len_words: 0.2
+
+# ---------------------------------------------------------------------------
+# POSITIONS — BIT-specific. The one block another fund would replace.
+#
+# The brief asks for exactly this: "what does this mean for our positions?",
+# "a holding's moat", "implications, tickers, theses". A generic rubric cannot
+# answer those, so the specificity is required — it just belongs HERE, dated
+# and sourced, rather than smuggled into a keyword list.
+#
+# `as_of` is mandatory (enforced in code). Holdings move quarterly and an
+# undated list silently claims to be current.
+#
+# Provenance note: the website's showcased securities carry BIT's own
+# disclaimer that they are "neither top positions nor representative". These
+# weights come from the Q2 2026 quarterly instead, which is real disclosure.
+# ---------------------------------------------------------------------------
+positions:
+  as_of: "2026-06-30"
+  source: "research/facts.md — Q2 2026 equity quarterly, top-10 table + commentary"
+  holdings:
+    - ticker: HNGE
+      name: Hinge Health
+      weight_pct: 4.2
+      thesis: digital musculoskeletal care; named a current-positioning focus
+      exposure_terms: [health, healthcare, medical, clinical, patient, physical therapy,
+                       musculoskeletal, telehealth, physician, diagnosis]
+
+    - ticker: OSCR
+      name: Oscar Health
+      weight_pct: 4.2
+      thesis: insurtech; MLR 84.6% to 70.5%, members 2.04M to 3.20M
+      exposure_terms: [health insurance, insurtech, medical loss ratio, payer,
+                       health plan, member, healthcare, medical records]
+
+    - ticker: MU
+      name: Micron
+      thesis: AI memory / HBM demand; the "memory supercycle"
+      exposure_terms: [memory, hbm, dram, bandwidth, memory bandwidth]
+
+    - ticker: IREN
+      name: IREN
+      thesis: power and datacenter capacity as the AI bottleneck
+      exposure_terms: [datacenter, data center, megawatt, gigawatt, power, grid, capacity]
+
+    - ticker: RDDT
+      name: Reddit
+      thesis: AI training-data licensing
+      exposure_terms: [training data, licensing, content deal, forum, user-generated,
+                       data partnership, crawl]
+
+    - ticker: HOOD
+      name: Robinhood
+      thesis: retail wealth platform; named a current-positioning focus
+      exposure_terms: [brokerage, broker, trading, retail investor, fintech, crypto trading]
+
+    - ticker: TSM
+      name: TSMC
+      thesis: foundry; F.A.Z. headline BIT links, "TSMC displaces Nvidia"
+      exposure_terms: [foundry, fab, wafer, node, tsmc, 3nm, 2nm]
+
+    - ticker: AUTO
+      name: Auto1
+      thesis: named in Q2 current positioning
+      exposure_terms: [used cars, automotive marketplace, auto1]

@@ -1,0 +1,213 @@
+%% Frontier Lab Intelligence — ERD. Generated against storage/schema.sql (verified 2026-07-26).
+%% Import into Lucidchart: File > Import > Mermaid, or paste at mermaid.live.
+%% ---
+%% Event-centric naming (plan §20): `insights` IS the canonical EVENT (event_type, claim,
+%% cluster_id, score); `hypotheses` IS the persona-specific rendering; `event_entities` gives an
+%% event 0..N attributed entities. Physical rename deferred (plan §20.1).
+%% ---
+%% FOUR LAYERS (plan §20.3). L1-L3 are the DOMAIN model; L4 is operational telemetry, listed
+%% apart on purpose — read the domain first.
+%%   L1 Raw sources : sources, raw_documents
+%%   L2 Knowledge   : evidence, insights(=event), event_entities, people, labs, identities, affiliations
+%%   L3 Intelligence: insight_features, pairwise_labels, event_scores, hypotheses
+%%   L4 Operations  : rejections, fetch_log, person_candidates, llm_calls
+%% ---
+%% THE CENTRAL INVARIANT: every claim traces to bytes.
+%%   insights.evidence_id      NOT NULL — no event without a quote
+%%   event_entities.evidence_id NOT NULL — no attribution without a quote
+%%   affiliations.evidence_id  NOT NULL — no employment claim without a quote
+%%   identities.evidence_id    NOT NULL — no identity link without a quote
+%%   raw_documents             immutable, sha256-unique; checks C1/C2 re-verify all of it
+%% ---
+%% NOT IN THE DATABASE, but load-bearing:
+%%   config/policy.yml — the EDITORIAL POLICY (channels, event-type priors, slate_k, hand
+%%   weights). Business decisions owned by a named domain expert, versioned; every event_scores
+%%   row records the policy_version that produced it (check C17). It is configuration, not data,
+%%   so it is a file a non-programmer edits rather than a table.
+%% ---
+%% Storage criterion (plan §24.2): a table belongs here iff something JOINS to it or an invariant
+%% depends on it. `rejections` IS joined — it is control-flow state (stage1_all/extract_all query
+%% it to decide what to skip); `fetch_log` backs C7. `llm_calls` is joined by nothing: it is
+%% telemetry, kept only so one SQL harness (docs/metrics.sql) reproduces every graded number,
+%% cost included.
+erDiagram
+    labs ||--o{ sources : operates
+    labs ||--o{ affiliations : "observed at"
+    labs ||--o{ insights : "attributed to (cache)"
+    sources ||--o{ raw_documents : yields
+    sources ||--o{ fetch_log : "every attempt logged"
+    raw_documents ||--o{ evidence : "quoted span"
+    raw_documents ||--o{ rejections : "noise floor"
+    evidence ||--o{ insights : "NOT NULL cite"
+    evidence ||--o{ identities : proves
+    evidence ||--o{ affiliations : proves
+    evidence ||--o{ person_candidates : proves
+    evidence ||--o{ event_entities : cites
+    people ||--o{ identities : "same person"
+    people ||--o{ affiliations : "works at"
+    people ||--o{ insights : "attributed to (cache)"
+    people ||--o{ event_entities : "author|mover"
+    labs ||--o{ event_entities : "releaser|subject"
+    insights ||--o{ event_entities : "0..N entities"
+    insights ||--o{ insight_features : "model input"
+    insights ||--o{ event_scores : "one row per model"
+    insights ||--o{ pairwise_labels : "judged as A"
+    insights ||--o{ hypotheses : "per persona"
+
+    labs {
+        int id PK
+        text name UK
+        bool is_public_company
+        text parent_ticker "NULL for private labs"
+    }
+    sources {
+        int id PK
+        text source_type "blog|newsroom|arxiv|github|social"
+        int lab_id FK "NULL for researcher X accounts — a person is not their employer (§25.3)"
+        text name
+        text url UK
+        text channel "official|third_party"
+        text purpose "content|register"
+        bool active
+    }
+    raw_documents {
+        int id PK
+        int source_id FK
+        text source_type
+        text url "indexed — latest_documents view"
+        text content_hash UK "sha256; dedup + C1 immutability"
+        text raw_content "immutable, exactly as fetched"
+        ts published_at
+        ts retrieved_at
+    }
+    evidence {
+        int id PK
+        int document_id FK
+        text locator "JSON; shape varies by source_type"
+        text verbatim_content "re-verified by C2 on every run"
+        text verification "exact|fuzzy|structural"
+        real verification_score
+    }
+    people {
+        int id PK
+        text canonical_name
+        text seniority_tier "founder|research_lead|senior_ic|ic"
+        text discovered_via "seed|coauthor_expansion|manual|auto_approved"
+        ts first_seen_at
+    }
+    identities {
+        int id PK
+        int person_id FK
+        int evidence_id FK "NOT NULL — an identity is never unevidenced"
+        text platform "arxiv|github|x|lab_page"
+        text handle "UK with platform"
+        text confidence_tier "verbatim gt corroborated gt manual_approved gt name_match_only"
+        text resolution_method "self_link|coauthor_overlap|manual|exact"
+    }
+    affiliations {
+        int id PK
+        int person_id FK
+        int lab_id FK "NULL records: person observed, no lab evidence"
+        int evidence_id FK "NOT NULL"
+        text role
+        text basis "page_verbatim|coauthor_inference"
+        ts observed_at "append-only; two labs in a window = a mobility event"
+    }
+    person_candidates {
+        int id PK
+        int evidence_id FK "NOT NULL"
+        text name UK "exactly as it appears on arXiv"
+        text discovered_via "coauthor_expansion"
+        int paper_count "ranks the per-lab slate"
+        text entry_ids "JSON; idempotency"
+        text seed_person_ids "JSON; who they co-authored with"
+        text seed_lab_ids "JSON; labs of those seeds (§22 F2, per-lab slates)"
+        text lab_hint "set only via a lab collective author"
+        text status "pending|approved|rejected"
+        ts reviewed_at
+        ts created_at
+    }
+    insights {
+        int id PK "= the canonical EVENT (plan §20)"
+        int evidence_id FK "NOT NULL — the central invariant"
+        int attributed_person_id FK "denormalized primary-entity cache"
+        int attributed_lab_id FK "denormalized primary-entity cache"
+        text event_type "research|personnel|release|infrastructure|benchmark|open_source|commercial|other"
+        text claim
+        int cluster_id "near-duplicate grouping (Jaccard, measured theta)"
+        real score "from the WINNING model only"
+        text score_components "JSON decomposition, never a bare number"
+        ts created_at
+    }
+    event_entities {
+        int id PK
+        int event_id FK "-- insights(id), indexed"
+        text entity_kind "person|lab"
+        int person_id FK "XOR lab_id, enforced by CHECK"
+        int lab_id FK "XOR person_id, enforced by CHECK"
+        text role "author|releaser|subject|mover_from|mover_to"
+        text basis "model_asserted|source_inferred — C12 keeps a publisher default from scoring as fact"
+        int evidence_id FK "NOT NULL — attribution is always cited"
+    }
+    insight_features {
+        int event_id PK "-- insights(id), indexed"
+        text feature PK "composite PK with event_id"
+        real value "the model reads THESE, never the JSON"
+        ts computed_at
+    }
+    pairwise_labels {
+        int id PK
+        int event_a FK "-- insights(id)"
+        int event_b FK "-- insights(id)"
+        text winner "a|b|tie"
+        text labeler "llm:model | human:name | lf:function — UK with (event_a,event_b)"
+        text thesis_channel "which policy.yml channel decided it"
+        text reason "one line; audited against docs/labeling-rubric.md"
+        ts labeled_at
+    }
+    event_scores {
+        int id PK
+        int event_id FK "-- insights(id); UK with model"
+        text model "baseline_recency|baseline_corroboration|hand_weights|logistic|lgbm|xgb|llm_rank"
+        real score
+        int rank
+        text components "JSON when the model exposes one"
+        int policy_version "NOT NULL — which policy.yml produced this (C17)"
+        ts created_at
+    }
+    hypotheses {
+        int id PK
+        int insight_id FK
+        text persona "investment|ai_team"
+        text hypothesis
+        text tickers
+        text direction
+        text confidence
+        text time_horizon
+        text reasoning "always shown to the reader"
+    }
+    rejections {
+        int id PK
+        int document_id FK "nullable"
+        text stage "stage1|stage2|verification"
+        text reason "indexed — the funnel groups by this"
+        text detail
+        ts created_at
+    }
+    fetch_log {
+        int id PK
+        int source_id FK
+        text status "ok|empty|error|rate_limited"
+        int items_found
+        text detail "decode note; X cost ledger"
+        ts attempted_at
+    }
+    llm_calls {
+        int id PK
+        text task "classify|extract|persona"
+        text model
+        int input_tokens
+        int output_tokens
+        real cost_usd
+        ts created_at
+    }

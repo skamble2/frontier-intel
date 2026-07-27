@@ -1,0 +1,9 @@
+# Register overrides — canonical names, one per '- ' line. These win over the
+# auto-approve rule and survive DB rebuilds. Edit freely; read on every run.
+#   approve: force-promote a person the rule missed
+#   reject:  veto a person the rule would promote
+# Manual `python -m fli.register approve/reject <id>` also writes here.
+
+approve:
+
+reject:

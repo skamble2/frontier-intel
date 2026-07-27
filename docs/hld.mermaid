@@ -1,0 +1,136 @@
+%% Frontier Lab Intelligence — High-Level Design (current as of 2026-07-26)
+%% Import into Lucidchart: File > Import > Mermaid (or paste at mermaid.live).
+%% Legend: green = built & tested · grey dashed = planned · blue = LLM (cost-logged)
+%%         amber = deterministic gate · purple = stored · pink = owned configuration
+flowchart TB
+    POL["config/policy.yml — EDITORIAL POLICY v2<br/>channels · event-type priors · slate_k · hand weights<br/>owner: BIT PM (unassigned) · versioned · NOT in code"]
+
+    subgraph SRC["Sources — 5 types, 22 feeds"]
+        direction LR
+        S1["Lab blogs & newsroom<br/>official channels"]
+        S2["arXiv<br/>au: authorship-anchored"]
+        S3["GitHub<br/>releases.atom"]
+        S4["Manual capture<br/>JS-walled launches"]
+        S5["X / social — PAID<br/>$0.005/post · capped · dry-run first"]
+    end
+
+    subgraph ING["Ingestion (L1) — scheduled, logged, immutable"]
+        I1["fetch_log<br/>every attempt: ok|empty|error|rate_limited"]
+        I2["hash dedup on arrival"]
+        I3[("raw_documents<br/>immutable, sha256-unique")]
+        I4["latest_documents view<br/>newest version per URL"]
+    end
+
+    subgraph REG["Register (L2, 20%) — who to track"]
+        R1["Lab pages + arXiv au: queries"]
+        R2["Seed people<br/>verbatim-name gate"]
+        R3["Co-author expansion<br/>research seeds only (§22 F1)"]
+        R4["Auto-approve<br/>corroborated + top-K/lab slate<br/>overrides file always wins"]
+        R5[("people · identities · affiliations<br/>confidence tiers + basis")]
+    end
+
+    subgraph ST1["Stage 1 (L2, 20%) — deterministic, free"]
+        F1["too_short · no_tracked_entity · not_lab_authored<br/>near_duplicate · kill_list · thread_fragment (D3)"]
+    end
+
+    subgraph ST2["Stage 2 (L2, 10%) — LLM, survivors only"]
+        E1["classify · Haiku · substantive?"]
+        E2["extract · Sonnet · claim + verbatim quote<br/>cap scales with document length"]
+        E3["VERIFY quote against stored bytes<br/>fail is COUNTED, never silently dropped"]
+        E4[("evidence + insights + event_entities<br/>every claim and attribution cited")]
+    end
+
+    NF[("rejections<br/>= the noise-floor appendix")]
+
+    subgraph INT["Intelligence (L3, 20%) — scoring"]
+        C1["cluster · Jaccard, threshold measured not guessed"]
+        C2["insight_features · 9 features<br/>lab identity is NEVER a feature"]
+        C3["pairwise_labels — one row per LABELER<br/>llm: · human: · lf:x6"]
+        C4["Dawid–Skene EM<br/>estimates each labeler's reliability, NO gold data"]
+        C5["bake-off: baselines vs hand_weights<br/>vs logistic vs GBM · identical event set"]
+        C6["event_scores + score_components<br/>stamped with policy_version (C17)"]
+    end
+
+    subgraph EVAL["Evaluation (L3) — planned, docs/evaluation-plan.md §5"]
+        V1["SYNTHETIC: 4 planted policies<br/>F1 · precision · recall · ROC-AUC are honest HERE"]
+        V2["learning curve — how many judgements a PM owes us<br/>noise tolerance sweep"]
+        V3["REAL: agreement only — Cohen's kappa,<br/>correlation matrix, confusion vs human audit"]
+    end
+
+    subgraph OUT["Actionable intelligence (15%) — Day 6"]
+        O1["channel -> ticker map<br/>MU · IREN · RDDT · TSMC"]
+        O2["Investment persona<br/>implications · tickers · thesis"]
+        O3["AI-team persona<br/>adopt / investigate / monitor"]
+        O4[("hypotheses · reasoning always shown")]
+    end
+
+    subgraph DEL["Delivery — Day 6-7"]
+        D1["Weekly digest -> PDF"]
+        D2["Alerts per persona"]
+        D3["Web UI (5%)"]
+    end
+
+    subgraph XC["Cross-cutting"]
+        X1["llm_calls — cost from call #1"]
+        X2["checks C1-C17 — deterministic green gate<br/>re-hashes every doc, re-verifies every quote"]
+        X3["Arize Phoenix — off by default"]
+        X4["test_architecture — fails the build on an upward import"]
+    end
+
+    S1 --> ING
+    S2 --> ING
+    S3 --> ING
+    S4 --> ING
+    S5 --> ING
+    I1 --> I3
+    I2 --> I3
+    I3 --> I4
+    I4 --> R1
+    I4 --> F1
+    R1 --> R2 --> R5
+    R2 --> R3 --> R4 --> R5
+    R5 -. "tracked entities feed the gate" .-> F1
+    R5 -. "x handles -> researcher accounts" .-> S5
+    F1 -- reject --> NF
+    F1 -- survive --> E1
+    E1 -- low_substance --> NF
+    E1 -- substantive --> E2 --> E3
+    E3 -- quote_unverified --> NF
+    E3 -- verified --> E4
+    E4 --> C1 --> C2 --> C3 --> C4 --> C5 --> C6
+    C6 -.-> OUT
+    C2 -.-> V1
+    V1 --> V2
+    C4 -.-> V3
+    O1 --> O2
+    O1 --> O3
+    O2 --> O4
+    O3 --> O4
+    OUT -.-> DEL
+    E1 -.-> X1
+    E2 -.-> X1
+    E1 -.-> X3
+    E2 -.-> X3
+
+    POL -- "channels + lexicons" --> C3
+    POL -- "event-type prior" --> C2
+    POL -- "hand weights (baseline to beat)" --> C5
+    POL -- "slate_k" --> R4
+    POL -- "channel -> anchor positions" --> O1
+
+    classDef built fill:#d9f2e6,stroke:#1a7f4b,color:#0b3d24;
+    classDef planned fill:#f0f0f0,stroke:#999,color:#444,stroke-dasharray:5 3;
+    classDef llm fill:#dbeafe,stroke:#2563eb,color:#1e3a8a;
+    classDef gate fill:#fef3c7,stroke:#b45309,color:#7c2d12;
+    classDef store fill:#ede9fe,stroke:#6d28d9,color:#3b0764;
+    classDef policy fill:#fce7f3,stroke:#be185d,color:#831843;
+    classDef paid fill:#ffe4e6,stroke:#be123c,color:#881337;
+
+    class S1,S2,S3,S4,I1,I2,R1,R2,R3,R4,C1,C2 built;
+    class I3,I4,R5,E4,NF store;
+    class F1 gate;
+    class E1,E2,E3 llm;
+    class S5 paid;
+    class POL policy;
+    class C3,C4,C5,C6,V1,V2,V3,O1,O2,O3,O4,D1,D2,D3,X3 planned;
+    class X1,X2,X4 built;

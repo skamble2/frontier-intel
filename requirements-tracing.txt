@@ -1,0 +1,11 @@
+# Optional — Day-4 observability CLIENT libs only. These are all the pipeline
+# imports (fli/tracing.py uses opentelemetry, never phoenix). Small, safe to add
+# to the project .venv. Enable with FLI_TRACING=1.
+opentelemetry-sdk
+opentelemetry-exporter-otlp-proto-http
+
+# The Phoenix VIEWER (arize-phoenix) is a heavy server with a large dependency
+# tree — do NOT install it into this env or your base conda env (it will upgrade
+# shared libs and break other tools). Run it isolated instead:
+#   docker run -p 6006:6006 arizephoenix/phoenix:latest
+# or `pip install arize-phoenix` in a SEPARATE dedicated venv.

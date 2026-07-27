@@ -1,0 +1,265 @@
+# Running the pipeline
+
+## Repository layout
+
+Packages mirror the four data layers, so the code map and the data model are the
+same picture. Full rationale in **`docs/refactor-spec.md`**.
+
+```
+fli/core/           shared primitives: text, http, config, paths
+fli/storage/        persistence (SQLite) - no domain logic
+fli/ingestion/      LAYER 1  raw sources
+fli/knowledge/      LAYER 2  filtering, extraction, register
+fli/intelligence/   LAYER 3  clustering, features, labels, scoring
+fli/ops/            LLM client, tracing (cross-cutting)
+fli/validation/     C1-C16 invariant battery (reads every layer)
+fli/orchestration/  pipeline, skeleton (composition only)
+```
+
+Import direction is enforced by `tests/test_architecture.py`, which fails the
+build if a lower layer imports a higher one.
+
+Every layer runs on its own — both of these work, and both accept the same flags:
+
+```bash
+python3 -m fli.cli checks           # unified dispatcher; `--help` lists all layers
+python3 -m fli.validation.checks    # the layer directly
+```
+
+Split of responsibilities during development:
+
+- **Sandbox (Claude):** everything deterministic — schema, ingestion replay, Stage-1 filter, verification, scoring, rendering, tests. LLM calls are blocked by the sandbox's credential-protection proxy.
+- **Your machine:** anything needing `ANTHROPIC_API_KEY` (Stage-2 extraction) and live HTTP fetching.
+
+## One-time setup
+
+```bash
+cd ~/Downloads/BitCapCaseStudy/frontier-intel
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+`.env` with `ANTHROPIC_API_KEY=...` already exists in this folder.
+
+## Walking skeleton (one doc → one cited insight)
+
+```bash
+source .venv/bin/activate
+python3 -m fli.cli skeleton
+```
+
+Expected output: ingested doc id, then an `=== INSIGHT ===` block with claim,
+verbatim evidence quote, source URL, and the token/cost line from `llm_calls`.
+The DB lands in `data/fli.db` — every table inspectable with `sqlite3 data/fli.db`.
+
+If it errors, paste the full output back into the chat.
+
+## Day 2 — register (labs, people, entity resolution)
+
+All deterministic; no API key needed. Already run once on `data/fli.db` (2026-07-22);
+all commands are idempotent — re-running never double-counts.
+
+```bash
+python3 -m fli.cli register seed     # 7 labs + seed people (fetch + verbatim-name gate)
+python3 -m fli.cli register report   # register counts for the write-up
+```
+
+**Co-author expansion** lives in `fli/knowledge/expansion.py` (`python3 -m fli.cli expand`).
+It anchors on RESEARCH seeds only (founders are tracked but not co-authorship
+anchors — §22 F1), so one CEO's broad institutional paper no longer swamps the
+queue. Idempotent.
+
+**Approval is automated and re-asserted every run (§22.3):**
+
+```bash
+python3 -m fli.cli register auto_approve   # deterministic: corroborated + valid name
+                                       # + top-K per lab slate, minus vetoes
+python3 -m fli.cli register queue          # the per-lab slates (what auto_approve will take)
+```
+
+`auto_approve` runs inside `fli.orchestration.pipeline` too, so per-lab balance is re-asserted
+daily, never by hand. `config/register_overrides.yml` (`approve:` / `reject:` by
+canonical name) is read every run and always wins over the rule; a human can add
+or veto a name at any time without blocking the pipeline. Manual CLI still works
+and writes into that file, so decisions survive DB rebuilds:
+
+```bash
+python3 -m fli.cli register approve <id> [<id>]  # force-promote + record in overrides
+python3 -m fli.cli register reject  <id> [<id>]  # veto + record in overrides
+```
+
+**Register balance** (candidates / approved / insights per lab) prints every run
+(check C13) — the honest de-skew evidence, stated not assumed.
+
+> §22/§23 change the schema (`person_candidates.seed_lab_ids`, `people.discovered_via`
+> gains `auto_approved`) and the discovery method, so they take effect on the next
+> **truncate + rebuild** (`rm data/fli.db` → `register seed` → `pipeline`), which is
+> the normal refresh flow. Rebuilding re-discovers candidates research-anchored.
+
+**Schema changes:** `storage/schema.sql` is authoritative; the existing
+`data/fli.db` is migrated by hand when it changes (no migration framework —
+single-user project, one database).
+
+## Day 3 — ingestion pipeline
+
+One command runs the whole daily cycle (ingest 21 sources across 4 types →
+stage-1 filter → stage-2 extraction → re-observe affiliations → validation
+battery; exit 0 = green):
+
+```bash
+python3 -m fli.cli pipeline                    # extraction capped at 60 docs/run
+python3 -m fli.cli pipeline --max-extract 200  # raise the cost cap explicitly
+```
+
+Stage 2 needs `ANTHROPIC_API_KEY` (from `.env`); without it that stage is
+skipped and everything deterministic still runs and stays green. Each run
+prints D1 (quote verification rate), D2 (event-type distribution), and
+cumulative LLM cost.
+
+Idempotent: re-runs hash-dedup everything already stored, never re-extract a
+document that has an insight or a stage-2 verdict, only extract the latest
+version of each URL, skip already-rejected docs, and observe at most one
+affiliation per person/lab per day. To schedule
+hourly:
+
+```
+crontab -e
+0 * * * * cd ~/Downloads/BitCapCaseStudy/frontier-intel && ./.venv/bin/python -m fli.cli pipeline >> pipeline.log 2>&1
+```
+
+Individual stages, if needed: `python3 -m fli.cli ingest`, `python3 -m fli.cli filter`,
+`python3 -m fli.cli register observe`.
+
+## X (social) — the only paid source
+
+Pay-per-use, billed **per resource returned** (rates read from
+docs.x.com/x-api/getting-started/pricing on 2026-07-26):
+
+| resource | cost |
+|---|---|
+| Posts: Read | $0.005 each |
+| User: Read | $0.010 each |
+
+Resources are **deduplicated within a 24h UTC window**, so re-running the same
+day costs nothing for posts already seen. There is no subscription and no
+minimum spend — which is why this source is affordable now and was not under
+the old $200/month Basic tier.
+
+**Add the token to `.env`** (same file as `ANTHROPIC_API_KEY`):
+
+```
+X_BEARER_TOKEN=AAAAAAAAAA...
+```
+
+Get it from [console.x.com](https://console.x.com) → your app → *Keys and
+tokens* → Bearer Token. Also set a **spending limit** in the console; the caps
+below are the second line of defence, not the first.
+
+**Always dry-run first.** It prints the worst-case cost and spends nothing:
+
+```bash
+python3 -m fli.cli x --dry-run     # cost estimate only
+python3 -m fli.cli x               # fetch, hard-capped
+```
+
+Spending controls live in `fli/core/config.py` and are checked *before* the
+first request, so a pagination bug cannot drain the balance:
+
+```
+X_MAX_POSTS_PER_ACCOUNT = 20
+X_MAX_POSTS_PER_RUN     = 400     # ceiling of $2.00 of posts per run
+X_RUN_BUDGET_USD        = 3.00    # refuses to start if worst case exceeds this
+```
+
+Every run prints a cost ledger (`N posts x $0.005 + M users x $0.010 = $X`) and
+writes the running spend into `fetch_log.detail`.
+
+**Attribution rule.** Lab accounts (`@OpenAI`, `@AnthropicAI`, …) are
+`channel='official'` with a `lab_id` — those are the lab speaking, so a
+`source_inferred` attribution is legitimate. Researcher accounts come from
+`identities` (`platform='x'`) and carry **no lab** and `channel='third_party'`:
+a person tweeting is not their employer announcing, and check C12 would
+otherwise let every personal post be attributed to the lab as if it were
+official.
+
+Researcher handles are not yet populated — `identities` has 0 rows with
+`platform='x'`, so a run currently covers the 7 lab accounts only ($0.77 worst
+case). Adding handles is what unlocks personnel-move coverage.
+
+## Day 4 — observability (optional, for prompt iteration)
+
+Off by default. When on, every `LLM.call` emits an OpenInference span (prompt,
+completion, model, token counts, tagged `fli.task` = classify|extract|persona)
+to a local Phoenix — so a classifier verdict shows the exact input it judged.
+This is dev tooling for the LLM-iteration loop only; `checks.py` stays the
+source of truth and the write-up reports measured numbers, never the tooling.
+
+Run Phoenix (the viewer) **isolated** — it is a heavy server and must not share
+this env or your base conda env, or it will upgrade shared libs and break other
+tools. Use Docker (nothing installed into Python):
+
+```bash
+docker run -p 6006:6006 arizephoenix/phoenix:latest   # UI + collector at :6006
+```
+
+Then, in the project `.venv` (not base conda), the lightweight client only:
+
+```bash
+source .venv/bin/activate
+pip install -r requirements-tracing.txt   # opentelemetry client libs, small
+FLI_TRACING=1 python3 -m fli.cli pipeline      # spans stream to Phoenix at :6006
+```
+
+Without the extras (or without `FLI_TRACING`), tracing is a no-op and the
+deterministic pipeline is unaffected. Endpoint override: `PHOENIX_COLLECTOR_ENDPOINT`.
+(If you prefer not to use Docker, run `pip install arize-phoenix && phoenix serve`
+in a **separate** dedicated venv — never this one or base.)
+
+## Day 5 — scoring & validation (20%, the data-science core)
+
+Full work order with acceptance criteria: **`docs/day5-scoring-spec.md`**.
+Order matters — clusters gate the corroboration feature, features gate training.
+
+```bash
+python3 -m fli.cli cluster                 # task 1: populate cluster_id (Jaccard, measured θ)
+python3 -m fli.cli features                # task 2: build insight_features
+python3 -m fli.cli label                   # task 3: ~150 pairwise labels (resumable, stratified)
+python3 -m fli.cli score --bakeoff         # task 4: baselines vs logistic vs GBMs + ablation
+python3 -m fli.cli checks                  # expect C14-C16 green
+sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
+```
+
+Key constraints (all measured, see the spec for numbers):
+
+- **Lab identity is never a feature**; pairwise labels are lab-stratified; per-lab
+  precision@10 is reported as a fairness check (plan §22.5).
+- A **hand-weighted sum is a baseline to beat**, not the deliverable — the brief
+  calls an arbitrary weighted sum a red flag (plan §10).
+- The **contributor feature is a lab-level proxy** because person attribution
+  resolves on 1 of 406 events; the ablation is expected to show it contributes
+  little, and that negative result is reported rather than hidden.
+- No embeddings, no vector store, no second database (plan §24.3) — SQL plus
+  scikit-learn over 406 rows.
+
+## Metrics harness (reproducible from the committed DB)
+
+```bash
+sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
+```
+
+Regression guards (G1–G5b) sit at the top of the output and answer "did the last
+fix land?" against the previous run's numbers, inline. Snapshots live in
+`data/snapshots/` — `fli-robustness-evidence.db` is the artifact behind the
+ingestion-robustness claim (4 failure modes incl. HTTP 429), since a
+truncate+rebuild resets `fetch_log` to all-ok.
+
+## Pipeline-green gate (run after ANY change, any day)
+
+```bash
+python3 -m fli.cli checks                    # DB invariants; exit 0 = green
+python3 -m unittest discover -s tests -t .       # unit tests for the pure functions
+```
+
+Re-hashes every stored document, re-verifies every evidence row against the
+stored bytes, and asserts all register invariants. Pure function of the DB —
+no network, no LLM, no randomness.
