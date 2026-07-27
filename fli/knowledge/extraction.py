@@ -69,7 +69,14 @@ def _json_of(text: str) -> dict:
     if t.startswith("```"):
         t = t.split("```")[1]
         t = t[4:] if t.startswith("json") else t
-    return json.loads(t)
+    try:
+        return json.loads(t)
+    except json.JSONDecodeError:
+        # model wrapped the JSON in prose — take the outermost brace span
+        s, e = t.find("{"), t.rfind("}")
+        if s != -1 and e > s:
+            return json.loads(t[s:e + 1])
+        raise
 
 
 def classify(llm: LLM, content: str) -> Classification:
@@ -212,13 +219,19 @@ def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int
 def extract_all(conn: sqlite3.Connection, llm: LLM, max_docs: int = 60) -> dict:
     """Stage 2 over stage-1 survivors that have no insight and no prior
     stage-2 verdict. Only the latest version of each URL is extracted.
-    Capped per run so a large backlog cannot surprise the budget."""
+    Capped per run so a large backlog cannot surprise the budget.
+
+    Parse errors (classify/extract returned malformed JSON) are TRANSIENT —
+    a retry usually succeeds — so they do not permanently exclude a document
+    the way substantive rejections do. Retries stay bounded by max_docs."""
     docs = conn.execute(
         "SELECT d.id FROM latest_documents d"
         " JOIN sources s ON s.id = d.source_id"
         " WHERE s.purpose = 'content'"
         " AND d.id NOT IN (SELECT document_id FROM rejections"
-        "                  WHERE document_id IS NOT NULL)"
+        "                  WHERE document_id IS NOT NULL"
+        "                  AND reason NOT IN ('classify_parse_error',"
+        "                                     'extract_parse_error'))"
         " AND d.id NOT IN (SELECT e.document_id FROM insights i"
         "                  JOIN evidence e ON e.id = i.evidence_id)"
         " ORDER BY d.published_at DESC LIMIT ?", (max_docs,)).fetchall()

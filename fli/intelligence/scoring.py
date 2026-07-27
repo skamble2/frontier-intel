@@ -38,17 +38,25 @@ def hand_weights() -> dict[str, float]:
     return load_policy().hand_weights
 
 
-def load_pairs(conn) -> list[tuple[int, int, str]]:
-    """Training judgements only.
+def load_pairs(conn) -> list[tuple[int, int, str, str]]:
+    """Training judgements only, as (event_a, event_b, winner, labeler).
 
     `human:%` labels are the audit sample — the one independent signal against
     which the labeler's reliability is measured. Training on them would
     contaminate that measurement, so they are excluded here
     (docs/scoring-without-ground-truth.md §3).
+
+    LLM verdicts the judge itself marked `conf=low` are also excluded: the r4
+    prompt promises exactly this ("low-confidence pairs are excluded from
+    training"), because a forced choice on an equal pair is a coin flip that
+    would enter training looking like signal.
     """
-    return [(r["event_a"], r["event_b"], r["winner"]) for r in
-            conn.execute("SELECT event_a, event_b, winner FROM pairwise_labels"
-                         " WHERE labeler NOT LIKE 'human:%'")]
+    return [(r["event_a"], r["event_b"], r["winner"], r["labeler"]) for r in
+            conn.execute("SELECT event_a, event_b, winner, labeler"
+                         " FROM pairwise_labels"
+                         " WHERE labeler NOT LIKE 'human:%'"
+                         " AND NOT (labeler LIKE 'llm:%'"
+                         "          AND reason LIKE '%conf=low%')")]
 
 
 def _standardize(X):
@@ -62,7 +70,7 @@ def _pair_xy(pairs, Xz, row):
     """Both directions per non-tie pair -> an antisymmetric training set that a
     fit_intercept=False model turns into a per-event score w·x."""
     xs, ys = [], []
-    for a, b, w in pairs:
+    for a, b, w, *_ in pairs:
         if w == "tie":
             continue
         d = Xz[row[a]] - Xz[row[b]]
@@ -73,17 +81,23 @@ def _pair_xy(pairs, Xz, row):
 
 
 def _split(pairs, seed=RANDOM_SEED, test_frac=TEST_FRAC):
+    """Split at the PAIR level, not the row level. The same (a, b) pair judged
+    by several labelers is several rows; a row-level split puts the identical
+    pair on both sides, so "held-out" accuracy partly measures memorisation of
+    training pairs. All rows for one pair land on the same side."""
+    keys = sorted({(p[0], p[1]) for p in pairs})
     rng = np.random.RandomState(seed)
-    idx = rng.permutation(len(pairs))
-    cut = int(len(pairs) * (1 - test_frac))
-    tr = [pairs[i] for i in idx[:cut]]
-    te = [pairs[i] for i in idx[cut:]]
+    idx = rng.permutation(len(keys))
+    cut = int(len(keys) * (1 - test_frac))
+    test_keys = {keys[i] for i in idx[cut:]}
+    tr = [p for p in pairs if (p[0], p[1]) not in test_keys]
+    te = [p for p in pairs if (p[0], p[1]) in test_keys]
     return tr, te
 
 
 def _pairwise_accuracy(pairs, scores, row) -> float:
     ok = tot = 0
-    for a, b, w in pairs:
+    for a, b, w, *_ in pairs:
         if w == "tie":
             continue
         tot += 1
@@ -95,7 +109,7 @@ def _pairwise_accuracy(pairs, scores, row) -> float:
 def _gold_net_wins(pairs) -> dict:
     """Relevance per event: wins minus losses over the labeled pairs."""
     net = defaultdict(int)
-    for a, b, w in pairs:
+    for a, b, w, *_ in pairs:
         if w == "a":
             net[a] += 1; net[b] -= 1
         elif w == "b":
@@ -193,16 +207,24 @@ def bakeoff(conn) -> dict:
     gbm_scores = np.array([predict((Xz[i] - xmean).reshape(1, -1))[0][1] for i in range(len(ids))])
     model_scores[gbm_label] = gbm_scores
 
-    # held-out pairwise accuracy + ranking metrics
+    # held-out pairwise accuracy + ranking metrics.
+    # acc_llm is the honest generalisation number: the LFs are deterministic
+    # functions of the very features the models train on (lf:corroboration <->
+    # corroboration, lf:specificity <-> specificity, ...), so accuracy against
+    # mixed labels is partly a model recovering its own inputs. Accuracy
+    # against the LLM judge's held-out verdicts alone has no such circularity.
+    te_llm = [p for p in te if p[3].startswith("llm:")] if te and len(te[0]) > 3 else []
     ts = storage.now_utc()
     pol = load_policy()   # stamped on every row (check C17)
     conn.execute("DELETE FROM event_scores")
     report = {}
     for model, scores in model_scores.items():
         acc = _pairwise_accuracy(te, scores, row)
+        acc_llm = _pairwise_accuracy(te_llm, scores, row)
         p10 = _precision_at_k(scores, row, gold, 10)
         ndcg = _ndcg_at_k(scores, row, gold, 20)
-        report[model] = {"heldout_acc": acc, "p@10": p10, "ndcg@20": ndcg}
+        report[model] = {"heldout_acc": acc, "heldout_acc_llm": acc_llm,
+                         "p@10": p10, "ndcg@20": ndcg}
         ranks = _dense_rank(scores)
         for i, iid in enumerate(ids):
             conn.execute(

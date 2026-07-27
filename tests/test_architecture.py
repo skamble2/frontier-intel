@@ -29,7 +29,7 @@ def _layer_of(path: Path) -> str | None:
 
 
 def _imported_layers(path: Path) -> set[str]:
-    tree = ast.parse(path.read_text())
+    tree = ast.parse(path.read_text(encoding="utf-8"))
     out = set()
     for node in ast.walk(tree):
         mod = None

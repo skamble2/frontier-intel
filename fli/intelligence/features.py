@@ -9,7 +9,9 @@ documented neutral value.
 Lab identity is NEVER a feature (§22.5): no is_openai. A DeepMind release and an
 OpenAI release compete on merits.
 
-Pure function of the DB — re-running reproduces identical values.
+Pure function of the DB except `recency`, which decays from the wall clock at
+compute time — re-running on the same day reproduces identical values; across
+days only recency moves (by design).
 
 Run:  python -m fli.cli features
 """
@@ -62,15 +64,21 @@ def compute_features(conn: sqlite3.Connection) -> dict:
         " AND p.discovered_via IN ('coauthor_expansion','auto_approved')"
         " GROUP BY a.lab_id")}
 
+    # basis via a scalar subquery, not a LEFT JOIN: event_entities is 0..N per
+    # event, so a join fans one insight into several feature-row inserts the
+    # moment an event carries two lab entities. First entity row (lowest id)
+    # is the deterministic representative.
     rows = conn.execute(
         "SELECT i.id, i.event_type, i.cluster_id, i.attributed_lab_id,"
         " d.published_at, d.source_type, s.channel,"
-        " ev.verbatim_content AS quote, eent.basis"
+        " ev.verbatim_content AS quote,"
+        " (SELECT ee.basis FROM event_entities ee"
+        "   WHERE ee.event_id = i.id AND ee.entity_kind = 'lab'"
+        "   ORDER BY ee.id LIMIT 1) AS basis"
         " FROM insights i"
         " JOIN evidence ev ON ev.id = i.evidence_id"
         " JOIN raw_documents d ON d.id = ev.document_id"
         " JOIN sources s ON s.id = d.source_id"
-        " LEFT JOIN event_entities eent ON eent.event_id = i.id AND eent.entity_kind='lab'"
     ).fetchall()
 
     conn.execute("DELETE FROM insight_features")
