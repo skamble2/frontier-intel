@@ -69,9 +69,8 @@ def main() -> None:
         print(f"  rejected {reason}: {n}")
     print(f"  near-duplicates suppressed: {filter1.suppress_near_dups(conn)}")
 
-    # Register discovery + approval run BEFORE extraction (§22.3 expand ->
-    # auto_approve -> rest) so the layer-below people exist when stage 2 resolves
-    # per-insight person attribution (§23 W1).
+    # Register discovery + approval run BEFORE extraction, so the layer-below
+    # people exist when stage 2 resolves per-insight person attribution.
     print("\n=== co-author expansion (research seeds) ===")
     try:
         expand.expand_coauthors(conn)

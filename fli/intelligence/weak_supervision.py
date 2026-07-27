@@ -1,4 +1,4 @@
-"""Labeling functions + Dawid-Skene EM — Day-5 spec section 5.2.
+"""Labeling functions + Dawid-Skene EM.
 
 The problem this solves: nobody on this project can credibly say which of two
 events matters more to a portfolio manager, so there is no gold standard to

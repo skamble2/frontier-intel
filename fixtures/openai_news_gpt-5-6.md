@@ -4,7 +4,7 @@ source_type: newsroom
 lab: OpenAI
 published_at: 2026-07-09
 retrieved_at: 2026-07-24
-fetch_method: manual capture (JS-rendered page; static fetch returns an empty shell — see plan §20.8)
+fetch_method: manual capture (JS-rendered page; static fetch returns an empty shell)
 ---
 GPT-5.6: Frontier intelligence that scales with your ambition | OpenAI
 July 9, 2026

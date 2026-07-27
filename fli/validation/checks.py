@@ -14,8 +14,8 @@ C10 no orphan evidence      every evidence row is referenced by something
 C11 event entities cited     every event_entities attribution re-verifies
 C12 inferred basis is official  source_inferred attributions trace to an official channel
 (register balance per lab is PRINTED, not checked: it has no failing
- condition, so it is evidence for the write-up rather than a gate)
-C14 clusters well-formed     clustering absent-or-complete; no cluster spans event_type (§10)
+ condition, so it is reported as evidence rather than enforced as a gate)
+C14 clusters well-formed     clustering absent-or-complete; no cluster spans event_type
 C15 scored events have features  every event in event_scores has an insight_features row
 C16 bake-off covers identical set  every model in event_scores scores the same event set
 C17 scores cite a known policy     every event_scores row names the current policy version,
@@ -180,7 +180,7 @@ def run(conn: sqlite3.Connection) -> int:
            if r["channel"] != "official"]
     check("C12 inferred basis is official", bad, all_failures)
 
-    # Register balance (§22.4). Printed, not checked: it has no failing
+    # Register balance. Printed, not checked: it has no failing
     # condition, but the de-skew claim must be read off measured numbers.
     print("\nregister balance (candidates / approved / insights per lab):")
     from fli.knowledge.register import balance_by_lab
@@ -188,7 +188,7 @@ def run(conn: sqlite3.Connection) -> int:
         print(f"  {lab:<16} cand={d['candidates']:<4} approved={d['approved']:<3}"
               f" insights={d['insights']}")
 
-    # --- Day 5 (§10 scoring). Each enforces only once its artifact exists. ---
+    # --- Scoring. Each enforces only once its artifact exists. ---
     cc = conn.execute("SELECT count(cluster_id) c, count(*) t FROM insights").fetchone()
     bad = []
     if 0 < cc["c"] < cc["t"]:

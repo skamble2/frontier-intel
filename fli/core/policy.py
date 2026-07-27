@@ -47,7 +47,8 @@ _KEYS = {"version", "owner", "effective_from", "source", "channels",
 # `positions` is OPTIONAL so this module loads both a v2 file (no positions)
 # and a v3 file (with them). That is what makes the rollout safe: new code
 # reads old config, so the code can ship before the policy is swapped.
-_OPTIONAL_KEYS = {"positions"}
+_OPTIONAL_KEYS = {"positions", "window_days", "show_undated",
+                  "max_per_lab", "story_rare_df", "story_days"}
 _POSITION_KEYS = {"ticker", "name", "weight_pct", "thesis", "exposure_terms"}
 
 
@@ -76,6 +77,12 @@ class Policy:
     event_type_prior: dict[str, int]
     slate_k: int
     hand_weights: dict[str, float]
+    window_days: int = 90
+    show_undated: bool = False
+    # Slate composition — render-time only, never seen by the scorer.
+    max_per_lab: int = 0            # 0 = no cap
+    story_rare_df: float = 0.0      # 0 = same-story suppression off
+    story_days: int = 7
     positions: tuple[Position, ...] = ()
     positions_as_of: str | None = None
     positions_source: str | None = None
@@ -123,8 +130,8 @@ class Policy:
 
     @property
     def is_owned(self) -> bool:
-        """False while `owner` is a placeholder, so the write-up cannot claim a
-        domain sign-off that never happened."""
+        """False while `owner` is a placeholder, so nothing can claim a domain
+        sign-off that never happened."""
         return "unassigned" not in self.owner.lower()
 
 
@@ -147,6 +154,11 @@ def parse_policy(raw: dict) -> Policy:
         raise PolicyError("policy.yml: `version` must be an integer")
     if not isinstance(raw["slate_k"], int) or raw["slate_k"] < 1:
         raise PolicyError("policy.yml: `slate_k` must be a positive integer")
+    if not 0 <= float(raw.get("story_rare_df", 0.0)) <= 1:
+        raise PolicyError(
+            "policy.yml: `story_rare_df` is a FRACTION of claims (0-1), not a "
+            "count. 0.03 means 'a token in at most 3% of claims'; 3 would make "
+            "every token uncommon and collapse the slate to one item per lab.")
 
     channels = {}
     for name, terms in (raw["channels"] or {}).items():
@@ -199,6 +211,11 @@ def parse_policy(raw: dict) -> Policy:
         event_type_prior={str(k): int(v) for k, v in prior.items()},
         slate_k=raw["slate_k"],
         hand_weights={str(k): float(v) for k, v in weights.items()},
+        window_days=int(raw.get("window_days", 90)),
+        show_undated=bool(raw.get("show_undated", False)),
+        max_per_lab=int(raw.get("max_per_lab", 0)),
+        story_rare_df=float(raw.get("story_rare_df", 0.0)),
+        story_days=int(raw.get("story_days", 7)),
         positions=tuple(positions),
         positions_as_of=pos_block.get("as_of"),
         positions_source=pos_block.get("source"),
@@ -235,4 +252,4 @@ def describe(policy: Policy) -> str:
     return (f"policy v{policy.version} ({policy.effective_from})  owner: {owner}\n"
             f"  channels: {', '.join(policy.channels)}\n"
             f"  event types ranked: {len(policy.event_type_prior)}  "
-            f"slate_k: {policy.slate_k}")
+            f"slate_k: {policy.slate_k}  window: {policy.window_days}d")

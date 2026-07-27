@@ -59,7 +59,7 @@ class TestLabResolution(unittest.TestCase):
         cases = [
             ("bare name", "Meta", 2), ("with suffix", "Meta AI", 2),
             ("added suffix", "Mistral AI", 3), ("dropped prefix", "DeepMind", 4),
-            # REGRESSION (P0): whitespace-only tokenizing left hyphenated names
+            # REGRESSION: whitespace-only tokenizing left hyphenated names
             # unmatched, so DeepSeek events fell back to the publishing source.
             # DeepSeek source_inferred attribution: 87.1% -> 0.0%.
             ("hyphenated collective", "DeepSeek-AI", 5),
@@ -172,7 +172,7 @@ CLASSIFY = json.dumps({"event_type": "release", "substantive": True, "reason": "
 
 
 class TestStage2(unittest.TestCase):
-    """§23: one document yields several quote-verified events, each separately
+    """One document yields several quote-verified events, each separately
     attributed — and unverifiable quotes are COUNTED, never silently dropped."""
 
     def setUp(self):
@@ -207,7 +207,7 @@ class TestStage2(unittest.TestCase):
         # 2 model-asserted labs + 1 filled in from the official channel
         self.assertEqual(3, self._count("event_entities", "WHERE entity_kind='lab'"))
         self.assertEqual(1, self._count("event_entities", "WHERE basis='source_inferred'"))
-        # W1: person attribution resolved and stored
+        # person attribution resolved and stored
         self.assertEqual(1, self._count("event_entities", "WHERE entity_kind='person'"))
         self.assertEqual(2, self.conn.execute(
             "SELECT person_id FROM event_entities WHERE entity_kind='person'").fetchone()[0])

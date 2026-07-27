@@ -13,7 +13,7 @@ from pydantic import BaseModel, ValidationError
 
 from fli import storage
 from fli.core.text import contains_verbatim, html_to_text, name_key, norm
-from fli.knowledge.labs import resolve_lab  # shared lab-name resolver (plan §20.7)
+from fli.knowledge.labs import resolve_lab  # shared lab-name resolver
 from fli.ops.llm import LLM
 from fli.core.config import MAX_INSIGHTS_PER_DOC
 
@@ -80,19 +80,19 @@ def _json_of(text: str) -> dict:
 
 
 def classify(llm: LLM, content: str) -> Classification:
-    """Cheap Haiku gate before the expensive Sonnet extract (§23 W4): it kills
+    """Cheap Haiku gate before the expensive Sonnet extract: it kills
     ~28% of documents, which more than pays for the 6k prefix both stages see."""
     out = llm.call("classify", CLASSIFY_SYSTEM, content[:6000], max_tokens=200)
     return Classification(**_json_of(out))
 
 
 def extract(llm: LLM, content: str) -> list[ExtractedInsight]:
-    """The document's distinct events (§23 W2). The cap scales with available
+    """The document's distinct events. The cap scales with available
     evidence (~1 per 1000 chars) so short documents can't quota-fill events;
     the model is told the per-document max and the list is truncated to it.
     Empty list is valid; malformed JSON raises and is logged upstream.
 
-    Truncates at 12k chars (§23 W5): an event described only in a long
+    Truncates at 12k chars: an event described only in a long
     document's tail is currently unreachable.
     """
     max_insights = max(1, min(MAX_INSIGHTS_PER_DOC, len(content) // 1000))
@@ -104,8 +104,8 @@ def extract(llm: LLM, content: str) -> list[ExtractedInsight]:
 
 def resolve_person(conn: sqlite3.Connection, name: str | None) -> int | None:
     """Extracted person name -> people.id via the order-insensitive name_key
-    (same key the register resolves with). Unmatched -> None (absence recorded,
-    P6). This is the person-level attribution the register is graded on (§23 W1)."""
+    (same key the register resolves with). Unmatched -> None, so an absence is
+    recorded rather than guessed."""
     if not name:
         return None
     key = name_key(name)
@@ -135,7 +135,7 @@ def verify_quote(raw_content: str, quote: str) -> tuple[str, float] | None:
 def _attribute_lab(conn, ins: ExtractedInsight, src) -> tuple[int | None, str]:
     """Resolve the insight's lab and its basis: the model's named lab
     (model_asserted), else the publisher of an official channel (source_inferred,
-    §20.7). src is the (lab_id, channel) row of the document's source."""
+    src is the (lab_id, channel) row of the document's source."""
     lab_id = resolve_lab(conn, ins.attributed_lab)
     if lab_id is not None:
         return lab_id, "model_asserted"
@@ -148,7 +148,7 @@ def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int
     """Full stage 2 for one document. Returns the list of insight ids it
     produced (empty if the document yielded none — reason logged). Idempotent:
     a document that already has any insight is never re-extracted. A document
-    can yield several events, each independently quote-verified (§23 W2)."""
+    can yield several events, each independently quote-verified."""
     existing = conn.execute(
         "SELECT i.id FROM insights i JOIN evidence e ON e.id = i.evidence_id"
         " WHERE e.document_id = ?", (document_id,)).fetchall()
@@ -183,7 +183,7 @@ def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int
         verdict = verify_quote(doc["raw_content"], ins.quote)
         if verdict is None:
             # per-insight hallucination-control counter — this is D1's denominator,
-            # so it must be logged, never silently skipped (P6, noise-floor appendix).
+            # so it must be logged, never silently skipped.
             storage.log_rejection(conn, document_id, "verification",
                                   "quote_unverified", ins.quote[:200])
             continue
@@ -266,3 +266,27 @@ def report_measurements(conn: sqlite3.Connection) -> None:
                           " WHERE stage IN ('stage2','verification')"
                           " GROUP BY 1 ORDER BY c DESC"):
         print(f"  stage2 rejected {r['reason']}: {r['c']}")
+
+
+def main() -> None:
+    """Stage 2 on its own. Previously only reachable inside `fli.cli pipeline`,
+    so there was no way to extract from newly-ingested documents without
+    re-running ingestion."""
+    import argparse
+    from pathlib import Path
+    from fli.ops.llm import LLM, have_api_key
+    ap = argparse.ArgumentParser(description="Stage-2 extraction. SPENDS MONEY.")
+    ap.add_argument("--db", default=str(storage.DEFAULT_DB))
+    ap.add_argument("--max", type=int, default=60,
+                    help="cost cap: documents to extract this run")
+    args = ap.parse_args()
+    if not have_api_key():
+        raise SystemExit("ANTHROPIC_API_KEY not set (put it in .env).")
+    conn = storage.connect(Path(args.db))
+    storage.init_db(conn)
+    print(extract_all(conn, LLM(conn), max_docs=args.max))
+    report_measurements(conn)
+
+
+if __name__ == "__main__":
+    main()

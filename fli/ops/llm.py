@@ -27,7 +27,7 @@ MODEL_FOR_TASK = {
     "persona": "claude-sonnet-5",             # reasoning quality visible to end reader
     "label": "claude-sonnet-5",               # rubric application; the reference set
     "judge": "claude-sonnet-5",               # pairwise preference; reasoning is audited
-    # D4: the channel classifier that replaces keyword matching (F1 0.195).
+    # the channel classifier that replaces keyword matching (F1 0.195).
     # Haiku because it runs over every event and the task is a 5-way choice with
     # the rubric supplied — cheap model, bounded output, cost-quality trade-off
     # measured rather than assumed (see docs/report-notes.md).

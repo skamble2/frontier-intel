@@ -1,14 +1,15 @@
-"""Task 4 (§10 / §20.4 / day5-spec): the scoring bake-off.
+"""The scoring bake-off.
 
 Ranking is turned into binary classification on pairwise feature DIFFERENCES
 (x_a - x_b -> a wins), the standard trick that works at ~150 labels. Every model
 scores the identical 406-event set, so comparison is fair. A hand-weighted sum is
-included as the baseline to beat (the brief calls an arbitrary weighted sum a red
-flag); whichever model wins on held-out pairs ships, even if it is the simple one.
+included as the baseline to beat, since an arbitrary weighted sum is not a
+defensible ranking; whichever model wins on held-out pairs ships, even if it is
+the simple one.
 
-Lab identity is never a feature (§22.5); pairwise labels are lab-stratified;
+Lab identity is never a feature; pairwise labels are lab-stratified;
 per-lab precision@10 for the winner is the fairness check. No embeddings / vector
-store / second DB (§24.3): scikit-learn over 406 rows.
+store / second DB: scikit-learn over 406 rows.
 
 Run:  python -m fli.cli score --bakeoff
 """
@@ -17,7 +18,10 @@ from __future__ import annotations
 import argparse
 import json
 import math
-from collections import defaultdict
+import re
+from collections import Counter, defaultdict
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +30,7 @@ from fli.intelligence import features as featmod
 from fli import storage
 from fli.core.config import RANDOM_SEED, TEST_FRAC
 from fli.core.policy import load_policy
+from fli.core.text import norm
 
 
 def hand_weights() -> dict[str, float]:
@@ -33,30 +38,56 @@ def hand_weights() -> dict[str, float]:
 
     A business judgement, so not a constant here. The defence is not that these
     numbers are right but that they are attributable, versioned and owned by
-    someone other than the engineer (§10).
+    the fund rather than hard-coded here.
     """
     return load_policy().hand_weights
 
 
-def load_pairs(conn) -> list[tuple[int, int, str, str]]:
-    """Training judgements only, as (event_a, event_b, winner, labeler).
+def load_pairs(conn, include_lf: bool = False,
+               verbose: bool = True) -> list[tuple[int, int, str, str]]:
+    """Training judgements, as (event_a, event_b, winner, labeler).
 
-    `human:%` labels are the audit sample — the one independent signal against
-    which the labeler's reliability is measured. Training on them would
-    contaminate that measurement, so they are excluded here
-    (docs/scoring-without-ground-truth.md §3).
+    Three exclusions:
 
-    LLM verdicts the judge itself marked `conf=low` are also excluded: the r4
-    prompt promises exactly this ("low-confidence pairs are excluded from
-    training"), because a forced choice on an equal pair is a coin flip that
-    would enter training looking like signal.
+    `human:%` — the audit sample, the one independent signal against which
+    labeler reliability is measured. Training on it would contaminate that.
+
+    `conf=low` — a forced choice on an equal pair is a coin flip that would
+    enter training looking like signal. The judge prompt promises this.
+
+    `lf:%` — CIRCULAR. The labeling functions are deterministic functions of the
+    very features the models train on (`lf:specificity` <-> `specificity`, and
+    so on), so training on their votes partly fits an identity function and
+    inflates accuracy for whichever model represents threshold rules best.
+    Measured: including them, gbm 0.697 / logistic 0.672; excluding them, gbm
+    0.663 and logistic 0.684 — which flips the winner to the simpler,
+    interpretable model. `include_lf=True` reproduces that comparison as a
+    diagnostic, not a training mode.
     """
-    return [(r["event_a"], r["event_b"], r["winner"], r["labeler"]) for r in
+    where = ["labeler NOT LIKE 'human:%'",
+             "NOT (labeler LIKE 'llm:%' AND reason LIKE '%conf=low%')"]
+    if not include_lf:
+        where.append("labeler NOT LIKE 'lf:%'")
+    rows = [(r["event_a"], r["event_b"], r["winner"], r["labeler"]) for r in
             conn.execute("SELECT event_a, event_b, winner, labeler"
-                         " FROM pairwise_labels"
-                         " WHERE labeler NOT LIKE 'human:%'"
-                         " AND NOT (labeler LIKE 'llm:%'"
-                         "          AND reason LIKE '%conf=low%')")]
+                         " FROM pairwise_labels WHERE " + " AND ".join(where))]
+    if verbose:
+        n_lf = conn.execute("SELECT count(*) FROM pairwise_labels"
+                            " WHERE labeler LIKE 'lf:%'").fetchone()[0]
+        n_low = conn.execute("SELECT count(*) FROM pairwise_labels"
+                             " WHERE labeler LIKE 'llm:%'"
+                             " AND reason LIKE '%conf=low%'").fetchone()[0]
+        notes = []
+        if n_lf and not include_lf:
+            notes.append(f"{n_lf} labeling-function votes (circular with features)")
+        if n_low:
+            notes.append(f"{n_low} low-confidence LLM verdicts")
+        if notes:
+            print(f"  excluded {'; '.join(notes)} -> training on {len(rows)}")
+        if include_lf:
+            print("  WARNING --include-lf: LF votes ARE circular with the "
+                  "feature set. Diagnostic only.")
+    return rows
 
 
 def _standardize(X):
@@ -173,16 +204,19 @@ def _dense_rank(scores):
     return rank
 
 
-def bakeoff(conn) -> dict:
+def bakeoff(conn, include_lf: bool = False) -> dict:
     ids, names, X = featmod.feature_matrix(conn)
     row = {iid: i for i, iid in enumerate(ids)}
     Xz, _, _ = _standardize(X)
     fidx = {f: j for j, f in enumerate(names)}
-    pairs = load_pairs(conn)
+    pairs = load_pairs(conn, include_lf=include_lf)
     if len(pairs) < 10:
         raise SystemExit(f"only {len(pairs)} labels — run `python -m fli.cli label` first")
     tr, te = _split(pairs)
-    gold = _gold_net_wins(pairs)   # relevance from all labels (labeled subset)
+    # IN-SAMPLE by construction: relevance comes from ALL labels, train and
+    # test alike, so p@10 and NDCG are not held out. Only `heldout_acc` is.
+    # Building gold from test labels only would leave too few positives to rank.
+    gold = _gold_net_wins(pairs)
 
     model_scores: dict[str, np.ndarray] = {}
     extras: dict[str, dict] = {}
@@ -248,7 +282,7 @@ def bakeoff(conn) -> dict:
         s = Xz[:, keep] @ _fit_logistic(xa, ya)
         ablation[f] = round(base_acc - _pairwise_accuracy(te, s, row), 4)
 
-    # per-lab precision@10 for the winner (fairness, §22.5)
+    # per-lab precision@10 for the winner (fairness check)
     lab_of = {r["id"]: r["lab"] for r in conn.execute(
         "SELECT i.id, COALESCE(l.name,'(none)') lab FROM insights i"
         " LEFT JOIN labs l ON l.id=i.attributed_lab_id")}
@@ -287,9 +321,193 @@ def _write_winner_scores(conn, ids, names, Xz, scores, winner, extras):
     conn.commit()
 
 
+_EDGE = re.compile(r"^[^\w]+|[^\w]+$")
+
+
+def _story_tokens(claim: str) -> set[str]:
+    """Tokens for same-story matching, with leading/trailing punctuation removed.
+
+    `norm()` deliberately keeps punctuation attached — it backs the verbatim
+    quote check (C2), where stripping would loosen an invariant. That leaves
+    `cyber,` and `cyber` as different tokens, which is harmless for verification
+    and wrong here, so the stripping is local to this function. Single characters
+    are dropped: they are almost always list markers, not content.
+    """
+    return {t for t in (_EDGE.sub("", w) for w in norm(claim).split()) if len(t) > 1}
+
+
+class SlateFilter:
+    """Decides what a reader is shown, given an ordering the scorer produced.
+
+    Kept as a class because it is STATEFUL in a way the other rules are not: the
+    window and the undated rule judge each event on its own, while the cluster,
+    story and lab rules judge a candidate against what has already been selected.
+    That distinction is the whole design — this object is the slate so far.
+
+    Nothing here touches `event_scores`. Every decision is reversible by editing
+    config/policy.yml and re-printing; none of it requires a re-train.
+    """
+
+    def __init__(self, policy, corpus_claims: list[str]):
+        self.pol = policy
+        self.cutoff = (datetime.now(timezone.utc)
+                       - timedelta(days=policy.window_days)).isoformat()
+        self.rare_cut = policy.story_rare_df * max(len(corpus_claims), 1)
+        df: Counter = Counter()
+        for c in corpus_claims:
+            for w in _story_tokens(c):
+                df[w] += 1
+        self.df = df
+        self.chosen: list[dict] = []
+        self.seen_clusters: set = set()
+        self.by_lab: Counter = Counter()
+        self.dropped: Counter = Counter()
+
+    def _rare(self, claim: str) -> set[str]:
+        if self.rare_cut <= 0:
+            return set()
+        return {w for w in _story_tokens(claim) if self.df[w] <= self.rare_cut}
+
+    def _same_story(self, row) -> bool:
+        """True if an already-chosen item is the same announcement.
+
+        Only ever compares against the handful already selected, so there is no
+        transitive chaining: an early union-find version of this merged 41
+        unrelated DeepMind events into one 'story' by hopping A-B-C.
+        """
+        if not row["published_at"] or row["lab"] == "(unattributed)":
+            return False
+        rare = self._rare(row["claim"])
+        if not rare:
+            return False
+        when = _parse_ts(row["published_at"])
+        for s in self.chosen:
+            if s["lab"] != row["lab"] or not s["published_at"]:
+                continue
+            if abs((_parse_ts(s["published_at"]) - when).days) > self.pol.story_days:
+                continue
+            if rare & self._rare(s["claim"]):
+                return True
+        return False
+
+    def accept(self, row) -> bool:
+        """Apply every rule in order, counting the reason for each rejection.
+        Counts are printed with the slate: a filter that silently discards is
+        indistinguishable from a bug."""
+        if not row["published_at"]:
+            if not self.pol.show_undated:
+                self.dropped["undated"] += 1
+                return False
+        elif row["published_at"] < self.cutoff:
+            self.dropped["outside_window"] += 1
+            return False
+        if row["cluster_id"] is not None and row["cluster_id"] in self.seen_clusters:
+            self.dropped["duplicate_cluster"] += 1
+            return False
+        if self._same_story(row):
+            self.dropped["same_story"] += 1
+            return False
+        if self.pol.max_per_lab and self.by_lab[row["lab"]] >= self.pol.max_per_lab:
+            self.dropped["lab_cap"] += 1
+            return False
+        if row["cluster_id"] is not None:   # NULL is "unclustered", not a shared id
+            self.seen_clusters.add(row["cluster_id"])
+        self.by_lab[row["lab"]] += 1
+        self.chosen.append(row)
+        return True
+
+
+def _parse_ts(s: str) -> datetime:
+    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+
+
+def top_events(conn, k: int = 10, window_days: int | None = None,
+               dedupe: bool = True, show_undated: bool | None = None) -> list[dict]:
+    """The ranked list a READER sees. Scoring produces an ordering; this applies
+    the editorial boundaries on top of it, all configured in policy.yml.
+
+    1. WINDOW — only events inside the recent window. Not a scoring change: the
+       model gives recency a coefficient of 0.014, because the judge rewards
+       "shipped vs intended" rather than publication date. What to SHOW is a
+       separate decision from how to score, so it happens at render time.
+    2. UNDATED OUT — 13 events have no published_at and take a neutral recency
+       of 0.5. An event we cannot date cannot be presented as recent.
+    3. ONE PER CLUSTER — keep the highest-scoring member, count the rest as
+       corroboration. That is what a cluster means.
+    4. ONE PER STORY — clusters are too fine to be news. One Gemini launch
+       produced 12 events across 9 clusters, peak pairwise Jaccard 0.158 against
+       a 0.4 threshold, so no clustering setting merges them. Grouped here
+       rather than in `insights`, where it would corrupt the corroboration
+       feature scoring depends on.
+    5. LAB CAP — one lab supplied 128 of 286 in-window events and took half the
+       top 10.
+
+    Rules 1-2 are per-event; 3-5 depend on what has already been chosen, which
+    is why they live in `SlateFilter` rather than in the SQL.
+    """
+    pol = load_policy()
+    window_days = pol.window_days if window_days is None else window_days
+    show_undated = pol.show_undated if show_undated is None else show_undated
+
+    rows = conn.execute(
+        "SELECT i.id, i.claim, i.score, i.score_components, i.event_type,"
+        " i.cluster_id, COALESCE(l.name,'(unattributed)') lab,"
+        " d.published_at, d.url, d.source_type, ev.verbatim_content quote"
+        " FROM insights i"
+        " JOIN evidence ev ON ev.id = i.evidence_id"
+        " JOIN raw_documents d ON d.id = ev.document_id"
+        " LEFT JOIN labs l ON l.id = i.attributed_lab_id"
+        " WHERE i.score IS NOT NULL"
+        " ORDER BY i.score DESC").fetchall()
+
+    # Document frequency is computed over the WHOLE corpus, not the window, so
+    # the meaning of "uncommon token" does not drift as the window slides.
+    all_claims = [r[0] for r in conn.execute(
+        "SELECT claim FROM insights WHERE claim IS NOT NULL")]
+
+    # `dedupe=False` turns off ALL three slate-composition rules, not just the
+    # cluster one — evaluation code passes it to see the scorer's raw ordering,
+    # and a half-disabled filter would be a misleading baseline.
+    pol = replace(pol, window_days=window_days, show_undated=show_undated)
+    if not dedupe:
+        pol = replace(pol, max_per_lab=0, story_rare_df=0.0)
+    filt = SlateFilter(pol, all_claims)
+
+    out = []
+    for r in rows:
+        row = dict(r)
+        if not dedupe:
+            row = {**row, "cluster_id": None}
+        if filt.accept(row):
+            out.append(row)
+            if len(out) >= k:
+                break
+    return out, dict(filt.dropped)
+
+
+def print_top(conn, k: int = 10) -> None:
+    pol = load_policy()
+    items, dropped = top_events(conn, k)
+    print(f"top {len(items)} — window {pol.window_days}d · one per cluster · "
+          f"one per story (<={pol.story_rare_df:.0%} df, {pol.story_days}d) · "
+          f"max {pol.max_per_lab}/lab · "
+          f"undated {'shown' if pol.show_undated else 'excluded'}")
+    if dropped:
+        print(f"  skipped: {dropped}")
+    print()
+    for i, e in enumerate(items, 1):
+        print(f"{i:>2}. [{e['event_type']:<14} {e['lab']:<16} {e['source_type']:<8}"
+              f" {(e['published_at'] or '?')[:10]}]  score {e['score']:.3f}")
+        print(f"    {e['claim'][:110]}")
+        print(f"    \"{(e['quote'] or '')[:100]}\"")
+        print(f"    {e['url']}")
+
+
 def print_report(res: dict) -> None:
     print(f"\n=== bake-off ({res['n_labels']} labels, {res['n_test']} held-out pairs) ===")
-    print(f"{'model':<24}{'heldout_acc':>12}{'p@10':>8}{'ndcg@20':>9}")
+    print(f"{'model':<24}{'heldout_acc':>12}{'p@10*':>8}{'ndcg@20*':>9}")
+    print("  * p@10 and ndcg are IN-SAMPLE (relevance built from all labels); "
+          "only heldout_acc is out-of-sample.")
     for m, d in sorted(res["report"].items(), key=lambda kv: -(kv[1]['heldout_acc'] or 0)):
         print(f"{m:<24}{d['heldout_acc']:>12.3f}{d['p@10']:>8.3f}{d['ndcg@20']:>9.3f}")
     print(f"\nwinner: {res['winner']}  (GBM contender: {res['gbm']})")
@@ -304,7 +522,7 @@ def print_report(res: dict) -> None:
           f"(NOT the winner if the winner differs):")
     for f, d in sorted(res["ablation"].items(), key=lambda kv: -kv[1]):
         print(f"  {f:<26}{d:>+8.4f}")
-    print("\nper-lab precision@10 (winner — fairness check §22.5):")
+    print("\nper-lab precision@10 (winner — fairness check):")
     for lab, p in res["per_lab_p10"].items():
         print(f"  {lab:<18}{p:>6.3f}")
 
@@ -313,10 +531,18 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
     ap.add_argument("--bakeoff", action="store_true")
+    ap.add_argument("--top", type=int, metavar="K",
+                    help="print the reader-facing top-K (window + dedupe applied)")
+    ap.add_argument("--include-lf", action="store_true",
+                    help="ALSO train on labeling-function votes. Circular with "
+                         "the features; use only to reproduce the leakage study.")
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
-    print_report(bakeoff(conn))
+    if args.top:
+        print_top(conn, args.top)
+        return
+    print_report(bakeoff(conn, include_lf=args.include_lf))
 
 
 if __name__ == "__main__":

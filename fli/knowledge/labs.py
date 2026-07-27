@@ -1,4 +1,4 @@
-"""Canonical lab-name knowledge in one place (plan §20.7).
+"""Canonical lab-name knowledge in one place.
 
 Two operations legitimately differ — stage 1 asks "does this text mention a
 tracked lab" (substring presence), stage 2 asks "resolve the model's lab string
@@ -27,7 +27,7 @@ def _tokens(name: str) -> frozenset[str]:
     # split on any non-alphanumeric, not just whitespace, so hyphenated/slashed
     # names tokenize: 'DeepSeek-AI' -> {deepseek} (matches 'DeepSeek'),
     # 'Meta-Llama' -> {meta, llama}, 'Qwen-Agent' -> {qwen}. Whitespace-only
-    # splitting left these as one opaque token that never matched (P0).
+    # splitting left these as one opaque token that never matched.
     return frozenset(t for t in re.split(r"[^0-9a-z]+", norm(name)) if t) - _STOPWORDS
 
 

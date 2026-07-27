@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS person_candidates (
     paper_count     INTEGER NOT NULL DEFAULT 1,
     entry_ids       TEXT NOT NULL DEFAULT '[]', -- counted arXiv entry ids (idempotency)
     seed_person_ids TEXT NOT NULL,              -- tracked people they co-authored with
-    seed_lab_ids    TEXT NOT NULL DEFAULT '[]', -- labs of those seeds (§22 F2; per-lab slates)
+    seed_lab_ids    TEXT NOT NULL DEFAULT '[]', -- labs of those seeds (per-lab slates)
     lab_hint        TEXT,                       -- set only via a lab collective author
     evidence_id     INTEGER NOT NULL REFERENCES evidence(id),
     status          TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
@@ -140,10 +140,10 @@ CREATE TABLE IF NOT EXISTS event_entities (
     lab_id      INTEGER REFERENCES labs(id),
     role        TEXT NOT NULL CHECK (role IN
         ('author','releaser','subject','mover_from','mover_to')),
-    -- how the lab/person link was made (§20.7): 'model_asserted' = the extractor
+    -- how the lab/person link was made: 'model_asserted' = the extractor
     -- named it and resolve_lab matched; 'source_inferred' = defaulted from the
     -- publisher of an official channel. Kept apart so scoring downweights the
-    -- inferred kind and never treats a publisher default as a verbatim fact (P3).
+    -- inferred kind and never treats a publisher default as a verbatim fact.
     basis       TEXT NOT NULL DEFAULT 'model_asserted'
                 CHECK (basis IN ('model_asserted','source_inferred')),
     evidence_id INTEGER NOT NULL REFERENCES evidence(id),
@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS llm_calls (
     created_at    TIMESTAMP
 );
 
--- Day 5 (§10 scoring, §24.2 A1). The model's training surface: one row per
+-- The model's training surface: one row per
 -- (event, feature). score_components (JSON on insights) stays the reader-facing
 -- explanation; a model never parses JSON — it reads these numeric rows.
 CREATE TABLE IF NOT EXISTS insight_features (
@@ -254,8 +254,8 @@ CREATE TABLE IF NOT EXISTS event_scores (
 );
 
 -- The bridge from a frontier-lab event to a public-equity position — the thing
--- the brief calls "connecting lab developments to where they actually land for
--- a public-equity investor". Positions themselves are NOT stored: they live in
+-- connects a lab development to where it actually lands for a public-equity
+-- investor. Positions themselves are NOT stored: they live in
 -- config/policy.yml, dated and sourced, because which holdings exist is a
 -- business fact that changes quarterly, not system state.
 --

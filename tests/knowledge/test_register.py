@@ -1,6 +1,6 @@
 """fli.knowledge.register - LAYER 2 candidate approval and per-lab balance.
 
-§22: co-author expansion finds far more candidates for prolific labs, so
+Co-author expansion finds far more candidates for prolific labs, so
 approval must cap per lab or the register skews to whoever publishes most.
 """
 import json

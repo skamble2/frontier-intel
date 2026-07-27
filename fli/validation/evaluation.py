@@ -1,12 +1,12 @@
-"""Report figures and tables — Day-5 spec section 5.4.
+"""Report figures and tables.
 
 Writes `docs/evaluation-report.md` and PNGs to `docs/figures/`. One command
-regenerates every number and chart in the write-up, so nothing in the report is
+regenerates every number and chart in the report, so nothing in it is
 hand-copied.
 
 TWO RULES THIS MODULE ENFORCES
 
-1. **Metrics are tiered by what ground truth exists** (evaluation-plan §5.1).
+1. **Metrics are tiered by what ground truth exists.**
    F1/precision/recall are only honest where truth is known by construction
    (synthetic) or against a stated human reference. On real data with no gold
    standard the module reports AGREEMENT, never "accuracy". Every figure caption
@@ -74,7 +74,7 @@ class Skipped(Exception):
 # --------------------------------------------------------------------------
 
 def fig_funnel(conn) -> tuple[str, str]:
-    """Firehose -> signal. The 20% signal-vs-noise deliverable in one picture."""
+    """Firehose -> signal: the whole filtering funnel in one picture."""
     plt, _ = _style()
     docs = conn.execute("SELECT count(*) FROM raw_documents").fetchone()[0]
     rej = dict(conn.execute(
@@ -160,7 +160,7 @@ def fig_event_type_distribution(conn) -> tuple[str, str]:
 
 
 def fig_cost(conn) -> tuple[str, str]:
-    """Tokenomics — a named deliverable."""
+    """Token usage and cost, per task."""
     plt, _ = _style()
     rows = conn.execute(
         "SELECT task, model, sum(cost_usd) usd, count(*) n,"
@@ -328,7 +328,7 @@ def fig_ablation(conn) -> tuple[str, str]:
 
 
 def fig_per_lab_fairness(conn) -> tuple[str, str]:
-    """§22.5 — lab identity is never a feature, so precision@10 should not
+    """Lab identity is never a feature, so precision@10 should not
     depend on which lab published the event."""
     plt, _ = _style()
     if not conn.execute("SELECT count(*) FROM event_scores").fetchone()[0]:
@@ -587,7 +587,7 @@ def build(conn) -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Figures + tables for the write-up.")
+    ap = argparse.ArgumentParser(description="Figures + tables for the report.")
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))

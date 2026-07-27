@@ -172,7 +172,7 @@ def insert_event_entity(conn, event_id: int, entity_kind: str, entity_id: int,
                         basis: str = "model_asserted", commit: bool = True) -> int:
     """One attributed entity of an event, independently cited. entity_kind
     ('person'|'lab') selects which FK the id fills (XOR, enforced by schema).
-    basis records confidence: 'model_asserted' vs 'source_inferred' (§20.7).
+    basis records confidence: 'model_asserted' vs 'source_inferred'.
     commit=False lets a caller batch this into one transaction with related
     rows a checks invariant spans (e.g. the insight it mirrors)."""
     cur = conn.execute(
@@ -194,7 +194,7 @@ def insert_insight(conn, evidence_id: int, event_type: str, claim: str,
     # The insight and its event_entities mirror are one logical write that C11
     # spans, so they share a transaction — a crash can't leave an attributed
     # insight without its cited mirror. `basis` records how the lab was resolved,
-    # so a publisher default is never scored as a verbatim one (§20.7).
+    # so a publisher default is never scored as a verbatim one.
     cur = conn.execute(
         "INSERT INTO insights (evidence_id, attributed_person_id, attributed_lab_id,"
         " event_type, claim, created_at) VALUES (?,?,?,?,?,?)",

@@ -1,4 +1,4 @@
-# Optional — Day-4 observability CLIENT libs only. These are all the pipeline
+# Optional — observability CLIENT libs only. These are all the pipeline
 # imports (fli/tracing.py uses opentelemetry, never phoenix). Small, safe to add
 # to the project .venv. Enable with FLI_TRACING=1.
 opentelemetry-sdk

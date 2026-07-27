@@ -1,7 +1,7 @@
 """Candidate approval.
 
 Three things, in precedence order: the human override file (always
-wins), the per-lab slate that keeps the register balanced (plan 22.3),
+wins), the per-lab slate that keeps the register balanced,
 and the deterministic auto-approve rule. Approval is asynchronous - it
 never blocks a pipeline run."""
 import json
@@ -71,7 +71,7 @@ def load_overrides() -> dict[str, set[str]]:
 
 
 def _candidate_lab_ids(conn, row) -> set[int]:
-    """Labs a candidate is attributable to: the persisted seed labs (F2) plus a
+    """Labs a candidate is attributable to: the persisted seed labs plus a
     collective-author lab_hint if present (the stronger, structural signal)."""
     labs = set(json.loads(row["seed_lab_ids"]))
     if row["lab_hint"]:
@@ -83,7 +83,7 @@ def _candidate_lab_ids(conn, row) -> set[int]:
 
 def _slate(conn, pending: list) -> set[int]:
     """Candidate ids that make the top-K-by-paper_count slate of ANY lab they are
-    attributable to (F3). Corroboration is already guaranteed — every queue row
+    attributable to. Corroboration is already guaranteed — every queue row
     comes from a corroborated paper — so paper_count is only the ranking here."""
     by_lab: dict[int, list] = {}
     for r in pending:
@@ -100,7 +100,7 @@ def _slate(conn, pending: list) -> set[int]:
 
 
 def show_queue(conn: sqlite3.Connection) -> None:
-    """Per-lab review slates (F3): top-K per lab, so no single lab's mega-paper
+    """Per-lab review slates: top-K per lab, so no single lab's mega-paper
     cluster buries the others."""
     pending = [dict(r) for r in conn.execute(
         "SELECT * FROM person_candidates WHERE status='pending'")]
@@ -234,7 +234,7 @@ def review(conn: sqlite3.Connection, ids: list[int], decision: str) -> None:
 
 
 def auto_approve(conn: sqlite3.Connection) -> dict:
-    """Deterministic promotion, re-applied every run (§22.3). Overrides always
+    """Deterministic promotion, re-applied every run. Overrides always
     win; otherwise a candidate is promoted iff it is valid and in the top-K slate
     of some lab it's attributable to. Corroboration is guaranteed by construction
     (every queue row comes from a corroborated paper). Idempotent: already-

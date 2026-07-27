@@ -19,6 +19,7 @@ COMMANDS = {
     "x": "fli.ingestion.x_api",          # paid source; --dry-run first
     # LAYER 2 - knowledge
     "filter": "fli.knowledge.filtering",
+    "extract": "fli.knowledge.extraction",        # stage 2 (SPENDS)
     "register": "fli.knowledge.register.cli",
     "expand": "fli.knowledge.expansion",
     # LAYER 3 - intelligence

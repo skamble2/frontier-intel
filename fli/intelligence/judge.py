@@ -1,8 +1,8 @@
-"""The LLM pairwise judge — Task 3a of the Day-5 spec.
+"""The LLM pairwise judge.
 
 Fills `pairwise_labels` with `llm:<model>` rows so the bake-off has something to
-train on. Until this runs, `pairwise_labels` is empty and the 20% scoring
-deliverable is code with no output.
+train on. Until this runs, `pairwise_labels` is empty and scoring has nothing
+to learn from.
 
 WHAT THIS IS NOT: ground truth. The judge applies `docs/labeling-rubric.md`,
 which is BIT's published thesis turned into six ordering rules. Its reliability

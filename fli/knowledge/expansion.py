@@ -84,7 +84,7 @@ def _queue_candidate(conn, author: str, entry: dict, seed_id: int,
                      seed_lab_id: int | None, lab_hint: str | None,
                      doc_id: int) -> bool:
     """Add or update one queue row. Returns True if the row is new. Accumulates
-    every discovering seed and its lab (F2/F4 §22), so discovery is order-
+    every discovering seed and its lab, so discovery is order-
     independent and a candidate is attributable to every lab it came through."""
     row = conn.execute("SELECT id, seed_person_ids, seed_lab_ids, entry_ids"
                        " FROM person_candidates WHERE name=?", (author,)).fetchone()
@@ -122,7 +122,7 @@ def _queue_candidate(conn, author: str, entry: dict, seed_id: int,
 
 def expand_coauthors(conn: sqlite3.Connection) -> None:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=EXPANSION_WINDOW_DAYS)).isoformat()
-    # F1 (§22): anchor expansion on RESEARCH seeds only. A founder co-signing a
+    # Anchor expansion on RESEARCH seeds only. A founder co-signing a
     # broad institutional paper is an org signature, not a research collaboration,
     # and its huge author list swamps the queue with one lab's cluster. Founders
     # stay tracked entities; they are simply not co-authorship anchors.
@@ -168,7 +168,7 @@ def expand_coauthors(conn: sqlite3.Connection) -> None:
         if matched:
             _record_identity(conn, seed, doc_id, corroborated, matched)
 
-        # the seed's own lab, so discovered candidates carry a per-lab tag (F2)
+        # the seed's own lab, so discovered candidates carry a per-lab tag
         seed_lab_row = conn.execute(
             "SELECT lab_id FROM affiliations WHERE person_id=? AND lab_id IS NOT NULL"
             " AND basis='page_verbatim' LIMIT 1", (seed["id"],)).fetchone()

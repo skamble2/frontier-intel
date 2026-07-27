@@ -1,4 +1,4 @@
-"""Task 2 (§24.2 A1 / day5-spec): build insight_features, the ML surface.
+"""Build insight_features — the numeric surface models train on.
 
 score_components (JSON on insights) stays the reader-facing explanation; models
 never parse JSON — they read these numeric rows. Every feature is derivable from
@@ -6,7 +6,7 @@ the current schema (no new data), and every insight gets the SAME fixed feature
 set (one-hots are 0/1), so there are no NULLs. Absent inputs get an explicit,
 documented neutral value.
 
-Lab identity is NEVER a feature (§22.5): no is_openai. A DeepMind release and an
+Lab identity is NEVER a feature: no is_openai. A DeepMind release and an
 OpenAI release compete on merits.
 
 Pure function of the DB except `recency`, which decays from the wall clock at
@@ -90,7 +90,7 @@ def compute_features(conn: sqlite3.Connection) -> dict:
             "recency": _recency(r["published_at"], now),
             "corroboration": float(cluster_size.get(r["cluster_id"], 1)),
             "channel_official": 1.0 if r["channel"] == "official" else 0.0,
-            # §20.7 tiering made numeric ONLY here, at model input
+            # attribution tiering made numeric ONLY here, at model input
             "attribution_confidence": 1.0 if r["basis"] == "model_asserted" else 0.5,
             "specificity": _specificity(quote),
             "quote_len_words": float(len(quote.split())),

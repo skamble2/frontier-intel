@@ -1,6 +1,6 @@
 """Every tunable knob in one module.
 
-Rationale: a reviewer asking "what threshold produced this number?" should have
+Rationale: anyone asking "what threshold produced this number?" should have
 exactly one file to open. Values that are *protocol* constants (XML namespaces,
 OpenInference span attribute names, API URLs) deliberately stay next to the code
 that speaks that protocol - they are not tuning knobs.
@@ -51,7 +51,7 @@ EXPANSION_WINDOW_DAYS = 365     # co-author discovery lookback
 
 # --- clustering (L3) ------------------------------------------------------
 # Jaccard on claim tokens. Measured from the similarity distribution, not guessed
-# - see docs/day5-scoring-spec.md task 1.
+# measured from the similarity distribution, not guessed.
 CLUSTER_THETA = 0.4
 
 # --- features (L3) --------------------------------------------------------

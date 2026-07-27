@@ -48,7 +48,7 @@ SEED_PEOPLE = [
     ("Anthropic",       "Dario Amodei",      "CEO",             "founder"),
     ("Anthropic",       "Daniela Amodei",    "President",       "founder"),
     # research-role founders are tiered research_lead so they anchor co-author
-    # expansion (F1 §22): a hands-on Chief Scientist / CTO co-authors real
+    # expansion: a hands-on Chief Scientist / CTO co-authors real
     # research, unlike a CEO co-signing an institutional paper.
     ("Anthropic",       "Jared Kaplan",      "Chief Science Officer", "research_lead"),
     ("Anthropic",       "Chris Olah",        None,              "research_lead"),

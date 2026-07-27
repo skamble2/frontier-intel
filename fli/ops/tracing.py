@@ -9,7 +9,7 @@ Spans carry OpenInference LLM semantic-convention attributes so Phoenix renders
 prompt, completion, model and token counts natively; `fli.task` tags each span
 classify|extract|persona so the iteration loop is filterable by stage. Phoenix
 is prompt-iteration tooling only — checks.py stays the source of truth and the
-write-up reports measured numbers, never the tooling (plan §Day-4).
+measured numbers always come from checks.py, never from the tooling.
 """
 from __future__ import annotations
 

@@ -91,7 +91,7 @@ class TestPolicyBehaviour(unittest.TestCase):
         self.assertEqual(5, self.p.type_prior("infrastructure"))
 
     def test_is_owned_is_false_until_a_real_owner_is_named(self):
-        """Stops the write-up claiming a domain sign-off that never happened."""
+        """Stops anything claiming a domain sign-off that never happened."""
         self.assertFalse(self.p.is_owned)
         self.assertTrue(parse_policy(broken(owner="Jane Doe")).is_owned)
 
@@ -121,7 +121,7 @@ class TestShippedPolicyFile(unittest.TestCase):
 
     def test_policy_has_no_domain_owner_yet(self):
         """Deliberate: an engineer is not a portfolio manager. If this fails, a
-        real owner was assigned and the write-up should say so."""
+        real owner was assigned and the reported status should change."""
         self.assertFalse(self.p.is_owned)
 
 

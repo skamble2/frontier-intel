@@ -1,8 +1,8 @@
-"""Task 1 (§10 / day5-spec): populate insights.cluster_id.
+"""Populate insights.cluster_id — near-duplicate event clustering.
 
 Corroboration ("how many independent sources reported this event") is a scoring
 feature and the resolution of the same-type multiplicity flagged in G5. No
-embeddings, no vector DB (§24.3): Jaccard overlap on normalized claim tokens,
+embeddings, no vector DB: Jaccard overlap on normalized claim tokens,
 reusing the shared norm(). Clusters never span event_type, so within-document
 splits and cross-document restatements of ONE event merge, while distinct events
 of the same type (which merely share vocabulary) stay apart.

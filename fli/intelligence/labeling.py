@@ -1,12 +1,12 @@
-"""Task 3 (§10.7 / day5-spec): elicit ~150 pairwise labels.
+"""Elicit ~150 pairwise labels.
 
 "Which of these two would you rather see?" is faster and more consistent than
-absolute importance scores. Sampling is STRATIFIED (§22.5) — ~50% cross-lab,
+absolute importance scores. Sampling is STRATIFIED — ~50% cross-lab,
 ~30% cross-type, ~20% random — so the ranker can't just learn one lab's writing
 style, and the deliberate cross pairs carry the most information. Deterministic
 sample (seeded) + resumable: a labeled pair is never re-asked.
 
-Single annotator by design; state that plainly in the write-up (§10.7). If a
+Single annotator by design, and reported as such rather than hidden. If a
 second annotator labels 40 overlapping pairs, report agreement.
 
 Run:  python -m fli.cli label --n 150 --by soham
@@ -67,7 +67,7 @@ def sample_pairs(conn, n: int = 150, seed: int = RANDOM_SEED) -> list[tuple[int,
 
 def _fmt(conn, event_id: int) -> str:
     """Render an event for a human. The lab name is deliberately WITHHELD:
-    docs/labeling-rubric.md §4 bans lab identity as a reason, and the cheapest
+    docs/labeling-rubric.md bans lab identity as a reason, and the cheapest
     way to enforce that is not to show it. Per-lab precision@10 is the fairness
     check, so a labeler primed by lab prestige would invalidate it."""
     r = conn.execute(

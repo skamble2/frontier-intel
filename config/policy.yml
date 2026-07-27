@@ -66,6 +66,50 @@ event_type_prior:
 
 slate_k: 5
 
+# How far back a ranked report may reach. Without a window, arXiv results from
+# 2024 outranked 2026 launches: 12 of the top 20 were stale or undated.
+# 90 days keeps 286 of 503 events (57%).
+#
+# This does NOT change scoring — the learned model gives recency a coefficient
+# of 0.014, because the judge's rules reward "shipped vs intended", not
+# publication date. The window is an editorial boundary applied at render time,
+# which is the honest place for it: it is a decision about what to SHOW, not a
+# claim about what the model learned.
+window_days: 90
+
+# Undated events (13 of 503) currently get a neutral recency of 0.5 and five of
+# them reached the top 20. An event we cannot date cannot be shown as recent.
+show_undated: false
+
+# Most a single lab may occupy in one slate. Google DeepMind is 147 of 503
+# events (128 of the 286 inside the window) and took 5 of the first 10 slots.
+# That is the corpus, not a scoring bug — but a digest where half the items come
+# from one lab is not a digest.
+#
+# Note this is NOT in tension with "lab identity is never a feature". Identity is
+# excluded from SCORING so the model cannot learn that DeepMind is inherently
+# more interesting; it is used HERE, at render time, to guarantee coverage. The
+# two uses point in opposite directions and both are deliberate.
+max_per_lab: 2
+
+# Same-story suppression. A cluster is a near-duplicate CLAIM; a story is one
+# announcement. The 21 July Gemini launch produced 12 events across 9 clusters,
+# so cluster-dedupe alone still put four of them in the top 10 — correctly, since
+# "3.6 Flash cuts output tokens 17%" and "3.6 Flash is rolling out" really are
+# different claims. They are not different news.
+#
+# Rule: skip a candidate if an ALREADY-SELECTED item from the same lab, within
+# `story_days`, shares an uncommon token. Uncommon = appears in <= story_rare_df
+# of claims; common words like "released" (df 104) and "google" (df 97) cannot
+# trigger it, while version tokens like "3.6" (df 7) and "1.1" (df 3) — which are
+# what actually name a story — always can.
+#
+# 0.03 is the middle of a measured stable band, not a tuned value: sweeping
+# 0.015 / 0.03 / 0.05 under max_per_lab=2 changes which items fill the last two
+# slots and nothing above them. Sensitivity is recorded in docs/report-notes.md.
+story_rare_df: 0.03
+story_days: 7
+
 hand_weights:
   recency: 1.0
   corroboration: 0.6
@@ -76,10 +120,9 @@ hand_weights:
 # ---------------------------------------------------------------------------
 # POSITIONS — BIT-specific. The one block another fund would replace.
 #
-# The brief asks for exactly this: "what does this mean for our positions?",
-# "a holding's moat", "implications, tickers, theses". A generic rubric cannot
-# answer those, so the specificity is required — it just belongs HERE, dated
-# and sourced, rather than smuggled into a keyword list.
+# Answering "what does this mean for our positions?" needs fund-specific facts:
+# holdings, theses, tickers. A generic rubric cannot supply them, so they belong
+# HERE — dated and sourced — rather than smuggled into a keyword list.
 #
 # `as_of` is mandatory (enforced in code). Holdings move quarterly and an
 # undated list silently claims to be current.
