@@ -21,19 +21,19 @@ flowchart TB
         I4["latest_documents view<br/>newest version per URL"]
     end
 
-    subgraph REG["Register (L2, 20%) — who to track"]
+    subgraph REG["Register (L2) — who to track"]
         R1["Lab pages + arXiv au: queries"]
         R2["Seed people<br/>verbatim-name gate"]
-        R3["Co-author expansion<br/>research seeds only (§22 F1)"]
+        R3["Co-author expansion<br/>research seeds only"]
         R4["Auto-approve<br/>corroborated + top-K/lab slate<br/>overrides file always wins"]
         R5[("people · identities · affiliations<br/>confidence tiers + basis")]
     end
 
-    subgraph ST1["Stage 1 (L2, 20%) — deterministic, free"]
+    subgraph ST1["Stage 1 (L2) — deterministic, free"]
         F1["too_short · no_tracked_entity · not_lab_authored<br/>near_duplicate · kill_list · thread_fragment (D3)"]
     end
 
-    subgraph ST2["Stage 2 (L2, 10%) — LLM, survivors only"]
+    subgraph ST2["Stage 2 (L2) — LLM, survivors only"]
         E1["classify · Haiku · substantive?"]
         E2["extract · Sonnet · claim + verbatim quote<br/>cap scales with document length"]
         E3["VERIFY quote against stored bytes<br/>fail is COUNTED, never silently dropped"]
@@ -42,7 +42,7 @@ flowchart TB
 
     NF[("rejections<br/>= the noise-floor appendix")]
 
-    subgraph INT["Intelligence (L3, 20%) — scoring"]
+    subgraph INT["Intelligence (L3) — scoring"]
         C1["cluster · Jaccard, threshold measured not guessed"]
         C2["insight_features · 9 features<br/>lab identity is NEVER a feature"]
         C3["pairwise_labels — one row per LABELER<br/>llm: · human: · lf:x6"]
@@ -51,23 +51,23 @@ flowchart TB
         C6["event_scores + score_components<br/>stamped with policy_version (C17)"]
     end
 
-    subgraph EVAL["Evaluation (L3) — planned, docs/evaluation-plan.md §5"]
+    subgraph EVAL["Evaluation (L3) — planned"]
         V1["SYNTHETIC: 4 planted policies<br/>F1 · precision · recall · ROC-AUC are honest HERE"]
         V2["learning curve — how many judgements a PM owes us<br/>noise tolerance sweep"]
         V3["REAL: agreement only — Cohen's kappa,<br/>correlation matrix, confusion vs human audit"]
     end
 
-    subgraph OUT["Actionable intelligence (15%) — Day 6"]
+    subgraph OUT["Actionable intelligence — planned"]
         O1["channel -> ticker map<br/>MU · IREN · RDDT · TSMC"]
         O2["Investment persona<br/>implications · tickers · thesis"]
         O3["AI-team persona<br/>adopt / investigate / monitor"]
         O4[("hypotheses · reasoning always shown")]
     end
 
-    subgraph DEL["Delivery — Day 6-7"]
+    subgraph DEL["Delivery — planned"]
         D1["Weekly digest -> PDF"]
         D2["Alerts per persona"]
-        D3["Web UI (5%)"]
+        D3["Web UI"]
     end
 
     subgraph XC["Cross-cutting"]

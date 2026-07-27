@@ -3,7 +3,7 @@
 ## Repository layout
 
 Packages mirror the four data layers, so the code map and the data model are the
-same picture. Full rationale in **`docs/refactor-spec.md`**.
+same picture.
 
 ```
 fli/core/           shared primitives: text, http, config, paths
@@ -52,24 +52,22 @@ Expected output: ingested doc id, then an `=== INSIGHT ===` block with claim,
 verbatim evidence quote, source URL, and the token/cost line from `llm_calls`.
 The DB lands in `data/fli.db` — every table inspectable with `sqlite3 data/fli.db`.
 
-If it errors, paste the full output back into the chat.
+## Register — labs, people, entity resolution
 
-## Day 2 — register (labs, people, entity resolution)
-
-All deterministic; no API key needed. Already run once on `data/fli.db` (2026-07-22);
-all commands are idempotent — re-running never double-counts.
+All deterministic; no API key needed. Every command is idempotent —
+re-running never double-counts.
 
 ```bash
 python3 -m fli.cli register seed     # 7 labs + seed people (fetch + verbatim-name gate)
-python3 -m fli.cli register report   # register counts for the write-up
+python3 -m fli.cli register report   # register counts
 ```
 
 **Co-author expansion** lives in `fli/knowledge/expansion.py` (`python3 -m fli.cli expand`).
-It anchors on RESEARCH seeds only (founders are tracked but not co-authorship
-anchors — §22 F1), so one CEO's broad institutional paper no longer swamps the
-queue. Idempotent.
+It anchors on RESEARCH seeds only (founders are tracked but are not
+co-authorship anchors), so one CEO's broad institutional paper no longer swamps
+the queue. Idempotent.
 
-**Approval is automated and re-asserted every run (§22.3):**
+**Approval is automated and re-asserted every run:**
 
 ```bash
 python3 -m fli.cli register auto_approve   # deterministic: corroborated + valid name
@@ -91,16 +89,15 @@ python3 -m fli.cli register reject  <id> [<id>]  # veto + record in overrides
 **Register balance** (candidates / approved / insights per lab) prints every run
 (check C13) — the honest de-skew evidence, stated not assumed.
 
-> §22/§23 change the schema (`person_candidates.seed_lab_ids`, `people.discovered_via`
-> gains `auto_approved`) and the discovery method, so they take effect on the next
-> **truncate + rebuild** (`rm data/fli.db` → `register seed` → `pipeline`), which is
-> the normal refresh flow. Rebuilding re-discovers candidates research-anchored.
+> Schema and discovery-method changes take effect on the next **truncate +
+> rebuild** (`rm data/fli.db` → `register seed` → `pipeline`), which is the
+> normal refresh flow. Rebuilding re-discovers candidates research-anchored.
 
 **Schema changes:** `storage/schema.sql` is authoritative; the existing
 `data/fli.db` is migrated by hand when it changes (no migration framework —
 single-user project, one database).
 
-## Day 3 — ingestion pipeline
+## Ingestion pipeline
 
 One command runs the whole daily cycle (ingest 21 sources across 4 types →
 stage-1 filter → stage-2 extraction → re-observe affiliations → validation
@@ -186,13 +183,13 @@ Researcher handles are not yet populated — `identities` has 0 rows with
 `platform='x'`, so a run currently covers the 7 lab accounts only ($0.77 worst
 case). Adding handles is what unlocks personnel-move coverage.
 
-## Day 4 — observability (optional, for prompt iteration)
+## Observability (optional)
 
 Off by default. When on, every `LLM.call` emits an OpenInference span (prompt,
 completion, model, token counts, tagged `fli.task` = classify|extract|persona)
 to a local Phoenix — so a classifier verdict shows the exact input it judged.
-This is dev tooling for the LLM-iteration loop only; `checks.py` stays the
-source of truth and the write-up reports measured numbers, never the tooling.
+This is dev tooling for the prompt-iteration loop only; `checks.py` stays the
+source of truth for measured numbers.
 
 Run Phoenix (the viewer) **isolated** — it is a heavy server and must not share
 this env or your base conda env, or it will upgrade shared libs and break other
@@ -215,31 +212,30 @@ deterministic pipeline is unaffected. Endpoint override: `PHOENIX_COLLECTOR_ENDP
 (If you prefer not to use Docker, run `pip install arize-phoenix && phoenix serve`
 in a **separate** dedicated venv — never this one or base.)
 
-## Day 5 — scoring & validation (20%, the data-science core)
+## Scoring & validation
 
-Full work order with acceptance criteria: **`docs/day5-scoring-spec.md`**.
 Order matters — clusters gate the corroboration feature, features gate training.
 
 ```bash
-python3 -m fli.cli cluster                 # task 1: populate cluster_id (Jaccard, measured θ)
-python3 -m fli.cli features                # task 2: build insight_features
-python3 -m fli.cli label                   # task 3: ~150 pairwise labels (resumable, stratified)
-python3 -m fli.cli score --bakeoff         # task 4: baselines vs logistic vs GBMs + ablation
+python3 -m fli.cli cluster                 # populate cluster_id (Jaccard, measured θ)
+python3 -m fli.cli features                # build insight_features
+python3 -m fli.cli label                   # ~150 pairwise labels (resumable, stratified)
+python3 -m fli.cli score --bakeoff         # baselines vs logistic vs GBMs + ablation
 python3 -m fli.cli checks                  # expect C14-C16 green
 sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
 ```
 
-Key constraints (all measured, see the spec for numbers):
+Key constraints, all measured:
 
 - **Lab identity is never a feature**; pairwise labels are lab-stratified; per-lab
-  precision@10 is reported as a fairness check (plan §22.5).
-- A **hand-weighted sum is a baseline to beat**, not the deliverable — the brief
-  calls an arbitrary weighted sum a red flag (plan §10).
+  precision@10 is reported as a fairness check.
+- A **hand-weighted sum is a baseline to beat**, never the shipped scorer: an
+  arbitrary weighted sum is not a defensible ranking.
 - The **contributor feature is a lab-level proxy** because person attribution
   resolves on 1 of 406 events; the ablation is expected to show it contributes
   little, and that negative result is reported rather than hidden.
-- No embeddings, no vector store, no second database (plan §24.3) — SQL plus
-  scikit-learn over 406 rows.
+- No embeddings, no vector store, no second database — SQL plus scikit-learn
+  over 406 rows.
 
 ## Metrics harness (reproducible from the committed DB)
 
@@ -253,7 +249,7 @@ fix land?" against the previous run's numbers, inline. Snapshots live in
 ingestion-robustness claim (4 failure modes incl. HTTP 429), since a
 truncate+rebuild resets `fetch_log` to all-ok.
 
-## Pipeline-green gate (run after ANY change, any day)
+## Pipeline-green gate (run after any change)
 
 ```bash
 python3 -m fli.cli checks                    # DB invariants; exit 0 = green

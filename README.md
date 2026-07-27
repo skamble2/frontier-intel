@@ -40,11 +40,6 @@ against the stored document — not at write time, but again on every validation
 run. If a source edits a page, or a bad extraction slipped through once, the
 check battery says so.
 
-That single invariant is why the numbers below can be trusted, and it is the
-reason the honest quote-verification rate went **down** from 99.8% to 95.5%
-when a bug was fixed: the old figure was high because failures were not being
-counted.
-
 ## How it works
 
 ```mermaid
