@@ -236,8 +236,32 @@ def fig_lexicon_vs_classifier(conn) -> tuple[str, str]:
 # JUDGED — labelers and their estimated reliability
 # --------------------------------------------------------------------------
 
+def _labeler_family(labeler: str) -> str:
+    """The part of a labeler id that determines whether two labelers are
+    INDEPENDENT. `llm:claude-sonnet-5/investment/r1` -> `llm:claude-sonnet-5`.
+
+    Two prompt versions of one model are the same family: they share weights,
+    training data and failure modes, so their agreement carries no information
+    about whether either is right.
+    """
+    if labeler.startswith("llm:"):
+        return "llm:" + labeler[4:].split("/")[0]
+    return labeler.split(":")[0]
+
+
 def fig_labeler_reliability(conn) -> tuple[str, str]:
-    """Dawid-Skene accuracy per labeler, estimated with NO gold data."""
+    """Dawid-Skene accuracy per labeler, estimated with NO gold data.
+
+    REFUSES TO REPORT A NUMBER FROM ONE FAMILY. Dawid-Skene infers reliability
+    from disagreement under an assumption of conditional independence. Given a
+    single labeler there is no disagreement to read, and the algorithm returns
+    its prior — previously printed as "LLM judge estimated at 0.950", a figure
+    that measured nothing and would not have survived one question.
+
+    Three prompt variants of one model were no better: they agreed 92-100%, so
+    DS rated all of them ~0.99. That is an artifact of asking one model three
+    times, which is why independence is checked at the FAMILY level.
+    """
     from fli.intelligence.weak_supervision import dawid_skene
     import numpy as np
     plt, _ = _style()
@@ -247,6 +271,14 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
     if not rows:
         raise Skipped("python3 -m fli.cli judge --n 150 && python3 -m fli.cli weak")
     labelers = sorted({r["labeler"] for r in rows})
+    families = {_labeler_family(l) for l in labelers}
+    if len(families) < 2:
+        raise Skipped(
+            "python3 -m fli.cli judge --model <second-provider-model> --n 300"
+            f"   [Dawid-Skene needs >=2 INDEPENDENT labeler families; the "
+            f"database has {len(labelers)} labeler(s) from one family "
+            f"({', '.join(sorted(families))}). Estimating reliability from a "
+            f"single family reports the algorithm's prior, not a measurement.]")
     items = sorted({(r["event_a"], r["event_b"]) for r in rows})
     ii = {p: i for i, p in enumerate(items)}
     jj = {l: j for j, l in enumerate(labelers)}
@@ -270,11 +302,12 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
     ax.set_xlim(0, 1.15)
     ax.set_xlabel("estimated accuracy (Dawid-Skene, no gold labels)")
     ax.set_title("Labeler reliability")
-    llm = [j for j in order if labelers[j].startswith("llm:")]
+    per = ", ".join(f"{labelers[j]} {acc[j]:.3f}" for j in order)
     return _save(plt, fig, "f6_labeler_reliability", JUDGED), (
-        f"{len(items)} pairs x {len(labelers)} labelers; "
-        + (f"LLM judge estimated at {acc[llm[0]]:.3f}." if llm
-           else "no LLM judge rows yet."))
+        f"{len(items)} pairs x {len(labelers)} labelers across "
+        f"{len(families)} independent families ({', '.join(sorted(families))}). "
+        f"Estimated accuracy: {per}. Reliability is inferred from disagreement "
+        f"between families; with one family this figure is not produced at all.")
 
 
 # --------------------------------------------------------------------------

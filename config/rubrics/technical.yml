@@ -1,0 +1,54 @@
+# RUBRIC: AI engineering team
+#
+# "What should we adopt or investigate?"
+#
+# Contains NO fund content. No channels, no tickers, no positions, no thesis.
+# An AI team at any company could use this file unchanged — which is the test
+# of whether the audience split is real or cosmetic.
+#
+# The ordering is deliberately close to the inverse of the investment rubric on
+# the axis that matters most: a paper with a reproducible method and released
+# weights is the TOP of this ranking and near the bottom of the other one. If
+# both rubrics produced similar orderings, one of them would be redundant and
+# the two-persona design would be decoration.
+
+name: technical
+version: 1
+audience: AI engineering team
+owner: "AI team lead — unassigned"
+
+question: |
+  which event is more likely to change how we build our own systems in the next
+  quarter?
+
+# Channels are an investment construct. The technical reader does not care
+# which supply chain an event touches, so the channel block is omitted and the
+# judge is told to ignore commercial framing entirely.
+use_policy_channels: false
+
+rules:
+  - Usable over announced. Released weights, published code, a public API or a
+    fully described method beats a capability that exists only in a demo, a
+    waitlist or a blog claim. If we cannot run it or rebuild it, it is news,
+    not something to adopt.
+  - Method over result. An event that explains HOW — an architecture, a
+    training or serving technique, an evaluation design — beats one that only
+    reports THAT something scored well. A number we cannot reproduce changes
+    nothing about our pipeline.
+  - Efficiency at equal quality. Lower inference cost, smaller model, longer
+    context, better throughput or reduced latency for the same output quality
+    is directly actionable. Prefer the event that moves one of these.
+  - Transferable over bespoke. A technique that applies beyond the publishing
+    lab's own stack beats one that depends on their proprietary
+    infrastructure or scale.
+  - Specific over vague. Parameter counts, context lengths, benchmark deltas,
+    licence terms, hardware requirements.
+
+banned:
+  - Lab identity or prestige. You are not told which lab published these, and
+    guessing is a rule violation.
+  - Commercial consequence. Pricing, funding, market share, supply chains and
+    what any of it means for a share price are IRRELEVANT here. A price cut
+    matters only if it changes what we could afford to run.
+  - Vendor case studies. A post about what a customer built with the lab's API
+    teaches us nothing we could implement.

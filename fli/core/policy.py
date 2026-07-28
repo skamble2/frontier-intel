@@ -37,9 +37,19 @@ def term_pattern(term: str) -> re.Pattern:
     Substring matching scored `cluster` against "we clustered similar values"
     — data clustering, not a GPU cluster. Multi-word terms match as phrases
     with flexible whitespace, so a line break inside "training run" still hits.
+
+    The boundary is applied only at ends that ARE word characters. `\\b` is a
+    transition between a word and a non-word character, so `\\b@` demands a word
+    character immediately before the `@` — meaning `\\b@anthropicai\\b` cannot
+    match "scientist @AnthropicAI", where a space precedes it, and can never
+    match a handle at the start of a string either. No term in policy.yml
+    currently begins with punctuation, so this changes no existing behaviour;
+    it stops the next one from silently never firing.
     """
-    return re.compile(r"\b" + r"\s+".join(re.escape(w) for w in term.split()) + r"\b",
-                      re.IGNORECASE)
+    body = r"\s+".join(re.escape(w) for w in term.split())
+    left = r"\b" if term[:1].isalnum() or term[:1] == "_" else ""
+    right = r"\b" if term[-1:].isalnum() or term[-1:] == "_" else ""
+    return re.compile(left + body + right, re.IGNORECASE)
 
 _KEYS = {"version", "owner", "effective_from", "source", "channels",
          "event_type_prior", "slate_k", "hand_weights"}

@@ -1,4 +1,11 @@
 anthropic>=0.117
+# OPTIONAL second provider. Imported lazily and only when a task is routed to
+# an OpenAI model, so the demo runs on ANTHROPIC_API_KEY alone. It exists for
+# one reason: Dawid-Skene needs conditionally independent labelers, and three
+# prompt variants of one model are not independent (measured: 92-100%
+# agreement). A second family gives the reliability estimate real disagreement
+# to work with, and doubles as the fallback path for a provider outage.
+openai>=1.40
 pydantic>=2.13
 # config/policy.yml holds the editorial policy (business decisions,
 # owned by a domain expert). It needs comments and nesting, so YAML —

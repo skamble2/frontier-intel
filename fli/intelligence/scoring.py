@@ -32,6 +32,11 @@ from fli.core.config import RANDOM_SEED, TEST_FRAC
 from fli.core.policy import load_policy
 from fli.core.text import norm
 
+# Below this many labelled events, a per-lab precision@10 is arithmetic on too
+# little to be a fairness measurement. Not tuned: it is the smallest n at which
+# a p@10 can differ from 1.0 or 0.0 by more than one event.
+MIN_FAIRNESS_N = 10
+
 
 def hand_weights() -> dict[str, float]:
     """The hand-weighted baseline, read from config/policy.yml at call time.
@@ -43,11 +48,11 @@ def hand_weights() -> dict[str, float]:
     return load_policy().hand_weights
 
 
-def load_pairs(conn, include_lf: bool = False,
-               verbose: bool = True) -> list[tuple[int, int, str, str]]:
+def load_pairs(conn, include_lf: bool = False, verbose: bool = True,
+               rubric: str | None = None) -> list[tuple[int, int, str, str]]:
     """Training judgements, as (event_a, event_b, winner, labeler).
 
-    Three exclusions:
+    Four exclusions:
 
     `human:%` — the audit sample, the one independent signal against which
     labeler reliability is measured. Training on it would contaminate that.
@@ -68,9 +73,19 @@ def load_pairs(conn, include_lf: bool = False,
              "NOT (labeler LIKE 'llm:%' AND reason LIKE '%conf=low%')"]
     if not include_lf:
         where.append("labeler NOT LIKE 'lf:%'")
+    params: list = []
+    if rubric is not None:
+        # A FOURTH exclusion, and the one that makes two rankings possible:
+        # only judgements made under THIS rubric train this model. Investment
+        # and technical readers disagree about which event matters — that
+        # disagreement is the product, and pooling the two label sets would
+        # average it into a ranking that serves neither.
+        where.append("labeler LIKE ?")
+        params.append(f"llm:%/{rubric}/%")
     rows = [(r["event_a"], r["event_b"], r["winner"], r["labeler"]) for r in
             conn.execute("SELECT event_a, event_b, winner, labeler"
-                         " FROM pairwise_labels WHERE " + " AND ".join(where))]
+                         " FROM pairwise_labels WHERE " + " AND ".join(where),
+                         params)]
     if verbose:
         n_lf = conn.execute("SELECT count(*) FROM pairwise_labels"
                             " WHERE labeler LIKE 'lf:%'").fetchone()[0]
@@ -204,14 +219,28 @@ def _dense_rank(scores):
     return rank
 
 
-def bakeoff(conn, include_lf: bool = False) -> dict:
+def bakeoff(conn, include_lf: bool = False, rubric: str | None = None) -> dict:
+    """Train and compare models on ONE rubric's judgements.
+
+    `rubric=None` trains on every judgement regardless of rubric, which is only
+    correct while a single rubric exists. Pass a name to get a ranking for one
+    audience; the features, clustering and extraction underneath are shared, and
+    only the definition of "important" differs. That is the shared-core,
+    tailored-last-mile split, with the split placed at the judge rather than at
+    the renderer — a render-time filter cannot rescue an audience whose events
+    the SCORE says are worthless.
+    """
     ids, names, X = featmod.feature_matrix(conn)
     row = {iid: i for i, iid in enumerate(ids)}
     Xz, _, _ = _standardize(X)
     fidx = {f: j for j, f in enumerate(names)}
-    pairs = load_pairs(conn, include_lf=include_lf)
+    pairs = load_pairs(conn, include_lf=include_lf, rubric=rubric)
     if len(pairs) < 10:
-        raise SystemExit(f"only {len(pairs)} labels — run `python -m fli.cli label` first")
+        raise SystemExit(
+            f"only {len(pairs)} labels"
+            + (f" under rubric {rubric!r}" if rubric else "")
+            + " — run `python3 -m fli.cli judge --n 300"
+            + (f" --rubric {rubric}" if rubric else "") + "` first")
     tr, te = _split(pairs)
     # IN-SAMPLE by construction: relevance comes from ALL labels, train and
     # test alike, so p@10 and NDCG are not held out. Only `heldout_acc` is.
@@ -250,25 +279,46 @@ def bakeoff(conn, include_lf: bool = False) -> dict:
     te_llm = [p for p in te if p[3].startswith("llm:")] if te and len(te[0]) > 3 else []
     ts = storage.now_utc()
     pol = load_policy()   # stamped on every row (check C17)
-    conn.execute("DELETE FROM event_scores")
+    # `model` carries the rubric as a prefix: "investment:gbm_sklearn".
+    #
+    # WHY A PREFIX AND NOT A COLUMN: event_scores is UNIQUE (event_id, model),
+    # and two rubrics scoring the same event with the same algorithm would
+    # violate it. SQLite cannot alter a UNIQUE constraint without rebuilding
+    # the table, and this one is referenced by checks C15-C17 and holds every
+    # scored event. Encoding the rubric in the key is the change that does not
+    # risk the database; `rubric_of()` splits it back out for querying.
+    tag = f"{rubric}:" if rubric else ""
+
+    # Score every model first, pick the winner, THEN write — so the winner flag
+    # can be set in the same pass. Writing during scoring would need the winner
+    # before it is known.
     report = {}
     for model, scores in model_scores.items():
-        acc = _pairwise_accuracy(te, scores, row)
-        acc_llm = _pairwise_accuracy(te_llm, scores, row)
-        p10 = _precision_at_k(scores, row, gold, 10)
-        ndcg = _ndcg_at_k(scores, row, gold, 20)
-        report[model] = {"heldout_acc": acc, "heldout_acc_llm": acc_llm,
-                         "p@10": p10, "ndcg@20": ndcg}
+        report[model] = {
+            "heldout_acc": _pairwise_accuracy(te, scores, row),
+            "heldout_acc_llm": _pairwise_accuracy(te_llm, scores, row),
+            "p@10": _precision_at_k(scores, row, gold, 10),
+            "ndcg@20": _ndcg_at_k(scores, row, gold, 20)}
+    winner = max(report, key=lambda m: (report[m]["heldout_acc"]
+                                        if not math.isnan(report[m]["heldout_acc"]) else -1))
+
+    if rubric:
+        conn.execute("DELETE FROM event_scores WHERE model LIKE ?", (f"{tag}%",))
+    else:
+        conn.execute("DELETE FROM event_scores")
+    for model, scores in model_scores.items():
         ranks = _dense_rank(scores)
         for i, iid in enumerate(ids):
             conn.execute(
                 "INSERT INTO event_scores (event_id, model, score, rank,"
-                " policy_version, created_at) VALUES (?,?,?,?,?,?)",
-                (iid, model, float(scores[i]), int(ranks[i]), pol.version, ts))
+                " components, policy_version, created_at) VALUES (?,?,?,?,?,?,?)",
+                (iid, tag + model, float(scores[i]), int(ranks[i]),
+                 # marks the shipped model for this rubric, so a reader (and
+                 # top_events) can find the ranking that counts without
+                 # re-running the bake-off to discover who won
+                 '{"winner": true}' if model == winner else None,
+                 pol.version, ts))
     conn.commit()
-
-    winner = max(report, key=lambda m: (report[m]["heldout_acc"]
-                                        if not math.isnan(report[m]["heldout_acc"]) else -1))
     # Ablation refits LOGISTIC and is reported against logistic's own accuracy.
     # It previously used report["logistic"] as the base while the printed winner
     # could be the GBM, so the table described a model that did not win. The
@@ -286,11 +336,21 @@ def bakeoff(conn, include_lf: bool = False) -> dict:
     lab_of = {r["id"]: r["lab"] for r in conn.execute(
         "SELECT i.id, COALESCE(l.name,'(none)') lab FROM insights i"
         " LEFT JOIN labs l ON l.id=i.attributed_lab_id")}
-    per_lab = {}
+    # MIN_FAIRNESS_N: below this, precision@10 is arithmetic on too few events
+    # to mean anything. xAI had 2 scored events, both of them good, and the
+    # fairness table duly reported p@10 = 1.000 and an 11.1x rank-skew "lift" —
+    # numbers indistinguishable in the figure from Google DeepMind's 152-event
+    # score. Reporting them side by side invites exactly the wrong reading, so
+    # small-n labs are separated out and counted rather than scored.
+    per_lab, per_lab_small = {}, {}
     for lab in sorted(set(lab_of.values())):
         g = {e: gold[e] for e in gold if lab_of.get(e) == lab}
-        if g:
-            per_lab[lab] = round(_precision_at_k(model_scores[winner], row, g, 10), 3)
+        if not g:
+            continue
+        target = per_lab if len(g) >= MIN_FAIRNESS_N else per_lab_small
+        target[lab] = round(_precision_at_k(model_scores[winner], row, g, 10), 3)
+        if target is per_lab_small:
+            per_lab_small[lab] = (per_lab_small[lab], len(g))
 
     _write_winner_scores(conn, ids, names, Xz, model_scores[winner], winner, extras)
 
@@ -301,6 +361,7 @@ def bakeoff(conn, include_lf: bool = False) -> dict:
             "ablation_model": ablation_model,
             "n_gold_events": len(gold), "n_relevant": n_relevant,
             "report": report, "ablation": ablation, "per_lab_p10": per_lab,
+            "per_lab_p10_small_n": per_lab_small,
             "logistic_coef": extras["logistic"]["coef"], "gbm": gbm_label}
 
 
@@ -422,7 +483,8 @@ def _parse_ts(s: str) -> datetime:
 
 
 def top_events(conn, k: int = 10, window_days: int | None = None,
-               dedupe: bool = True, show_undated: bool | None = None) -> list[dict]:
+               dedupe: bool = True, show_undated: bool | None = None,
+               rubric: str | None = None) -> list[dict]:
     """The ranked list a READER sees. Scoring produces an ordering; this applies
     the editorial boundaries on top of it, all configured in policy.yml.
 
@@ -449,16 +511,31 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
     window_days = pol.window_days if window_days is None else window_days
     show_undated = pol.show_undated if show_undated is None else show_undated
 
+    # With a rubric, the score comes from that rubric's WINNING model in
+    # event_scores rather than from insights.score — which is a single column
+    # and therefore can only ever hold one audience's opinion.
+    if rubric:
+        src = ("(SELECT event_id, score FROM event_scores"
+               " WHERE model LIKE ? AND components LIKE '%\"winner\"%')")
+        params = (f"{rubric}:%",)
+        score_expr = "s.score"
+        join = f" JOIN {src} s ON s.event_id = i.id"
+    else:
+        params = ()
+        score_expr = "i.score"
+        join = ""
+
     rows = conn.execute(
-        "SELECT i.id, i.claim, i.score, i.score_components, i.event_type,"
-        " i.cluster_id, COALESCE(l.name,'(unattributed)') lab,"
+        f"SELECT i.id, i.claim, {score_expr} AS score, i.score_components,"
+        " i.event_type, i.cluster_id, COALESCE(l.name,'(unattributed)') lab,"
         " d.published_at, d.url, d.source_type, ev.verbatim_content quote"
         " FROM insights i"
         " JOIN evidence ev ON ev.id = i.evidence_id"
         " JOIN raw_documents d ON d.id = ev.document_id"
         " LEFT JOIN labs l ON l.id = i.attributed_lab_id"
-        " WHERE i.score IS NOT NULL"
-        " ORDER BY i.score DESC").fetchall()
+        + join +
+        f" WHERE {score_expr} IS NOT NULL"
+        f" ORDER BY {score_expr} DESC", params).fetchall()
 
     # Document frequency is computed over the WHOLE corpus, not the window, so
     # the meaning of "uncommon token" does not drift as the window slides.
@@ -485,10 +562,10 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
     return out, dict(filt.dropped)
 
 
-def print_top(conn, k: int = 10) -> None:
+def print_top(conn, k: int = 10, rubric: str | None = None) -> None:
     pol = load_policy()
-    items, dropped = top_events(conn, k)
-    print(f"top {len(items)} — window {pol.window_days}d · one per cluster · "
+    items, dropped = top_events(conn, k, rubric=rubric)
+    print(f"top {len(items)} [{rubric or 'all-labels'}] — window {pol.window_days}d · one per cluster · "
           f"one per story (<={pol.story_rare_df:.0%} df, {pol.story_days}d) · "
           f"max {pol.max_per_lab}/lab · "
           f"undated {'shown' if pol.show_undated else 'excluded'}")
@@ -522,9 +599,14 @@ def print_report(res: dict) -> None:
           f"(NOT the winner if the winner differs):")
     for f, d in sorted(res["ablation"].items(), key=lambda kv: -kv[1]):
         print(f"  {f:<26}{d:>+8.4f}")
-    print("\nper-lab precision@10 (winner — fairness check):")
+    print(f"\nper-lab precision@10 (winner — fairness check, "
+          f"labs with >={MIN_FAIRNESS_N} labelled events):")
     for lab, p in res["per_lab_p10"].items():
         print(f"  {lab:<18}{p:>6.3f}")
+    if res["per_lab_p10_small_n"]:
+        print("  not scored — too few labelled events for p@10 to mean anything:")
+        for lab, (p, n) in res["per_lab_p10_small_n"].items():
+            print(f"  {lab:<18}{'n/a':>6}   (n={n}; raw value would be {p:.3f})")
 
 
 def main() -> None:
@@ -536,13 +618,25 @@ def main() -> None:
     ap.add_argument("--include-lf", action="store_true",
                     help="ALSO train on labeling-function votes. Circular with "
                          "the features; use only to reproduce the leakage study.")
+    ap.add_argument("--rubric", metavar="NAME",
+                    help="train/rank for ONE audience, e.g. investment or "
+                         "technical. Omit to pool every judgement, which is "
+                         "only correct while a single rubric exists.")
+    ap.add_argument("--all-rubrics", action="store_true",
+                    help="run the bake-off once per rubric in config/rubrics/")
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
     if args.top:
-        print_top(conn, args.top)
+        print_top(conn, args.top, rubric=args.rubric)
         return
-    print_report(bakeoff(conn, include_lf=args.include_lf))
+    if args.all_rubrics:
+        from fli.core.rubric import available
+        for name in available():
+            print(f"\n{'=' * 70}\nRUBRIC: {name}\n{'=' * 70}")
+            print_report(bakeoff(conn, include_lf=args.include_lf, rubric=name))
+        return
+    print_report(bakeoff(conn, include_lf=args.include_lf, rubric=args.rubric))
 
 
 if __name__ == "__main__":

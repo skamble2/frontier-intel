@@ -19,6 +19,7 @@ LABS = [
     ("Mistral",         0, None),
     ("DeepSeek",        0, None),
     ("Qwen",            1, "BABA"),
+    ("xAI",             0, None),
 ]
 
 
@@ -37,6 +38,12 @@ LAB_PAGES = {
                         ("https://en.wikipedia.org/wiki/DeepSeek", "third_party")],
     "Qwen":            [("https://qwenlm.github.io/", "official"),
                         ("https://en.wikipedia.org/wiki/Qwen", "third_party")],
+    # x.ai serves its company page client-side, the same wall measured on the
+    # OpenAI blog and Mistral newsroom. Both URLs are listed anyway: whichever
+    # fails is recorded in fetch_log, so the boundary stays visible in the data
+    # instead of being asserted here.
+    "xAI":             [("https://x.ai/about", "official"),
+                        ("https://en.wikipedia.org/wiki/XAI_(company)", "third_party")],
 }
 
 
@@ -61,6 +68,21 @@ SEED_PEOPLE = [
     ("Mistral",         "Timothée Lacroix",  "CTO",             "research_lead"),
     ("DeepSeek",        "Liang Wenfeng",     "CEO",             "founder"),
     ("Qwen",            "Junyang Lin",       None,              "research_lead"),
+    # xAI seeds are CANDIDATES, not assertions. Several of the founding
+    # research team have since left, and a name here survives only if it
+    # appears verbatim on a fetched page — the same gate every other seed
+    # passes. Names that fail land in `rejections` as seed_name_not_on_page,
+    # so the miss rate is measurable rather than invisible.
+    #
+    # A departed founder is not a mistake to prune: affiliations are
+    # append-only with an `observed_at`, so one person observed at two labs in
+    # a window IS the mobility event this system exists to catch.
+    ("xAI",             "Elon Musk",         "CEO",             "founder"),
+    ("xAI",             "Greg Yang",         None,              "research_lead"),
+    ("xAI",             "Jimmy Ba",          None,              "research_lead"),
+    ("xAI",             "Yuhuai Wu",         None,              "research_lead"),
+    ("xAI",             "Christian Szegedy", None,              "research_lead"),
+    ("xAI",             "Igor Babuschkin",   None,              "research_lead"),
 ]
 
 

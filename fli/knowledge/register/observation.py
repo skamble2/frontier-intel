@@ -26,7 +26,7 @@ def observe(conn: sqlite3.Connection) -> None:
         " JOIN labs l ON l.id=a.lab_id WHERE a.lab_id IS NOT NULL"
         " AND a.basis='page_verbatim'").fetchall()
     pages_by_lab: dict[str, list] = {}
-    observed = failed = 0
+    observed = failed = unlisted = 0
     for pair in pairs:
         lab_name = pair["lab_name"]
         if lab_name not in pages_by_lab:
@@ -42,9 +42,21 @@ def observe(conn: sqlite3.Connection) -> None:
         hit = next(((d, u, t) for d, u, t in candidates
                     if contains_verbatim(t, pair["canonical_name"])), None)
         if hit is None:
-            failed += 1
-            print(f"  MISS {pair['canonical_name']} @ {lab_name}:"
-                  f" no longer verbatim on any page")
+            # Two very different states, and conflating them manufactures
+            # attrition. A person registered from an X bio was NEVER on a lab
+            # page, so failing to find them there is the expected result, not
+            # a departure. Only the second case is a candidate mobility signal.
+            never_on_a_page = not conn.execute(
+                "SELECT 1 FROM identities WHERE person_id=? AND platform='lab_page'",
+                (pair["person_id"],)).fetchone()
+            if never_on_a_page:
+                unlisted += 1
+                print(f"  n/a  {pair['canonical_name']} @ {lab_name}:"
+                      f" not a lab-page registration (X profile); nothing to re-verify")
+            else:
+                failed += 1
+                print(f"  MISS {pair['canonical_name']} @ {lab_name}:"
+                      f" was on a lab page, no longer verbatim — CHECK FOR A MOVE")
             continue
         if conn.execute(
                 "SELECT 1 FROM affiliations WHERE person_id=? AND lab_id=?"
@@ -62,4 +74,5 @@ def observe(conn: sqlite3.Connection) -> None:
             (pair["person_id"], pair["lab_id"], None, storage.now_utc(), ev))
         observed += 1
     conn.commit()
-    print(f"re-observed: {observed} affiliations; failed to re-verify: {failed}")
+    print(f"re-observed: {observed} affiliations; failed to re-verify: {failed}"
+          f" (candidate moves); not lab-page registrations: {unlisted}")

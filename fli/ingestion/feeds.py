@@ -49,6 +49,11 @@ FEEDS = [
     ("Anthropic",       "github", "feed",    "https://github.com/anthropics/anthropic-sdk-python/releases.atom"),
     # releases, not commits: the commit feed was 70% git chatter (measured)
     ("Meta AI",         "github", "feed",    "https://github.com/meta-llama/llama-models/releases.atom"),
+    ("xAI",             "github", "feed",    "https://github.com/xai-org/grok-1/releases.atom"),
+    # x.ai publishes no RSS at the standard path. Listed so the attempt is
+    # logged and the gap is a recorded `empty`/`error` row rather than a
+    # source we quietly never tried.
+    ("xAI",             "blog",   "feed",    "https://x.ai/news/rss.xml"),
 ]
 
 # sitemap URL -> page-path prefix worth ingesting
@@ -65,6 +70,12 @@ SITEMAP_PREFIX = {
 # return papers are queried (measured 2026-07-23 — Anthropic, Llama Team and
 # Meta AI return 0: those labs publish under individual names, which the
 # authorship gate matches via the register).
+# xAI is DELIBERATELY ABSENT from this list. `abs:"xAI"` is a homograph trap:
+# XAI is the standard acronym for eXplainable AI, so the mention query would
+# return a large, entirely unrelated literature. The authorship gate would
+# reject most of it, but paying an LLM to classify that volume to discover it
+# is noise is the wrong order of operations. xAI is covered by the au: query
+# below, which cannot collide.
 ARXIV_QUERY_LABS = ["OpenAI", "Anthropic", "DeepMind", "Meta AI",
                     "Mistral", "DeepSeek", "Qwen"]
 
@@ -74,6 +85,7 @@ ARXIV_AUTHOR_QUERIES = [
     ("Google DeepMind", 'Gemini Team'),
     ("OpenAI",          'OpenAI'),
     ("Mistral",         'Mistral AI'),
+    ("xAI",             'xAI'),
 ]
 
 

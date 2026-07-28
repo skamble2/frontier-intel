@@ -38,8 +38,15 @@ X_USER_COST_USD = 0.010         # User: Read (handle -> id, cached after once)
 # These are a SPENDING control, not a tuning knob. The run stops when it hits
 # them, so a pagination bug cannot drain the balance.
 X_MAX_POSTS_PER_ACCOUNT = 20
-X_MAX_POSTS_PER_RUN = 400       # ceiling of $2.00 of posts in any single run
-X_RUN_BUDGET_USD = 3.00         # abort before starting if projected spend exceeds this
+# Raised from 400/$3.00 DELIBERATELY, not because a run hit the cap. Adding
+# researcher handles takes the account list from 8 to ~50, and at the old
+# ceiling the 400-post cap bound after roughly the first 20 accounts — every
+# researcher after that would have been silently skipped, which is the failure
+# mode a cap is supposed to prevent, not cause.
+#   worst case: 50 users x $0.010 + 1000 posts x $0.005 = $5.50
+X_MAX_POSTS_PER_RUN = 1000      # ceiling of $5.00 of posts in any single run
+X_RUN_BUDGET_USD = 8.00         # abort before starting if projected spend exceeds this
+X_MAX_USER_LOOKUPS = 60         # register seeding: one User: Read per candidate
 
 # --- extraction (L2) ------------------------------------------------------
 MAX_INSIGHTS_PER_DOC = 5        # length-proportional cap; fixed arXiv over-extraction
