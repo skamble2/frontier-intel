@@ -27,13 +27,12 @@ COMMANDS = {
     "features": "fli.intelligence.features",
     "label": "fli.intelligence.labeling",
     "judge": "fli.intelligence.judge",             # LLM pairwise judge (SPENDS)
-    "weak": "fli.intelligence.weak_supervision",   # LFs + Dawid-Skene (free)
-    "channels": "fli.knowledge.channels",          # D4 classifier
+    "channels": "fli.knowledge.channels",          # LLM channel classifier
     "score": "fli.intelligence.scoring",
     # validation + orchestration
     "evaluate": "fli.validation.evaluation",       # figures + report
     "checks": "fli.validation.checks",
-    "xeval": "fli.validation.x_experiment",
+    "xbench": "fli.validation.x_benchmark",
     "pipeline": "fli.orchestration.pipeline",
     "skeleton": "fli.orchestration.skeleton",
 }

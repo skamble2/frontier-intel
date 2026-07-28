@@ -1,17 +1,18 @@
 """The scoring bake-off.
 
-Ranking is turned into binary classification on pairwise feature DIFFERENCES
-(x_a - x_b -> a wins), the standard trick that works at ~150 labels. Every model
-scores the identical 406-event set, so comparison is fair. A hand-weighted sum is
-included as the baseline to beat, since an arbitrary weighted sum is not a
-defensible ranking; whichever model wins on held-out pairs ships, even if it is
-the simple one.
+Ranking becomes binary classification on pairwise feature differences
+(x_a - x_b -> a wins), which works at the label counts available here. Every
+model scores the identical event set, so the comparison is fair, and a
+hand-weighted sum is included as the baseline to beat. Whichever model wins on
+held-out pairs ships, even if it is the simple one.
 
-Lab identity is never a feature; pairwise labels are lab-stratified;
-per-lab precision@10 for the winner is the fairness check. No embeddings / vector
-store / second DB: scikit-learn over 406 rows.
+Lab identity is never a feature, pairwise labels are lab-stratified, and
+per-lab precision@10 for the winner is the fairness check. No embeddings,
+vector store or second database — scikit-learn over a few hundred rows.
 
-Run:  python -m fli.cli score --bakeoff
+Run:  python3 -m fli.cli score --bakeoff
+      python3 -m fli.cli score --bakeoff --rubric investment
+      python3 -m fli.cli score --top 10 --rubric investment
 """
 from __future__ import annotations
 
@@ -37,6 +38,11 @@ from fli.core.text import norm
 # a p@10 can differ from 1.0 or 0.0 by more than one event.
 MIN_FAIRNESS_N = 10
 
+# The persona whose ranking also lands in insights.score, and which the
+# evaluation figures describe unless told otherwise. Named rather than assumed
+# so "which audience is this figure about?" has an answer in the code.
+PRIMARY_RUBRIC = "investment"
+
 
 def hand_weights() -> dict[str, float]:
     """The hand-weighted baseline, read from config/policy.yml at call time.
@@ -54,20 +60,22 @@ def load_pairs(conn, include_lf: bool = False, verbose: bool = True,
 
     Four exclusions:
 
-    `human:%` — the audit sample, the one independent signal against which
-    labeler reliability is measured. Training on it would contaminate that.
+    `human:%` — the audit sample, the one independent signal labeler reliability
+    is measured against. Training on it would contaminate that.
 
     `conf=low` — a forced choice on an equal pair is a coin flip that would
     enter training looking like signal. The judge prompt promises this.
 
-    `lf:%` — CIRCULAR. The labeling functions are deterministic functions of the
-    very features the models train on (`lf:specificity` <-> `specificity`, and
-    so on), so training on their votes partly fits an identity function and
-    inflates accuracy for whichever model represents threshold rules best.
-    Measured: including them, gbm 0.697 / logistic 0.672; excluding them, gbm
-    0.663 and logistic 0.684 — which flips the winner to the simpler,
-    interpretable model. `include_lf=True` reproduces that comparison as a
-    diagnostic, not a training mode.
+    `lf:%` — circular. The labeling functions are deterministic functions of the
+    features the models train on (`lf:specificity` <-> `specificity`, and so on),
+    so training on their votes partly fits an identity function. Including them
+    scored gbm 0.697 / logistic 0.672; excluding them, gbm 0.663 / logistic
+    0.684, which flips the winner to the interpretable model. `include_lf=True`
+    reproduces that comparison as a diagnostic, not a training mode.
+
+    `rubric` — only judgements made under this rubric train this model.
+    Audiences disagree about which event matters, and pooling the label sets
+    would average that into a ranking serving neither.
     """
     where = ["labeler NOT LIKE 'human:%'",
              "NOT (labeler LIKE 'llm:%' AND reason LIKE '%conf=low%')"]
@@ -75,11 +83,6 @@ def load_pairs(conn, include_lf: bool = False, verbose: bool = True,
         where.append("labeler NOT LIKE 'lf:%'")
     params: list = []
     if rubric is not None:
-        # A FOURTH exclusion, and the one that makes two rankings possible:
-        # only judgements made under THIS rubric train this model. Investment
-        # and technical readers disagree about which event matters — that
-        # disagreement is the product, and pooling the two label sets would
-        # average it into a ranking that serves neither.
         where.append("labeler LIKE ?")
         params.append(f"llm:%/{rubric}/%")
     rows = [(r["event_a"], r["event_b"], r["winner"], r["labeler"]) for r in
@@ -219,16 +222,18 @@ def _dense_rank(scores):
     return rank
 
 
-def bakeoff(conn, include_lf: bool = False, rubric: str | None = None) -> dict:
-    """Train and compare models on ONE rubric's judgements.
+def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
+            persist: bool = True) -> dict:
+    """Train and compare models on one rubric's judgements.
 
-    `rubric=None` trains on every judgement regardless of rubric, which is only
-    correct while a single rubric exists. Pass a name to get a ranking for one
-    audience; the features, clustering and extraction underneath are shared, and
-    only the definition of "important" differs. That is the shared-core,
-    tailored-last-mile split, with the split placed at the judge rather than at
-    the renderer — a render-time filter cannot rescue an audience whose events
-    the SCORE says are worthless.
+    `rubric=None` pools every judgement regardless of rubric, which is only
+    correct while a single rubric exists. Pass a name for one audience's
+    ranking: extraction, clustering and features underneath are shared, and only
+    the definition of "important" differs. The split sits at the judge rather
+    than the renderer, because a render-time filter cannot rescue an audience
+    whose events the score already calls worthless.
+
+    `persist=False` is reporting mode — see the note at the write below.
     """
     ids, names, X = featmod.feature_matrix(conn)
     row = {iid: i for i, iid in enumerate(ids)}
@@ -270,28 +275,20 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None) -> dict:
     gbm_scores = np.array([predict((Xz[i] - xmean).reshape(1, -1))[0][1] for i in range(len(ids))])
     model_scores[gbm_label] = gbm_scores
 
-    # held-out pairwise accuracy + ranking metrics.
-    # acc_llm is the honest generalisation number: the LFs are deterministic
-    # functions of the very features the models train on (lf:corroboration <->
-    # corroboration, lf:specificity <-> specificity, ...), so accuracy against
-    # mixed labels is partly a model recovering its own inputs. Accuracy
-    # against the LLM judge's held-out verdicts alone has no such circularity.
+    # `acc_llm` excludes labeling-function votes, which are deterministic
+    # functions of the training features (lf:specificity <-> specificity, and so
+    # on) — accuracy against those is partly a model recovering its own inputs.
     te_llm = [p for p in te if p[3].startswith("llm:")] if te and len(te[0]) > 3 else []
     ts = storage.now_utc()
     pol = load_policy()   # stamped on every row (check C17)
-    # `model` carries the rubric as a prefix: "investment:gbm_sklearn".
-    #
-    # WHY A PREFIX AND NOT A COLUMN: event_scores is UNIQUE (event_id, model),
-    # and two rubrics scoring the same event with the same algorithm would
-    # violate it. SQLite cannot alter a UNIQUE constraint without rebuilding
-    # the table, and this one is referenced by checks C15-C17 and holds every
-    # scored event. Encoding the rubric in the key is the change that does not
-    # risk the database; `rubric_of()` splits it back out for querying.
+    # `model` carries the rubric as a prefix: "investment:gbm_sklearn". A prefix
+    # rather than a column because event_scores is UNIQUE (event_id, model), and
+    # SQLite cannot alter a UNIQUE constraint without rebuilding a table that
+    # checks C15-C17 depend on and that holds every scored event.
     tag = f"{rubric}:" if rubric else ""
 
-    # Score every model first, pick the winner, THEN write — so the winner flag
-    # can be set in the same pass. Writing during scoring would need the winner
-    # before it is known.
+    # Score every model first, pick the winner, then write, so the winner flag
+    # can be set in the same pass.
     report = {}
     for model, scores in model_scores.items():
         report[model] = {
@@ -302,27 +299,31 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None) -> dict:
     winner = max(report, key=lambda m: (report[m]["heldout_acc"]
                                         if not math.isnan(report[m]["heldout_acc"]) else -1))
 
-    if rubric:
-        conn.execute("DELETE FROM event_scores WHERE model LIKE ?", (f"{tag}%",))
-    else:
-        conn.execute("DELETE FROM event_scores")
-    for model, scores in model_scores.items():
-        ranks = _dense_rank(scores)
-        for i, iid in enumerate(ids):
-            conn.execute(
-                "INSERT INTO event_scores (event_id, model, score, rank,"
-                " components, policy_version, created_at) VALUES (?,?,?,?,?,?,?)",
-                (iid, tag + model, float(scores[i]), int(ranks[i]),
-                 # marks the shipped model for this rubric, so a reader (and
-                 # top_events) can find the ranking that counts without
-                 # re-running the bake-off to discover who won
-                 '{"winner": true}' if model == winner else None,
-                 pol.version, ts))
-    conn.commit()
-    # Ablation refits LOGISTIC and is reported against logistic's own accuracy.
-    # It previously used report["logistic"] as the base while the printed winner
-    # could be the GBM, so the table described a model that did not win. The
-    # base model is now named in the output so the two can never be confused.
+    # persist=False is reporting mode: a figure must never mutate the thing it
+    # describes. The evaluation figures call bakeoff() to read numbers, and
+    # writing here would drop the per-rubric rankings and replace them with one
+    # trained on both rubrics' labels pooled.
+    if persist:
+        if rubric:
+            conn.execute("DELETE FROM event_scores WHERE model LIKE ?", (f"{tag}%",))
+        else:
+            conn.execute("DELETE FROM event_scores")
+        for model, scores in model_scores.items():
+            ranks = _dense_rank(scores)
+            for i, iid in enumerate(ids):
+                conn.execute(
+                    "INSERT INTO event_scores (event_id, model, score, rank,"
+                    " components, policy_version, created_at) VALUES (?,?,?,?,?,?,?)",
+                    (iid, tag + model, float(scores[i]), int(ranks[i]),
+                     # flags the shipped model for this rubric, so top_events
+                     # can find the ranking that counts without re-running the
+                     # bake-off to discover who won
+                     '{"winner": true}' if model == winner else None,
+                     pol.version, ts))
+        conn.commit()
+    # Ablation refits logistic and is reported against logistic's own accuracy,
+    # which is not the winner's when the GBM wins. The base model is named in
+    # the output so the two cannot be confused.
     ablation = {}
     ablation_model = "logistic"
     base_acc = report[ablation_model]["heldout_acc"]
@@ -336,12 +337,9 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None) -> dict:
     lab_of = {r["id"]: r["lab"] for r in conn.execute(
         "SELECT i.id, COALESCE(l.name,'(none)') lab FROM insights i"
         " LEFT JOIN labs l ON l.id=i.attributed_lab_id")}
-    # MIN_FAIRNESS_N: below this, precision@10 is arithmetic on too few events
-    # to mean anything. xAI had 2 scored events, both of them good, and the
-    # fairness table duly reported p@10 = 1.000 and an 11.1x rank-skew "lift" —
-    # numbers indistinguishable in the figure from Google DeepMind's 152-event
-    # score. Reporting them side by side invites exactly the wrong reading, so
-    # small-n labs are separated out and counted rather than scored.
+    # Below MIN_FAIRNESS_N, p@10 is arithmetic on too few events to mean
+    # anything: a lab with 2 good events scores 1.000, indistinguishable in the
+    # figure from a lab with 152. Small-n labs are counted, not scored.
     per_lab, per_lab_small = {}, {}
     for lab in sorted(set(lab_of.values())):
         g = {e: gold[e] for e in gold if lab_of.get(e) == lab}
@@ -352,7 +350,11 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None) -> dict:
         if target is per_lab_small:
             per_lab_small[lab] = (per_lab_small[lab], len(g))
 
-    _write_winner_scores(conn, ids, names, Xz, model_scores[winner], winner, extras)
+    # insights.score is a single column and can only hold one audience's
+    # opinion, so it is written for the pooled run and the primary rubric only.
+    # Other rubrics are read through event_scores via top_events(rubric=...).
+    if persist and rubric in (None, PRIMARY_RUBRIC):
+        _write_winner_scores(conn, ids, names, Xz, model_scores[winner], winner, extras)
 
     # p@10's base rate: with many ties, few events have net_wins > 0, so a high
     # p@10 can be an artifact of a tiny relevant set rather than good ranking.
@@ -386,27 +388,25 @@ _EDGE = re.compile(r"^[^\w]+|[^\w]+$")
 
 
 def _story_tokens(claim: str) -> set[str]:
-    """Tokens for same-story matching, with leading/trailing punctuation removed.
+    """Tokens for same-story matching, with edge punctuation removed.
 
-    `norm()` deliberately keeps punctuation attached — it backs the verbatim
-    quote check (C2), where stripping would loosen an invariant. That leaves
-    `cyber,` and `cyber` as different tokens, which is harmless for verification
-    and wrong here, so the stripping is local to this function. Single characters
-    are dropped: they are almost always list markers, not content.
+    `norm()` keeps punctuation attached because it backs the verbatim quote
+    check (C2), where stripping would loosen an invariant. That leaves `cyber,`
+    and `cyber` as different tokens — harmless there, wrong here, so the
+    stripping is local. Single characters are dropped as list markers.
     """
     return {t for t in (_EDGE.sub("", w) for w in norm(claim).split()) if len(t) > 1}
 
 
 class SlateFilter:
-    """Decides what a reader is shown, given an ordering the scorer produced.
+    """Decides what a reader is shown, given the ordering the scorer produced.
 
-    Kept as a class because it is STATEFUL in a way the other rules are not: the
-    window and the undated rule judge each event on its own, while the cluster,
-    story and lab rules judge a candidate against what has already been selected.
-    That distinction is the whole design — this object is the slate so far.
+    A class because it is stateful: the window and undated rules judge each
+    event on its own, while the cluster, story and lab rules judge a candidate
+    against what has already been selected. This object is the slate so far.
 
     Nothing here touches `event_scores`. Every decision is reversible by editing
-    config/policy.yml and re-printing; none of it requires a re-train.
+    config/policy.yml and re-printing — no re-train required.
     """
 
     def __init__(self, policy, corpus_claims: list[str]):
@@ -432,9 +432,9 @@ class SlateFilter:
     def _same_story(self, row) -> bool:
         """True if an already-chosen item is the same announcement.
 
-        Only ever compares against the handful already selected, so there is no
-        transitive chaining: an early union-find version of this merged 41
-        unrelated DeepMind events into one 'story' by hopping A-B-C.
+        Compares only against the handful already selected, so there is no
+        transitive chaining — a union-find version of this merged 41 unrelated
+        events into one "story" by hopping A-B-C.
         """
         if not row["published_at"] or row["lab"] == "(unattributed)":
             return False
@@ -485,35 +485,35 @@ def _parse_ts(s: str) -> datetime:
 def top_events(conn, k: int = 10, window_days: int | None = None,
                dedupe: bool = True, show_undated: bool | None = None,
                rubric: str | None = None) -> list[dict]:
-    """The ranked list a READER sees. Scoring produces an ordering; this applies
-    the editorial boundaries on top of it, all configured in policy.yml.
+    """The ranked list a reader sees.
 
-    1. WINDOW — only events inside the recent window. Not a scoring change: the
-       model gives recency a coefficient of 0.014, because the judge rewards
-       "shipped vs intended" rather than publication date. What to SHOW is a
-       separate decision from how to score, so it happens at render time.
-    2. UNDATED OUT — 13 events have no published_at and take a neutral recency
-       of 0.5. An event we cannot date cannot be presented as recent.
-    3. ONE PER CLUSTER — keep the highest-scoring member, count the rest as
+    Scoring produces an ordering; this applies the editorial boundaries on top,
+    all configured in policy.yml. What to SHOW is a separate decision from how
+    to score, so none of it is a scoring change.
+
+    1. Window — recent events only. The model gives recency a coefficient near
+       zero, because the judge rewards "shipped vs intended", not publication
+       date.
+    2. Undated out — an event we cannot date cannot be presented as recent.
+       Undated events take a neutral recency of 0.5 in the features.
+    3. One per cluster — keep the highest-scoring member and count the rest as
        corroboration. That is what a cluster means.
-    4. ONE PER STORY — clusters are too fine to be news. One Gemini launch
-       produced 12 events across 9 clusters, peak pairwise Jaccard 0.158 against
-       a 0.4 threshold, so no clustering setting merges them. Grouped here
-       rather than in `insights`, where it would corrupt the corroboration
-       feature scoring depends on.
-    5. LAB CAP — one lab supplied 128 of 286 in-window events and took half the
-       top 10.
+    4. One per story — clusters are too fine to be news. One model launch
+       produced 12 events across 9 clusters at a peak pairwise Jaccard of 0.158
+       against a 0.4 threshold, so no clustering setting merges them. Grouped
+       here rather than in `insights`, where it would corrupt the corroboration
+       feature that scoring depends on.
+    5. Lab cap — without it one lab took half the top 10.
 
     Rules 1-2 are per-event; 3-5 depend on what has already been chosen, which
-    is why they live in `SlateFilter` rather than in the SQL.
+    is why they live in `SlateFilter` rather than in SQL.
     """
     pol = load_policy()
     window_days = pol.window_days if window_days is None else window_days
     show_undated = pol.show_undated if show_undated is None else show_undated
 
-    # With a rubric, the score comes from that rubric's WINNING model in
-    # event_scores rather than from insights.score — which is a single column
-    # and therefore can only ever hold one audience's opinion.
+    # With a rubric, the score comes from that rubric's winning model in
+    # event_scores rather than from the single-valued insights.score.
     if rubric:
         src = ("(SELECT event_id, score FROM event_scores"
                " WHERE model LIKE ? AND components LIKE '%\"winner\"%')")
@@ -542,9 +542,9 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
     all_claims = [r[0] for r in conn.execute(
         "SELECT claim FROM insights WHERE claim IS NOT NULL")]
 
-    # `dedupe=False` turns off ALL three slate-composition rules, not just the
-    # cluster one — evaluation code passes it to see the scorer's raw ordering,
-    # and a half-disabled filter would be a misleading baseline.
+    # `dedupe=False` turns off all three slate-composition rules, not just the
+    # cluster one: evaluation code uses it to see the scorer's raw ordering, and
+    # a half-disabled filter would be a misleading baseline.
     pol = replace(pol, window_days=window_days, show_undated=show_undated)
     if not dedupe:
         pol = replace(pol, max_per_lab=0, story_rare_df=0.0)

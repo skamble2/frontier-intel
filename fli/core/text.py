@@ -55,25 +55,21 @@ def contains_verbatim(haystack: str, needle: str) -> bool:
 def fold_accents(s: str) -> str:
     """Strip combining marks: 'Timothée' -> 'timothee'.
 
-    Deliberately NOT part of `norm`. `norm` backs the verbatim-quote invariant,
-    where folding would let a quote 'match' bytes it does not equal. Names are
-    the opposite problem: the SAME person is written both ways depending on
-    whether the source could be bothered with the diacritic, and treating those
-    as two people is an entity-resolution failure.
+    Deliberately not part of `norm`, which backs the verbatim-quote invariant
+    where folding would let a quote "match" bytes it does not equal. Names are
+    the opposite problem: the same person is written both ways depending on the
+    source, and treating those as two people is an entity-resolution failure.
     """
     return "".join(ch for ch in unicodedata.normalize("NFKD", s)
                    if not unicodedata.combining(ch))
 
 
 def name_key(name: str) -> str:
-    """Order-insensitive, accent-insensitive name key: normalized tokens,
-    sorted. Handles surname-first vs Western order ('Liang Wenfeng' ==
-    'Wenfeng Liang') and diacritic drift ('Timothee' == 'Timothée').
+    """Order- and accent-insensitive name key: normalized tokens, sorted.
 
-    WHY THE ACCENT FOLD: 'Timothée Lacroix' was in the register and an X
-    profile lookup for 'Timothee Lacroix' failed to find him, so a known,
-    already-evidenced person was rejected as a stranger. arXiv author strings,
-    X display names and lab pages disagree about diacritics constantly, and
-    every disagreement was silently becoming a second identity.
+    Handles surname-first vs Western order ("Liang Wenfeng" == "Wenfeng Liang")
+    and diacritic drift ("Timothee" == "Timothée"). arXiv author strings, X
+    display names and lab pages disagree about diacritics constantly, and
+    without the fold every disagreement becomes a second identity.
     """
     return " ".join(sorted(fold_accents(norm(name)).split()))

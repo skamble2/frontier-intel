@@ -151,15 +151,12 @@ def classify(profile: dict, lab: str, person_id: int | None) -> tuple[str, str, 
 def as_document(handle: str, profile: dict) -> str:
     """Render a profile so the BIO APPEARS VERBATIM in the stored bytes.
 
-    THE BUG THIS FIXES, and it broke the invariant the whole system rests on:
-    the first version stored `json.dumps(profile)`, which escapes newlines as
-    a literal backslash-n. The evidence quote held the real bio with real
-    newlines, so the quote did not occur in the document and check C2 failed on
-    8 rows. Evidence must be a substring of what was stored, and JSON encoding
-    is not a substring-preserving transform.
+    Evidence must be a substring of what was stored, and JSON encoding is not a
+    substring-preserving transform — `json.dumps(profile)` escapes newlines, so
+    the real bio would no longer occur in the document and check C2 would fail.
 
     Same header convention as `x_api.as_document`, so readable_text and the
-    verifier need no special case. Structured fields go BELOW the bio, where
+    verifier need no special case. Structured fields go below the bio, where
     they cannot interrupt it.
     """
     bio = profile.get("description") or ""
@@ -207,9 +204,9 @@ def seed_x_identities(conn: sqlite3.Connection, dry_run: bool = False,
         if not lab_row:
             print(f"  SKIP @{handle}: lab '{lab}' not in register")
             continue
-        # purpose='register': this source exists to prove identity, not to
-        # supply content. `accounts_to_track` reads identities, not sources,
-        # so this never silently becomes an ingested feed.
+        # purpose='register': this source proves identity, it does not supply
+        # content. `accounts_to_track` reads identities rather than sources, so
+        # this never silently becomes an ingested feed.
         sid = storage.upsert_source(conn, "social", f"@{handle} profile",
                                     f"https://x.com/{handle}#profile",
                                     lab_id=None, channel="third_party",
@@ -223,9 +220,9 @@ def seed_x_identities(conn: sqlite3.Connection, dry_run: bool = False,
             continue
         if not profile:
             storage.log_fetch(conn, sid, "error", 0, f"{handle}: no such user")
-            # stage='stage1': the schema allows only stage1|stage2|verification,
-            # and seeding.py already files register rejections under stage1 —
-            # both are pre-LLM gates, which is what the stage actually denotes.
+            # stage='stage1': the schema allows only stage1|stage2|verification
+            # and seeding.py files register rejections the same way — the stage
+            # denotes a pre-LLM gate, which this is.
             storage.log_rejection(conn, None, "stage1", "x_handle_not_found", handle)
             print(f"  GONE @{handle:<18} no such user")
             rejected += 1
@@ -241,10 +238,9 @@ def seed_x_identities(conn: sqlite3.Connection, dry_run: bool = False,
         person_id = _person_by_name(conn, name) or _person_by_name(conn, expected)
         decision, tier, method = classify(profile, lab, person_id)
 
-        # The live profile always wins over the candidate list, and when the two
-        # disagree that is DATA, not a nuisance: it measures how stale a curated
-        # handle list goes. Recorded in the evidence locator so it stays
-        # queryable long after this console output is gone.
+        # The live profile always wins over the candidate list. Disagreement is
+        # data — it measures how stale a curated handle list goes — so it is
+        # recorded in the evidence locator, not just printed.
         mismatch = name_key(name) != name_key(expected)
         if mismatch:
             mismatches.append((handle, expected, name))
@@ -259,14 +255,11 @@ def seed_x_identities(conn: sqlite3.Connection, dry_run: bool = False,
             continue
 
         # A failure between the evidence row and the identity row must leave
-        # NOTHING. The first run crashed exactly there and left evidence 1621
-        # referenced by nothing, which check C10 then flagged — evidence that
-        # proves no claim is an unfalsifiable row.
-        #
-        # This is explicit cleanup rather than a SAVEPOINT because
-        # `storage.insert_evidence` commits internally, and a COMMIT releases
-        # every open savepoint: the rollback would have been a no-op that
-        # looked like protection.
+        # nothing behind: orphaned evidence proves no claim, and check C10
+        # flags it. Explicit cleanup rather than a SAVEPOINT, because
+        # `storage.insert_evidence` commits internally and a COMMIT releases
+        # every open savepoint — the rollback would be a no-op that looks like
+        # protection.
         evidence_id = None
         try:
             evidence_id = storage.insert_evidence(
@@ -277,16 +270,12 @@ def seed_x_identities(conn: sqlite3.Connection, dry_run: bool = False,
                 bio or name, "exact", 1.0)
 
             if person_id is None:
-                # discovered_via='seed', not a new 'x_profile' enum value.
-                #
-                # The column records the discovery MECHANISM, and this is the
-                # same one as every other seed: a curated list, admitted only
-                # where a fetched page corroborates it. The X-specific detail
-                # is not lost — it lives on `identities.platform='x'` with its
-                # tier and resolution_method, and on the evidence row pointing
-                # at the stored profile. Widening the CHECK would duplicate in
-                # an enum what the evidence chain already answers exactly, at
-                # the cost of rebuilding a table 316 labels depend on.
+                # discovered_via='seed', not a new 'x_profile' enum value: the
+                # column records the discovery MECHANISM, which here is the same
+                # as every other seed — a curated list admitted only where a
+                # fetched page corroborates it. The X-specific detail lives on
+                # `identities.platform='x'` and the evidence row, so widening
+                # the CHECK would duplicate what the evidence chain answers.
                 cur = conn.execute(
                     "INSERT INTO people (canonical_name, seniority_tier,"
                     " discovered_via, first_seen_at) VALUES (?,?,?,?)",

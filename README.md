@@ -6,11 +6,11 @@
 cited, ranked intelligence — and refuses to store anything it cannot prove.**
 
 ![Python](https://img.shields.io/badge/python-3.x-blue)
-![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-95%20passing-brightgreen)
 ![Storage](https://img.shields.io/badge/storage-SQLite-lightgrey)
-![LLM](https://img.shields.io/badge/LLM-Claude%20Haiku%20%2B%20Sonnet-orange)
+![LLM](https://img.shields.io/badge/LLM-Claude%20%2B%20GPT-orange)
 
-*Built as a take-home case study for **BIT Capital**, a Berlin technology fund.*
+*Built for a technology investment fund tracking frontier-lab activity.*
 
 </div>
 
@@ -44,18 +44,19 @@ check battery says so.
 
 ```mermaid
 flowchart LR
-    A["21 sources<br/>blogs · newsrooms · arXiv · GitHub"] --> B["fetch & store<br/>immutable, hash-deduped"]
+    A["141 sources<br/>blogs · newsrooms · arXiv · GitHub · X"] --> B["fetch & store<br/>immutable, hash-deduped"]
     B --> C["stage 1<br/>deterministic filter (free)"]
     C --> D["stage 2<br/>classify (Haiku) → extract (Sonnet)"]
     D --> E{"quote verification<br/>— the gate —"}
     E -->|verified| F["cluster → features → score"]
     E -->|unverified| G["rejected & counted"]
-    F --> H["cited, ranked intelligence"]
+    F --> H["two rankings<br/>investment · technical"]
 ```
 
-Current corpus: **406 events** from 361 documents, 1,514 evidence rows, across
-**7 tracked labs** (OpenAI, Anthropic, Google DeepMind, Meta AI, Mistral,
-DeepSeek, Qwen).
+Current corpus: **556 events** from 1,142 documents, 1,764 evidence rows, across
+**8 tracked labs** (OpenAI, Anthropic, Google DeepMind, Meta AI, Mistral,
+DeepSeek, Qwen, xAI) and 63 tracked people resolved across arXiv, X and lab
+pages.
 
 ## Highlights
 
@@ -63,8 +64,9 @@ DeepSeek, Qwen).
 |---|---|
 | **Evidence-gated extraction** | Every LLM-extracted claim must carry a verbatim 10–60-word quote that re-matches the stored bytes. Unverified quotes are discarded *and counted* — the hallucination-control number is printed on every run. |
 | **A register, not a list** | Labs are first-class entities; people are discovered by arXiv co-author expansion, corroborated across platforms (`identities` with confidence tiers), and re-observed daily. Approvals are versioned; manual overrides survive DB rebuilds. |
-| **Scoring that earns its weights** | No arbitrary weighted sum: a 5-model bake-off (recency & corroboration baselines, hand-weights, logistic, GBM) on held-out pairwise labels. Lab identity is **never** a feature; per-lab precision@10 is the fairness check. |
-| **Reliability without ground truth** | An LLM pairwise judge (versioned prompts r1→r4) plus six deterministic labeling functions, with Dawid–Skene estimating every labeler's accuracy from disagreement alone. |
+| **Two audiences, two rankings** | The investment reader asks "what does this mean for our positions?"; the AI team asks "what should we adopt?". Both definitions of *important* live in [config/rubrics/](config/rubrics/), and each trains its own model. Measured, the two rankings share **0 of their top 10** and correlate at **Kendall τ = −0.06** — one ranking demonstrably cannot serve both. |
+| **Scoring that earns its weights** | No arbitrary weighted sum: a 5-model bake-off (recency & corroboration baselines, hand-weights, logistic, GBM) on held-out pairwise labels. Lab identity is **never** a feature; per-lab precision@10 is the fairness check, and labs with too few events are excluded rather than given a meaningless score. |
+| **Reliability without ground truth** | Two independent model families (Claude and GPT) judge the identical pairs; Dawid–Skene estimates each one's accuracy from their disagreement alone — 0.885 and 0.855. The figure refuses to render from a single family, because one model agreeing with itself measures nothing. |
 | **Cost-controlled by design** | A cheap Haiku gate kills non-substantive documents before Sonnet sees them. Every call is logged to `llm_calls` (model, tokens, $). `--max-extract` caps spend per run. |
 | **A validation battery, not vibes** | C1–C17 invariant checks run after every pipeline; the exit code *is* the verdict. `tests/test_architecture.py` fails the build if a lower layer imports a higher one. |
 
@@ -100,9 +102,10 @@ One entry point, one command per layer — every layer also runs alone.
 | `cluster` | L3 | Jaccard clustering (`--histogram` shows the measured θ) |
 | `features` | L3 | Build the ML feature surface |
 | `label` | L3 | Human pairwise labeling (`--audit` for the audit pass) |
-| `judge` | L3 | LLM pairwise judge (**spends**; `--dry-run` previews) |
-| `weak` | L3 | Labeling functions + Dawid–Skene ($0) |
-| `score` | L3 | The scoring bake-off (`--bakeoff`) |
+| `judge` | L3 | LLM pairwise judge (**spends**; `--dry-run` previews). `--rubric` picks the audience, `--model` a second provider, `--agreement` reports Cohen's κ ($0) |
+| `channels` | L3 | LLM channel classifier over the corpus |
+| `score` | L3 | Bake-off and ranking (`--all-rubrics`, `--top K --rubric NAME`) |
+| `xbench` | — | The frozen X reference set used by the evaluation figures ($0) |
 | `evaluate` | — | Figures + evaluation report |
 | `checks` | — | C1–C17 invariant battery |
 | `pipeline` | — | The full daily cycle |
@@ -118,7 +121,7 @@ Packages mirror the data model, so the code map and the schema are the same
 picture.
 
 ```
-fli/core/           text, http, config, paths, policy
+fli/core/           text, http, config, paths, policy, rubrics
 fli/storage/        SQLite persistence — no domain logic
 fli/ingestion/      LAYER 1  raw sources
 fli/knowledge/      LAYER 2  filtering, extraction, register
@@ -137,27 +140,33 @@ runnable and testable on its own.
 "decision-relevant" is a business judgement, so it is configurable by the fund
 manager rather than hard-coded. It lives in
 [config/policy.yml](config/policy.yml) with a named owner, a version, and its
-provenance in BIT's own published theses. Every scored event records the policy
+provenance in the fund's own published materials. Every scored event records the policy
 version that produced it, so any ranking can be traced back to the rules behind
 it. The owner field currently reads `unassigned` — which the system prints on
 every run rather than hiding.
 
-**Importance is not treated as ground truth.** Nobody here can credibly say
-which of two events matters more to a fund. Rather than pretend otherwise, the
-system records *who* made each judgement — an LLM, a human, or a weak labeling
-function — and estimates their reliability from disagreement. What is validated
-is the *instrument*: how many judgements it takes to recover a known policy, and
-how much annotator noise it tolerates.
+**Importance is not treated as ground truth.** Nobody can credibly say which of
+two events matters more to a fund. Rather than pretend otherwise, the system
+records *who* made each judgement and under *which rubric* — the labeler id is
+`llm:<model>/<rubric>/r<version>` — and estimates reliability from disagreement
+between independent model families. Judgements made under different rubrics are
+never pooled, because two audiences disagreeing is the product, not noise.
 
 ## Stated limitations
 
 Kept here rather than buried, because a system that hides its boundaries is not
 an intelligence system.
 
-- **Person attribution resolves on 1 of 406 events.** The register, expansion
-  and approval machinery works, but the corpus rarely names individuals.
-- **`personnel` events are 2 of 406 (0.5%).** The policy ranks them highly; the
-  sources barely produce them.
+- **Person attribution resolves on 11 of 556 events.** The register, expansion
+  and approval machinery works, but official channels rarely name individuals.
+- **`personnel` events are 7 of 556 (1.3%).** Rare, but they include two xAI
+  co-founder departures and a 30-person acquihire into Mistral — the signals the
+  fund most wants, found only after researcher X accounts were added.
+- **No GitHub identities yet.** People are resolved across arXiv, X and lab
+  pages; the third platform is scoped, not done.
+- **Roughly 45% of pairwise verdicts come back low-confidence** and are excluded
+  from training. That is the judge reporting when a pair is genuinely
+  inseparable, not a defect — but it halves the usable label yield.
 - **Some launches are behind JavaScript.** Those pages are captured manually and
   stored under the same immutability rules, rather than weakening the evidence
   invariant to accommodate them.
@@ -173,4 +182,6 @@ an intelligence system.
 | [docs/erd.mermaid](docs/erd.mermaid) | Data model |
 | [storage/schema.sql](storage/schema.sql) | The authoritative schema, commented |
 | [config/policy.yml](config/policy.yml) | The editorial policy — versioned, owned |
+| [config/rubrics/](config/rubrics/) | What *important* means, one file per audience |
+| [docs/evaluation-report.md](docs/evaluation-report.md) | Every figure, regenerated by one command |
 

@@ -11,9 +11,8 @@
 #
 # Why: v2 put sector nouns (health, broker, adtech) inside the
 # `competitive_displacement` lexicon, so any post mentioning health scored as
-# displacement whether or not anything was being displaced. That is what
-# falsified H2 on precision. Exposure and mechanism are different questions
-# and now have different homes.
+# displacement whether or not anything was being displaced. Exposure and
+# mechanism are different questions and now have different homes.
 
 version: 3
 owner: "BIT PM — unassigned"    # a placeholder; nothing here has been reviewed
@@ -21,11 +20,11 @@ effective_from: "2026-07-26"
 source: research/facts.md       # BIT's published materials, fetched 2026-07-22
 
 # ---------------------------------------------------------------------------
-# CHANNELS — general mechanism. These map onto the case brief's own examples:
-# "the semiconductor and energy supply chains", "a star researcher leaving a
-# lab to found a startup", "a capability jump that threatens a holding's moat".
+# CHANNELS — the general mechanism by which a lab event reaches a portfolio:
+# the semiconductor and energy supply chains, a researcher leaving a lab to
+# found a startup, a capability jump that threatens a holding's moat.
 #
-# Terms match case-insensitively on WORD BOUNDARIES (D1), never as substrings.
+# Terms match case-insensitively on WORD BOUNDARIES, never as substrings.
 # Multi-word terms match as phrases.
 # ---------------------------------------------------------------------------
 channels:
@@ -106,7 +105,7 @@ max_per_lab: 2
 #
 # 0.03 is the middle of a measured stable band, not a tuned value: sweeping
 # 0.015 / 0.03 / 0.05 under max_per_lab=2 changes which items fill the last two
-# slots and nothing above them. Sensitivity is recorded in docs/report-notes.md.
+# slots and nothing above them.
 story_rare_df: 0.03
 story_days: 7
 

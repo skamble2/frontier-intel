@@ -17,11 +17,29 @@ def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+LOCK_TIMEOUT_S = 30.0
+
+
 def connect(db_path: Path = DEFAULT_DB) -> sqlite3.Connection:
+    """Open the database, waiting rather than failing on a lock.
+
+    `timeout` matters here because the long-running commands are the expensive
+    ones. sqlite3 defaults to 5 seconds and then raises "database is locked" —
+    which killed a judge run at pair 117 of 300 when another reader held the
+    file, discarding a verdict that had already been paid for. Thirty seconds
+    covers any read this project performs; anything longer is a real deadlock
+    and should surface rather than hang.
+    """
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=LOCK_TIMEOUT_S)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # WAL lets readers and one writer coexist, so opening the DB in another
+    # shell to inspect it can no longer block a paid run mid-flight.
+    try:
+        conn.execute("PRAGMA journal_mode = WAL")
+    except sqlite3.DatabaseError:
+        pass          # some filesystems refuse WAL; the timeout still applies
     return conn
 
 
@@ -31,6 +49,9 @@ def connect(db_path: Path = DEFAULT_DB) -> sqlite3.Connection:
 _MIGRATIONS = [
     # (table, column, DDL fragment)
     ("event_scores", "policy_version", "INTEGER NOT NULL DEFAULT 0"),
+    # Reasoning models bill thinking as output tokens. Without this column the
+    # cost table can say what a call cost but not what it bought.
+    ("llm_calls", "reasoning_tokens", "INTEGER"),
 ]
 
 # Tables whose SHAPE changed. SQLite cannot alter a UNIQUE constraint in place,
@@ -255,10 +276,40 @@ def backfill_attribution_from_source(conn) -> int:
     return len(rows)
 
 
+_llm_log_warned = False
+
+
 def log_llm_call(conn, task: str, model: str, input_tokens: int, output_tokens: int,
-                 cost_usd: float) -> None:
-    conn.execute(
-        "INSERT INTO llm_calls (task, model, input_tokens, output_tokens, cost_usd, created_at)"
-        " VALUES (?,?,?,?,?,?)",
-        (task, model, input_tokens, output_tokens, cost_usd, now_utc()))
-    conn.commit()
+                 cost_usd: float, reasoning_tokens: int | None = None) -> None:
+    """Cost telemetry. NEVER fatal.
+
+    `reasoning_tokens` is a subset of output_tokens, not an addition: models
+    bill thinking as output, so adding it would overstate spend. Recorded
+    separately only so the split is reportable.
+
+    WHY THE EXCEPTION IS SWALLOWED, against this project's usual policy: by the
+    time this runs the API call has completed and BEEN PAID FOR, and the caller
+    is holding a verdict. A locked database killed a judge run on this line at
+    pair 117 of 300, discarding that verdict and every one after it. Losing the
+    accounting for a call is a small, visible harm; losing the result you bought
+    is a larger one.
+
+    The warning fires once, so a systematically failing log cannot pass
+    unnoticed. Only sqlite errors are caught — a bug in the arguments still
+    raises.
+    """
+    global _llm_log_warned
+    try:
+        conn.execute(
+            "INSERT INTO llm_calls (task, model, input_tokens, output_tokens,"
+            " reasoning_tokens, cost_usd, created_at) VALUES (?,?,?,?,?,?,?)",
+            (task, model, input_tokens, output_tokens, reasoning_tokens,
+             cost_usd, now_utc()))
+        conn.commit()
+    except sqlite3.Error as e:
+        if not _llm_log_warned:
+            print(f"  WARNING cost logging failed ({e}). The run continues, but "
+                  f"llm_calls will UNDER-report spend for this session — "
+                  f"reconcile against the provider dashboard before reporting "
+                  f"tokenomics.")
+            _llm_log_warned = True

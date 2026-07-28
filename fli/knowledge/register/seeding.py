@@ -38,10 +38,9 @@ LAB_PAGES = {
                         ("https://en.wikipedia.org/wiki/DeepSeek", "third_party")],
     "Qwen":            [("https://qwenlm.github.io/", "official"),
                         ("https://en.wikipedia.org/wiki/Qwen", "third_party")],
-    # x.ai serves its company page client-side, the same wall measured on the
-    # OpenAI blog and Mistral newsroom. Both URLs are listed anyway: whichever
-    # fails is recorded in fetch_log, so the boundary stays visible in the data
-    # instead of being asserted here.
+    # x.ai serves its company page client-side, the same wall as the OpenAI
+    # blog and Mistral newsroom. Both URLs are listed anyway: whichever fails is
+    # recorded in fetch_log, so the gap stays visible in the data.
     "xAI":             [("https://x.ai/about", "official"),
                         ("https://en.wikipedia.org/wiki/XAI_(company)", "third_party")],
 }
@@ -68,15 +67,14 @@ SEED_PEOPLE = [
     ("Mistral",         "Timothée Lacroix",  "CTO",             "research_lead"),
     ("DeepSeek",        "Liang Wenfeng",     "CEO",             "founder"),
     ("Qwen",            "Junyang Lin",       None,              "research_lead"),
-    # xAI seeds are CANDIDATES, not assertions. Several of the founding
-    # research team have since left, and a name here survives only if it
-    # appears verbatim on a fetched page — the same gate every other seed
-    # passes. Names that fail land in `rejections` as seed_name_not_on_page,
-    # so the miss rate is measurable rather than invisible.
+    # xAI seeds are candidates, not assertions: several of the founding research
+    # team have since left. A name survives only if it appears verbatim on a
+    # fetched page, the same gate every other seed passes, and failures land in
+    # `rejections` as seed_name_not_on_page so the miss rate is measurable.
     #
-    # A departed founder is not a mistake to prune: affiliations are
-    # append-only with an `observed_at`, so one person observed at two labs in
-    # a window IS the mobility event this system exists to catch.
+    # A departed founder is not a mistake to prune. Affiliations are append-only
+    # with an `observed_at`, so one person observed at two labs in a window is
+    # exactly the mobility event this system exists to catch.
     ("xAI",             "Elon Musk",         "CEO",             "founder"),
     ("xAI",             "Greg Yang",         None,              "research_lead"),
     ("xAI",             "Jimmy Ba",          None,              "research_lead"),

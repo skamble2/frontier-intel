@@ -1,17 +1,16 @@
 """Populate insights.cluster_id — near-duplicate event clustering.
 
 Corroboration ("how many independent sources reported this event") is a scoring
-feature and the resolution of the same-type multiplicity flagged in G5. No
-embeddings, no vector DB: Jaccard overlap on normalized claim tokens,
-reusing the shared norm(). Clusters never span event_type, so within-document
-splits and cross-document restatements of ONE event merge, while distinct events
-of the same type (which merely share vocabulary) stay apart.
+feature. No embeddings and no vector DB: Jaccard overlap on normalized claim
+tokens, reusing the shared norm(). Clusters never span event_type, so
+within-document splits and cross-document restatements of one event merge, while
+distinct events of the same type that merely share vocabulary stay apart.
 
-theta is MEASURED, not guessed (see histogram(), recorded in report-notes.md):
-the Jaccard distribution over same-type pairs collapses after 0.2 — 14,320 pairs
-<=0.1, then 408 (0.2), 29 (0.3), 11 (0.4), <=1 (>=0.5). The ~10 pairs >=0.4 are
-the genuine near-duplicates; 0.4 is the conservative cut (under-clustering beats
-merging distinct events).
+theta is read off the distribution rather than guessed — see `histogram()`. The
+Jaccard distribution over same-type pairs collapses after 0.2: 14,320 pairs at
+<=0.1, then 408 (0.2), 29 (0.3), 11 (0.4) and at most 1 above. The ~10 pairs
+>=0.4 are the genuine near-duplicates, and 0.4 is the conservative cut, since
+under-clustering beats merging distinct events.
 
 Run:  python -m fli.cli cluster              # assign cluster_id
       python -m fli.cli cluster --histogram  # print the Jaccard distribution

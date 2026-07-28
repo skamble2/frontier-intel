@@ -216,7 +216,7 @@ CREATE TABLE IF NOT EXISTS insight_features (
 -- NOT treated as ground truth. Nobody on this project is qualified to say what
 -- matters to a portfolio manager, so a judgement is recorded together with WHO
 -- made it, and their reliability is estimated from disagreement rather than
--- assumed (docs/scoring-without-ground-truth.md).
+-- assumed. See fli/intelligence/weak_supervision.py.
 CREATE TABLE IF NOT EXISTS pairwise_labels (
     id             INTEGER PRIMARY KEY,
     event_a        INTEGER NOT NULL REFERENCES insights(id),

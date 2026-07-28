@@ -66,10 +66,11 @@ def sample_pairs(conn, n: int = 150, seed: int = RANDOM_SEED) -> list[tuple[int,
 
 
 def _fmt(conn, event_id: int) -> str:
-    """Render an event for a human. The lab name is deliberately WITHHELD:
-    docs/labeling-rubric.md bans lab identity as a reason, and the cheapest
-    way to enforce that is not to show it. Per-lab precision@10 is the fairness
-    check, so a labeler primed by lab prestige would invalidate it."""
+    """Render an event for a human, with the lab name withheld.
+
+    The rubric bans lab identity as a reason and the cheapest way to enforce
+    that is not to show it. Per-lab precision@10 is the fairness check, so a
+    labeler primed by lab prestige would invalidate it."""
     r = conn.execute(
         "SELECT i.event_type, i.claim, ev.verbatim_content q"
         " FROM insights i JOIN evidence ev ON ev.id=i.evidence_id"

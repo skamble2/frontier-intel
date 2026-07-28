@@ -20,6 +20,12 @@ __pycache__/
 data/*.db
 !data/fli.db
 data/*.db-journal
+# WAL sidecars, transient. The database opens in WAL mode so an inspecting
+# reader cannot block a paid run. Before committing data/fli.db, close every
+# connection so SQLite checkpoints the WAL back into it — otherwise the
+# committed file is missing the most recent writes.
+data/*.db-wal
+data/*.db-shm
 data/*.db.bak-*
 data/snapshots/*.db
 
@@ -44,3 +50,15 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+# Local AI tooling config, not part of the product
+.claude/
+CLAUDE.md
+
+# Working notes, not deliverables
+docs/day5-scoring-spec.md
+docs/evaluation-plan.md
+docs/report-notes.md
+docs/x-source-hypotheses.md
+docs/refactor-spec.md
+docs/expansion-run.md
+research/one-pager.md

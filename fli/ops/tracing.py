@@ -6,10 +6,10 @@ when opentelemetry isn't installed, every function here is a no-op and the
 pipeline runs exactly as before — same discipline as keyless stage 2.
 
 Spans carry OpenInference LLM semantic-convention attributes so Phoenix renders
-prompt, completion, model and token counts natively; `fli.task` tags each span
-classify|extract|persona so the iteration loop is filterable by stage. Phoenix
-is prompt-iteration tooling only — checks.py stays the source of truth and the
-measured numbers always come from checks.py, never from the tooling.
+prompt, completion, model and token counts natively, and `fli.task` tags each
+span with its stage so the iteration loop is filterable. Phoenix is
+prompt-iteration tooling only: checks.py stays the source of truth, and reported
+numbers always come from there rather than from the tracing backend.
 """
 from __future__ import annotations
 

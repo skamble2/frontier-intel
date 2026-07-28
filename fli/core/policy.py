@@ -32,19 +32,17 @@ POLICY_PATH = CONFIG_DIR / "policy.yml"
 
 @lru_cache(maxsize=512)
 def term_pattern(term: str) -> re.Pattern:
-    """Word-boundary matcher for one lexicon term (D1).
+    """Word-boundary matcher for one lexicon term.
 
-    Substring matching scored `cluster` against "we clustered similar values"
-    — data clustering, not a GPU cluster. Multi-word terms match as phrases
-    with flexible whitespace, so a line break inside "training run" still hits.
+    Substring matching scored `cluster` against "we clustered similar values" —
+    data clustering, not a GPU cluster. Multi-word terms match as phrases with
+    flexible whitespace, so a line break inside "training run" still hits.
 
-    The boundary is applied only at ends that ARE word characters. `\\b` is a
-    transition between a word and a non-word character, so `\\b@` demands a word
-    character immediately before the `@` — meaning `\\b@anthropicai\\b` cannot
-    match "scientist @AnthropicAI", where a space precedes it, and can never
-    match a handle at the start of a string either. No term in policy.yml
-    currently begins with punctuation, so this changes no existing behaviour;
-    it stops the next one from silently never firing.
+    Boundaries are applied only at ends that are word characters. `\\b` is a
+    transition between a word and a non-word character, so `\\b@handle` demands
+    a word character immediately before the `@` and can never match "scientist
+    @AnthropicAI" or a handle at the start of a string. No current term begins
+    with punctuation; this stops the next one from silently never firing.
     """
     body = r"\s+".join(re.escape(w) for w in term.split())
     left = r"\b" if term[:1].isalnum() or term[:1] == "_" else ""
@@ -100,7 +98,7 @@ class Policy:
     def channel_for(self, text: str) -> str | None:
         """Best-matching channel by term hits, or None.
 
-        Terms match on word boundaries (D1), never as substrings. Ties break by
+        Terms match on word boundaries, never as substrings. Ties break by
         order in the YAML file, so results are reproducible across machines.
         """
         best, best_hits = None, 0
@@ -113,18 +111,18 @@ class Policy:
     def positions_for(self, text: str) -> list[str]:
         """Tickers whose exposure vocabulary appears in the text.
 
-        Deliberately SEPARATE from `channel_for`. Two different questions:
+        Deliberately separate from `channel_for`. Two different questions:
 
-            positions_for  — does this touch something the fund owns?  (topical,
-                             which is what keyword matching is actually good at)
-            channel_for    — through what MECHANISM does it transmit?  (semantic;
-                             "does this move a number in a thesis", which keywords
-                             cannot decide — see hypothesis H4)
+            positions_for  does this touch something the fund owns? (topical —
+                           what keyword matching is actually good at)
+            channel_for    through what mechanism does it transmit? (semantic —
+                           "does this move a number in a thesis", which keywords
+                           cannot decide)
 
-        Fusing them is what broke H2: sector nouns like `health` and `broker`
-        were sitting in the `competitive_displacement` lexicon, so any post
-        mentioning health was scored as displacement whether or not anything was
-        being displaced. Exposure without a mechanism is a CANDIDATE, not a signal.
+        Fusing them put sector nouns like `health` and `broker` in the
+        `competitive_displacement` lexicon, so any post mentioning health scored
+        as displacement whether or not anything was displaced. Exposure without
+        a mechanism is a candidate, not a signal.
         """
         return [p.ticker for p in self.positions
                 if any(term_pattern(t).search(text) for t in p.exposure_terms)]

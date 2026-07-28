@@ -12,7 +12,7 @@ fli/ingestion/      LAYER 1  raw sources
 fli/knowledge/      LAYER 2  filtering, extraction, register
 fli/intelligence/   LAYER 3  clustering, features, labels, scoring
 fli/ops/            LLM client, tracing (cross-cutting)
-fli/validation/     C1-C16 invariant battery (reads every layer)
+fli/validation/     C1-C17 invariant battery (reads every layer)
 fli/orchestration/  pipeline, skeleton (composition only)
 ```
 
@@ -99,7 +99,7 @@ single-user project, one database).
 
 ## Ingestion pipeline
 
-One command runs the whole daily cycle (ingest 21 sources across 4 types →
+One command runs the whole daily cycle (ingest 141 sources across 5 types →
 stage-1 filter → stage-2 extraction → re-observe affiliations → validation
 battery; exit 0 = green):
 
@@ -110,7 +110,7 @@ python3 -m fli.cli pipeline --max-extract 200  # raise the cost cap explicitly
 
 Stage 2 needs `ANTHROPIC_API_KEY` (from `.env`); without it that stage is
 skipped and everything deterministic still runs and stays green. Each run
-prints D1 (quote verification rate), D2 (event-type distribution), and
+prints the quote-verification rate, the event-type distribution, and
 cumulative LLM cost.
 
 Idempotent: re-runs hash-dedup everything already stored, never re-extract a
@@ -219,10 +219,29 @@ Order matters — clusters gate the corroboration feature, features gate trainin
 ```bash
 python3 -m fli.cli cluster                 # populate cluster_id (Jaccard, measured θ)
 python3 -m fli.cli features                # build insight_features
-python3 -m fli.cli label                   # ~150 pairwise labels (resumable, stratified)
-python3 -m fli.cli score --bakeoff         # baselines vs logistic vs GBMs + ablation
-python3 -m fli.cli checks                  # expect C14-C16 green
+python3 -m fli.cli judge --rubric investment --n 300   # SPENDS ~$6
+python3 -m fli.cli judge --rubric technical  --n 300   # SPENDS ~$6
+python3 -m fli.cli score --all-rubrics      # one bake-off per audience
+python3 -m fli.cli evaluate                 # 12 figures + docs/evaluation-report.md
+python3 -m fli.cli checks                   # expect C14-C17 green
 sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
+```
+
+Read either ranking, and note they are genuinely different documents:
+
+```bash
+python3 -m fli.cli score --top 10 --rubric investment
+python3 -m fli.cli score --top 10 --rubric technical
+```
+
+`judge --dry-run` prints the prompt and the projected spend without sending
+anything. A second provider judges the identical pairs and lands as its own
+labeler, which is what makes the reliability estimate meaningful:
+
+```bash
+python3 -m fli.cli judge --model gpt-5.2 --rubric investment --n 300
+python3 -m fli.cli judge --agreement \
+    llm:claude-sonnet-5/investment/r1 llm:gpt-5.2/investment/r1
 ```
 
 Key constraints, all measured:
@@ -231,11 +250,17 @@ Key constraints, all measured:
   precision@10 is reported as a fairness check.
 - A **hand-weighted sum is a baseline to beat**, never the shipped scorer: an
   arbitrary weighted sum is not a defensible ranking.
+- **Rubrics are never pooled.** Labels carry `llm:<model>/<rubric>/r<version>`
+  and each ranking trains only on its own audience's judgements. The two
+  rankings share 0 of their top 10 (Kendall tau -0.06), which is the point.
+- **Reliability needs two model families.** Dawid-Skene infers accuracy from
+  disagreement, so the figure refuses to render unless at least two independent
+  families judged the same rubric.
 - The **contributor feature is a lab-level proxy** because person attribution
-  resolves on 1 of 406 events; the ablation is expected to show it contributes
-  little, and that negative result is reported rather than hidden.
+  resolves on 11 of 556 events; the ablation shows it contributes little, and
+  that negative result is reported rather than hidden.
 - No embeddings, no vector store, no second database — SQL plus scikit-learn
-  over 406 rows.
+  over 556 rows.
 
 ## Metrics harness (reproducible from the committed DB)
 

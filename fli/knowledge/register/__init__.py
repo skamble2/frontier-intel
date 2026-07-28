@@ -1,15 +1,14 @@
-"""The tracked-entity register (LAYER 2).
+"""The tracked-entity register.
 
-Facade over four single-responsibility modules, split out of what was one
-580-line file:
+Facade over four single-responsibility modules:
 
-    seeding      - the tracked labs and their founding people (verbatim-gated)
-    approval     - overrides > per-lab slate > auto-approve rule
-    observation  - affiliation currency (re-observe, once per person/lab/day)
-    reporting    - per-lab balance, the de-skew evidence (check C13)
+    seeding      the tracked labs and their founding people (verbatim-gated)
+    approval     overrides > per-lab slate > auto-approve rule
+    observation  affiliation currency, re-observed once per person/lab/day
+    reporting    per-lab balance, the de-skew evidence
 
-Import a submodule directly when you need its internals (tests do); import from
-here for the public operations.
+Import from here for the public operations; import a submodule directly when
+you need its internals, as the tests do.
 """
 from fli.knowledge.register.approval import (auto_approve, auto_approve_rule,
                                              load_overrides, review, show_queue,

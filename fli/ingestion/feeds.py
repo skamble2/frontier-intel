@@ -24,15 +24,16 @@ SM = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 CONTENT_NS = "{http://purl.org/rss/1.0/modules/content/}"
 
 # (lab, source_type, kind, url) — all URLs verified fetchable 2026-07-23.
-# Known gaps, by measurement: Anthropic/Mistral/Qwen/Meta serve no blog RSS
-# at standard paths (sitemap or substitute used); Meta AI's own blog has only
+#
+# Known gaps: Anthropic, Mistral, Qwen and Meta serve no blog RSS at standard
+# paths, so a sitemap or substitute feed is used; Meta AI's own blog offers only
 # a gzipped sitemap and is substituted by the Engineering feed.
-# JS-rendering wall (measured 2026-07-24): OpenAI blog and Mistral newsroom
-# render article bodies client-side, so http_get returns only a shell — the
-# body-fetch (thin blogs) and html_to_text (newsroom) recover just the
-# headline+teaser, and the classifier then discards the thin ones (e.g. the
-# GPT-5.6 launch). Documented coverage trade-off, NOT an _hydrated_body bug;
-# closing it would need headless-browser rendering (deliberately out of scope).
+#
+# JS-rendering wall: the OpenAI blog and Mistral newsroom render article bodies
+# client-side, so http_get returns a shell and only the headline and teaser are
+# recovered. The classifier then discards the thin ones. This is a known
+# coverage trade-off, not a bug in `_hydrated_body` — closing it needs headless
+# browser rendering, which is out of scope.
 FEEDS = [
     ("OpenAI",          "blog",   "feed",    "https://openai.com/news/rss.xml"),
     ("Google DeepMind", "blog",   "feed",    "https://deepmind.google/blog/rss.xml"),
@@ -50,9 +51,8 @@ FEEDS = [
     # releases, not commits: the commit feed was 70% git chatter (measured)
     ("Meta AI",         "github", "feed",    "https://github.com/meta-llama/llama-models/releases.atom"),
     ("xAI",             "github", "feed",    "https://github.com/xai-org/grok-1/releases.atom"),
-    # x.ai publishes no RSS at the standard path. Listed so the attempt is
-    # logged and the gap is a recorded `empty`/`error` row rather than a
-    # source we quietly never tried.
+    # x.ai publishes no RSS at the standard path. Listed anyway so the attempt
+    # is logged as an `empty`/`error` row rather than a source never tried.
     ("xAI",             "blog",   "feed",    "https://x.ai/news/rss.xml"),
 ]
 
@@ -62,20 +62,20 @@ SITEMAP_PREFIX = {
     "https://mistral.ai/sitemap-index.xml": "https://mistral.ai/news",
 }
 
-# Two paper streams. abs: (mention) queries are the recall net — 99% of their
-# results are third parties writing ABOUT the labs (measured 126/127), so
-# stage 1 gates arXiv docs on authorship: a tracked person or a collective
-# author string must appear in the author list. au: (authorship) queries
-# anchor the stream on the labs' own output; only collectives that actually
-# return papers are queried (measured 2026-07-23 — Anthropic, Llama Team and
-# Meta AI return 0: those labs publish under individual names, which the
-# authorship gate matches via the register).
-# xAI is DELIBERATELY ABSENT from this list. `abs:"xAI"` is a homograph trap:
-# XAI is the standard acronym for eXplainable AI, so the mention query would
-# return a large, entirely unrelated literature. The authorship gate would
-# reject most of it, but paying an LLM to classify that volume to discover it
-# is noise is the wrong order of operations. xAI is covered by the au: query
-# below, which cannot collide.
+# Two paper streams.
+#
+# abs: (mention) queries are the recall net. 126 of 127 of their results were
+# third parties writing ABOUT the labs, which is why stage 1 gates arXiv docs on
+# authorship — a tracked person or collective author string must be present.
+#
+# au: (authorship) queries anchor the stream on the labs' own output. Only
+# collectives that actually return papers are listed; Anthropic, Llama Team and
+# Meta AI return 0 because those labs publish under individual names, which the
+# authorship gate matches via the register.
+#
+# xAI is deliberately absent from ARXIV_QUERY_LABS: `abs:"xAI"` is a homograph
+# trap, since XAI is the standard acronym for eXplainable AI. It is covered by
+# the au: query below, which cannot collide.
 ARXIV_QUERY_LABS = ["OpenAI", "Anthropic", "DeepMind", "Meta AI",
                     "Mistral", "DeepSeek", "Qwen"]
 

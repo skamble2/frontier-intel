@@ -1,23 +1,20 @@
-"""D4 — the channel classifier. Replaces keyword matching.
+"""LLM channel classifier — replaces keyword matching.
 
-WHY THIS EXISTS, measured not assumed: the keyword lexicon reaches
-**F1 0.195** on 346 labelled X posts (3 true positives, 20 false). Hypothesis
-H4 pre-committed that a lexicon scoring below 0.80 justifies a classifier, and
-that if it scored above, the classifier would NOT be built. It scored 0.195, so
-this is built and 0.195 is the number it must beat.
+The keyword lexicon it replaces reaches F1 0.195 on the labelled X benchmark
+(3 true positives, 20 false), which is the number this has to beat.
 
-WHY THE LEXICON FAILS, which shapes the design: in a corpus that is entirely
-about AI, AI vocabulary carries almost no information. The top false-positive
-triggers were `energy`, `license`, `gpus`, `open weights`, `cluster` — the
-ambient language of the domain. Channel membership is a SEMANTIC question
-("does this move a number in a thesis?"), and keywords answer a TOPICAL one.
+Why the lexicon fails, which shapes the design: in a corpus entirely about AI,
+AI vocabulary carries almost no information. The top false-positive triggers
+were `energy`, `license`, `gpus`, `open weights` and `cluster` — the ambient
+language of the domain. Channel membership is a semantic question ("does this
+move a number in a thesis?") and keywords answer a topical one.
 
-Caching is the whole cost story: a verdict is keyed on
-(sha256(text), policy_version, model). Re-running is free, changing the policy
-correctly invalidates, and the experiment stays reproducible.
+Caching is the cost story: a verdict is keyed on
+(sha256(text), policy_version, model), so re-running is free and a policy edit
+correctly invalidates.
 
-Run:  python3 -m fli.cli xeval --d4             # head-to-head vs the lexicon
-      python3 -m fli.cli channels --corpus      # classify insights in the DB
+Run:  python3 -m fli.cli channels        # classify insights in the database
+      python3 -m fli.cli evaluate        # head-to-head vs the lexicon (fig 5)
 """
 from __future__ import annotations
 
@@ -133,7 +130,7 @@ def channel_for(text: str, conn=None) -> str | None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="D4 channel classifier.")
+    ap = argparse.ArgumentParser(description="LLM channel classifier.")
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))

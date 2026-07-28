@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+from typing import Any
 
 from fli.core.paths import ROOT
 
@@ -17,28 +18,12 @@ def load_dotenv() -> None:
                 os.environ.setdefault(k.strip(), v.strip())
 
 
-def have_api_key(model: str | None = None) -> bool:
-    load_dotenv()
-    if model is None:
-        return bool(os.environ.get("ANTHROPIC_API_KEY"))
-    return bool(os.environ.get(KEY_ENV[provider_for(model)]))
-
-
-# WHY A SECOND PROVIDER EXISTS AT ALL, since one would be simpler:
-#
-# The judge trains the ranker, and until now the judge, the extractor and every
-# prompt variant were the same model family. Dawid-Skene estimates labeler
-# reliability from DISAGREEMENT, and it assumes labelers are conditionally
-# independent — an assumption three Claude prompts violate outright. Measured:
-# r2/r3/r4 agreed 92-100%, so DS rated all three ~0.99, which is an artifact of
-# asking one model three times rather than a finding.
-#
-# A different model family is a genuinely independent labeler. That turns the
-# reliability estimate into something identifiable, and turns "the LLM agreed
-# with itself" into an inter-family agreement number.
-#
-# It is also the fallback story: one provider outage currently stops the
-# pipeline.
+# A second provider exists for one reason: Dawid-Skene estimates labeler
+# reliability from disagreement and assumes labelers are conditionally
+# independent, which prompt variants of a single model are not (measured at
+# 92-100% agreement, which rates all of them ~0.99). A different model family
+# is a genuinely independent labeler. It doubles as the fallback path when one
+# provider is down.
 PROVIDERS = {"anthropic": ("claude",),
              "openai": ("gpt-", "o1", "o3", "o4", "chatgpt")}
 KEY_ENV = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}
@@ -53,38 +38,63 @@ def provider_for(model: str) -> str:
         f"fli/ops/llm.PROVIDERS — guessing a provider would send a key to the "
         f"wrong endpoint.")
 
+
+def have_api_key(model: str | None = None) -> bool:
+    """True if the key for `model`'s provider is set. Defaults to Anthropic."""
+    load_dotenv()
+    if model is None:
+        return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return bool(os.environ.get(KEY_ENV[provider_for(model)]))
+
+
+# One model per task, picked on measured cost-quality. Haiku takes the
+# high-volume, bounded-output jobs; Sonnet takes the ones needing faithful
+# quoting or audited reasoning. The Haiku work costs $0.65 against $1.95 on
+# Sonnet, and the classify gate stops ~93 documents before extraction.
 MODEL_FOR_TASK = {
-    "classify": "claude-haiku-4-5-20251001",  # high volume, cheap, structured output
-    "extract": "claude-sonnet-5",             # needs faithful quoting + schema adherence
-    "persona": "claude-sonnet-5",             # reasoning quality visible to end reader
-    "label": "claude-sonnet-5",               # rubric application; the reference set
-    "judge": "claude-sonnet-5",               # pairwise preference; reasoning is audited
-    # the channel classifier that replaces keyword matching (F1 0.195).
-    # Haiku because it runs over every event and the task is a 5-way choice with
-    # the rubric supplied — cheap model, bounded output, cost-quality trade-off
-    # measured rather than assumed (see docs/report-notes.md).
-    "channel": "claude-haiku-4-5-20251001",
+    "classify": "claude-haiku-4-5-20251001",  # high volume, structured output
+    "extract": "claude-sonnet-5",             # faithful quoting + schema adherence
+    "persona": "claude-sonnet-5",             # UNUSED: no caller routes to it
+    "judge": "claude-sonnet-5",               # pairwise preference, audited
+    "channel": "claude-haiku-4-5-20251001",   # 5-way choice over every event
 }
 
-# USD per 1M tokens (input, output); verify against live pricing before shipping.
-#
-# There is deliberately NO default entry and no fallback rate. Token cost is a
-# graded deliverable, and a guessed price is worse than a missing one: it
-# produces a confident number nobody checked. An unknown model raises instead.
+# USD per 1M tokens (input, output). Verify against live pricing before
+# shipping. There is deliberately no default entry and no fallback rate: a
+# guessed price produces a confident number nobody checked, so an unknown model
+# raises instead.
 PRICES = {
     "claude-haiku-4-5-20251001": (1.00, 5.00),
     "claude-sonnet-5": (3.00, 15.00),
+    # Reasoning tokens are billed as OUTPUT and are already inside
+    # `usage.completion_tokens`, so this rate is correct — but the visible JSON
+    # verdict is ~120 tokens while billed output can be many times that.
+    # `reasoning_tokens` is logged separately so the split stays reportable.
+    "gpt-5.2": (1.75, 14.00),
 }
-PRICES_CHECKED_AT = None
+PRICES_CHECKED_AT = "2026-07-28"     # provider pricing pages, by hand
+
+def reasoning_effort() -> str | None:
+    """reasoning.effort for OpenAI reasoning models, or None for their default.
+
+    Read at call time, not at import, so FLI_REASONING_EFFORT works from .env
+    as well as inline.
+
+    Left at the provider default on purpose: the judge follows five explicit
+    ordering rules over two short texts, and raising effort multiplies billed
+    output for an answer that is one of two letters. Set the variable to test
+    that rather than assume it — the difference lands in llm_calls either way.
+    """
+    load_dotenv()
+    return os.environ.get("FLI_REASONING_EFFORT")
 
 
 def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
     if model not in PRICES:
         raise KeyError(
-            f"no price recorded for {model!r}. Look up its per-1M input/output "
-            f"rate and add it to fli/ops/llm.PRICES as "
-            f"{model!r}: (input, output). The tokenomics figures are reported "
-            f"to the reader, so this refuses to invent a rate.")
+            f"no price recorded for {model!r}. Add its per-1M input/output "
+            f"rate to fli/ops/llm.PRICES as {model!r}: (input, output). "
+            f"Refusing to invent a rate.")
     pin, pout = PRICES[model]
     return (input_tokens * pin + output_tokens * pout) / 1_000_000
 
@@ -95,17 +105,23 @@ TYPICAL_JUDGE_TOKENS = (1500, 120)
 
 
 def preflight(model: str, n_calls: int = 0) -> float:
-    """Check key AND price BEFORE the first paid call, and project the spend.
+    """Check SDK, key and price before the first paid call, and project spend.
 
-    THE BUG THIS PREVENTS: `cost_usd` raises on an unpriced model, but it was
-    only reached AFTER the API had answered — so adding a new judge model
-    meant paying for a call whose response was then thrown away by the
-    exception. A guard that fires after the money is gone is not a guard.
-
-    Same discipline as the X ingest budget check, for the same reason.
+    `cost_usd` also raises on an unpriced model, but only after the API has
+    answered — so the call is paid for and then discarded by the exception.
+    Same discipline as the X ingest budget check.
     """
     load_dotenv()
     prov = provider_for(model)
+    # The SDK is imported lazily in _client(), so a missing package would
+    # otherwise surface on the first pair of a long run.
+    import importlib.util
+    pkg = {"anthropic": "anthropic", "openai": "openai"}[prov]
+    if importlib.util.find_spec(pkg) is None:
+        raise SystemExit(
+            f"the {pkg!r} package is not installed, and judge model {model!r} "
+            f"needs it.\n    pip install '{pkg}>=1.40'\n"
+            f"(it is in requirements.txt as an optional second provider)")
     if not os.environ.get(KEY_ENV[prov]):
         raise SystemExit(
             f"{KEY_ENV[prov]} not set. Add it to .env:\n"
@@ -117,8 +133,7 @@ def preflight(model: str, n_calls: int = 0) -> float:
             f"Add one line to fli/ops/llm.PRICES, using the rates from the "
             f"provider's pricing page:\n"
             f"    {model!r}: (input_per_1M, output_per_1M),\n"
-            f"Refusing to run rather than invent a rate: token cost is a "
-            f"reported figure, and a guessed price is worse than a missing one.")
+            f"Refusing to run rather than invent a rate.")
     tin, tout = TYPICAL_JUDGE_TOKENS
     est = n_calls * cost_usd(model, tin, tout)
     if n_calls:
@@ -130,16 +145,16 @@ def preflight(model: str, n_calls: int = 0) -> float:
 class LLM:
     """One client object, one or two providers behind it.
 
-    Clients are built LAZILY, per provider, on first use — so a run that only
-    touches Claude never requires an OpenAI key to be present, and vice versa.
-    That matters because the demo has to stay runnable with a single key.
+    Clients are built lazily per provider on first use, so a run that only
+    touches Claude never needs an OpenAI key present, and vice versa.
     """
 
     def __init__(self, conn: sqlite3.Connection):
         self.conn = conn
-        self._clients: dict[str, object] = {}
+        # `Any` because the two SDK client types share no base class.
+        self._clients: dict[str, Any] = {}
 
-    def _client(self, provider: str):
+    def _client(self, provider: str) -> Any:
         if provider not in self._clients:
             key = os.environ.get(KEY_ENV[provider])
             if not key:
@@ -154,11 +169,9 @@ class LLM:
                 self._clients[provider] = openai.OpenAI(api_key=key)
         return self._clients[provider]
 
-    # Models that answered "`temperature` is deprecated for this model".
-    # Class-level so the capability is learned ONCE per process rather than
-    # rediscovered on every call. The previous version only suppressed the
-    # warning, not the retry, so each sonnet-5 call cost two round trips: a
-    # 400 and then the real one.
+    # Models that reject an explicit `temperature`. Class-level so the
+    # capability is learned once per process instead of costing a rejected
+    # round trip on every call.
     _no_temperature: set[str] = set()
 
     def call(self, task: str, system: str, user: str, max_tokens: int = 1024,
@@ -173,21 +186,14 @@ class LLM:
                                      max_tokens, temperature)
         with tracing.llm_span(task) as span:
             tracing.annotate(span, tracing.input_attrs(model, system, user))
-            # temperature=0 wherever the model still accepts it: every task
-            # here is structured extraction or classification, where the same
-            # input should give the same answer. It was previously unset, so
-            # the API default applied and identical calls could differ.
+            # temperature=0 wherever the model accepts it: every task here is
+            # structured extraction or classification, where the same input
+            # should give the same answer.
             #
-            # claude-sonnet-5 runs adaptive thinking and rejects an explicit
-            # temperature outright. That is a capability of the model, not a
-            # failure, so it is DETECTED ONCE and remembered — the parameter is
-            # simply not sent again for that model.
-            #
-            # What this costs us is worth stating plainly: on such a model
-            # reproducibility cannot be asserted from a parameter, so it has to
-            # be MEASURED. `judge --consistency N` judges N pairs both ways and
-            # reports the flip rate, which is the honest version of the claim
-            # that temperature=0 was standing in for.
+            # Models running adaptive thinking reject an explicit temperature.
+            # That is detected once and remembered. On those models
+            # reproducibility cannot be asserted from a parameter and has to be
+            # measured instead — see `judge --consistency N`.
             kwargs = dict(model=model, max_tokens=max_tokens, system=system,
                           messages=[{"role": "user", "content": user}])
             create = self._client("anthropic").messages.create
@@ -206,8 +212,7 @@ class LLM:
                           f"declared — see `judge --consistency N`.")
                     resp = create(**kwargs)
             usage = resp.usage
-            # claude-sonnet-5 runs adaptive thinking by default, so a ThinkingBlock
-            # may precede the text block — take text blocks only.
+            # A ThinkingBlock may precede the text block — take text only.
             text = "".join(b.text for b in resp.content if b.type == "text")
             tracing.annotate(span, tracing.output_attrs(
                 text, usage.input_tokens, usage.output_tokens))
@@ -216,12 +221,12 @@ class LLM:
                              cost_usd(model, usage.input_tokens, usage.output_tokens))
         return text
 
-    # OpenAI's chat API differs in three ways that matter, each handled by
-    # learning the model's capability once rather than by hardcoding a list of
-    # model names that would go stale:
+    # OpenAI's chat API differs in three ways, each handled by learning the
+    # model's capability once rather than hardcoding a model list that goes
+    # stale:
     #   - the system prompt is a message, not a top-level argument
     #   - reasoning models want `max_completion_tokens`, not `max_tokens`
-    #   - reasoning models reject `temperature`, exactly like sonnet-5
+    #   - reasoning models reject `temperature`
     _no_max_tokens: set[str] = set()
 
     def _call_openai(self, task: str, model: str, system: str, user: str,
@@ -235,37 +240,51 @@ class LLM:
                         messages=[{"role": "system", "content": system},
                                   {"role": "user", "content": user}])
 
+            effort = reasoning_effort()
+
             def build() -> dict:
                 kw = dict(base)
                 kw["max_completion_tokens" if model in LLM._no_max_tokens
                    else "max_tokens"] = max_tokens
                 if model not in LLM._no_temperature:
                     kw["temperature"] = temperature
+                if effort:
+                    kw["reasoning_effort"] = effort
                 return kw
 
+            resp = None
             for _ in range(3):          # at most: max_tokens fix, temp fix, send
                 try:
                     resp = client.chat.completions.create(**build())
                     break
                 except Exception as e:
                     msg = str(e).lower()
+                    # One message can name both parameters, so handle each
+                    # independently rather than with elif.
+                    handled = False
                     if "max_tokens" in msg and model not in LLM._no_max_tokens:
                         LLM._no_max_tokens.add(model)
-                    elif "temperature" in msg and model not in LLM._no_temperature:
+                        handled = True
+                    if "temperature" in msg and model not in LLM._no_temperature:
                         LLM._no_temperature.add(model)
                         print(f"  note: {model} does not accept an explicit "
                               f"temperature; sending none for the rest of this "
                               f"run.")
-                    else:
+                        handled = True
+                    if not handled:
                         raise
-            else:
+            if resp is None:
                 raise RuntimeError(f"{model}: could not find an accepted "
-                                   f"parameter combination")
+                                   f"parameter combination in 3 attempts")
 
             text = resp.choices[0].message.content or ""
             u = resp.usage
             in_tok, out_tok = u.prompt_tokens, u.completion_tokens
+            # Already inside completion_tokens; pulled out for reporting only.
+            details = getattr(u, "completion_tokens_details", None)
+            reasoning = getattr(details, "reasoning_tokens", None) if details else None
             tracing.annotate(span, tracing.output_attrs(text, in_tok, out_tok))
         storage.log_llm_call(self.conn, task, model, in_tok, out_tok,
-                             cost_usd(model, in_tok, out_tok))
+                             cost_usd(model, in_tok, out_tok),
+                             reasoning_tokens=reasoning)
         return text

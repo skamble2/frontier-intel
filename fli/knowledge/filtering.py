@@ -18,13 +18,13 @@ KILL_PATTERNS = [
     (r"\bjob (opening|posting)s?\b|\bwe'?re hiring\b", "job_post"),
 ]
 
-# A post opening with a discourse marker that points OUTSIDE itself cannot
+# A post opening with a discourse marker that points outside itself cannot
 # stand alone. These are generic closed-class English categories — subordinating
-# conjunctions, additive adverbs, and fronted adjuncts — deliberately not a list
-# of openers read off the benchmark, which would fit the rule to the very set
-# H3 is measured on.
+# conjunctions, additive adverbs and fronted adjuncts — deliberately not a list
+# of openers read off the benchmark, which would fit the rule to the set it is
+# measured on.
 #
-# Leading bare pronouns ("It even outperforms…") are the same phenomenon, but
+# Leading bare pronouns ("It even outperforms…") are the same phenomenon but
 # only when no antecedent is present, so they are matched separately below.
 _CONTINUATION_OPENER = re.compile(
     r"^(while|because|although|though|since|whereas|"        # subordinators
@@ -43,13 +43,12 @@ _LEADING_ANAPHOR = re.compile(
 def social_fragment_reason(body: str) -> str | None:
     """Why this social post is a thread fragment, or None if it stands alone.
 
-    `body` is the stored document, whose first two lines are the @handle and
-    URL header `x_api.as_document` writes; only the post text is judged.
+    `body` is the stored document, whose first two lines are the @handle and URL
+    header written by `x_api.as_document`; only the post text is judged.
 
-    PROVISIONAL (D3): this is a text heuristic standing in for thread position,
-    which is the fact it is actually trying to recover. `conversation_id` from
-    the X API would decide it structurally and cheaply — see the H3 conflict
-    reported by `fli.cli xeval`, which this heuristic cannot resolve on its own.
+    PROVISIONAL: a text heuristic standing in for thread position, which is the
+    fact it is really trying to recover. `conversation_id` from the X API would
+    decide it structurally and cheaply.
     """
     text = "\n".join(body.split("\n")[2:]).strip()
     if not text:
@@ -101,19 +100,18 @@ def stage1(conn: sqlite3.Connection, document_id: int) -> tuple[bool, str | None
             storage.log_rejection(conn, document_id, "stage1", "no_tracked_entity", None)
             return False, "no_tracked_entity"
 
-    # social thread rule (D3): a lab account's own posts pass the "mentions a
-    # tracked lab" gate on the header this repo generated, so that gate is
-    # vacuous here and thread fragments would reach the paid classifier.
+    # Social thread rule. A lab account's own posts pass the "mentions a tracked
+    # lab" gate on the header this repo generated, so that gate is vacuous here
+    # and thread fragments would otherwise reach the paid classifier.
     if doc["source_type"] == "social":
         reason = social_fragment_reason(doc["raw_content"])
         if reason:
             storage.log_rejection(conn, document_id, "stage1", reason, None)
             return False, reason
 
-    # arXiv authorship gate: mentioning a lab is not being the lab. 126/127
-    # abs:-query papers were third parties writing about the labs (measured);
-    # a paper counts only if a registered person or a lab collective author
-    # is on it. Everything else is field commentary -> noise floor.
+    # arXiv authorship gate: mentioning a lab is not being the lab. 126 of 127
+    # abs:-query papers were third parties writing about the labs, so a paper
+    # counts only if a registered person or a lab collective author is on it.
     if doc["source_type"] == "arxiv" and not _lab_authored(conn, doc["raw_content"]):
         storage.log_rejection(conn, document_id, "stage1", "not_lab_authored", None)
         return False, "not_lab_authored"

@@ -42,10 +42,10 @@ def observe(conn: sqlite3.Connection) -> None:
         hit = next(((d, u, t) for d, u, t in candidates
                     if contains_verbatim(t, pair["canonical_name"])), None)
         if hit is None:
-            # Two very different states, and conflating them manufactures
-            # attrition. A person registered from an X bio was NEVER on a lab
-            # page, so failing to find them there is the expected result, not
-            # a departure. Only the second case is a candidate mobility signal.
+            # Two different states; conflating them manufactures attrition.
+            # A person registered from an X bio was never on a lab page, so not
+            # finding them there is expected. Only the other case is a
+            # candidate mobility signal.
             never_on_a_page = not conn.execute(
                 "SELECT 1 FROM identities WHERE person_id=? AND platform='lab_page'",
                 (pair["person_id"],)).fetchone()

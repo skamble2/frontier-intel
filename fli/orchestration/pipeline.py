@@ -102,7 +102,7 @@ def main() -> None:
     print("\n=== run summary ===")
     print(f"items seen: {stats['items_seen']}  new docs: {stats['docs_new']}"
           f"  hash-dups caught: {stats['hash_dups']}")
-    print(f"near-dup titles surviving hash dedup (D3): {near_dup_titles(conn)}")
+    print(f"near-dup titles surviving hash dedup: {near_dup_titles(conn)}")
     print(f"urls with multiple stored versions: {url_versions(conn)}")
 
     print("\n=== checks ===")

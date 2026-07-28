@@ -255,6 +255,32 @@ SELECT task, model, count(*) AS calls,
 FROM llm_calls GROUP BY 1,2 ORDER BY usd DESC;
 
 .print ''
+.print '================ M5a2 · REASONING TOKENS (billed as output) ================'
+-- Reasoning models charge thinking at the OUTPUT rate. reasoning_tokens is a
+-- SUBSET of output_tokens, so pct_output_that_was_thinking says how much of the
+-- output spend bought reasoning rather than the ~120-token JSON verdict we
+-- actually consume. NULL for non-reasoning models, which is the honest answer.
+SELECT model,
+       count(*)                                        AS calls,
+       SUM(output_tokens)                              AS tok_out,
+       SUM(COALESCE(reasoning_tokens,0))               AS tok_reasoning,
+       ROUND(SUM(COALESCE(reasoning_tokens,0))*100.0
+             /NULLIF(SUM(output_tokens),0),1)          AS pct_output_that_was_thinking,
+       ROUND(SUM(cost_usd),4)                          AS usd
+FROM llm_calls GROUP BY 1 ORDER BY usd DESC;
+
+.print ''
+.print '================ M5a3 · JUDGE COST PER USABLE LABEL, BY MODEL ================'
+-- The cost-quality question the brief asks, answered per provider: a cheaper
+-- model that returns more low-confidence verdicts is not cheaper per unit of
+-- training signal, because low-confidence rows are excluded from training.
+SELECT substr(l.labeler, 5, instr(substr(l.labeler,5), '/') - 1) AS judge_model,
+       count(*)                                                  AS judged,
+       SUM(l.reason NOT LIKE '%conf=low%')                        AS usable,
+       ROUND(SUM(l.reason LIKE '%conf=low%')*100.0/count(*),1)    AS pct_low_conf
+FROM pairwise_labels l WHERE l.labeler LIKE 'llm:%' GROUP BY 1;
+
+.print ''
 .print '================ M5b · COST PER INSIGHT + HAIKU-GATE SAVING ================'
 SELECT (SELECT ROUND(SUM(cost_usd),4) FROM llm_calls)              AS total_usd,
        (SELECT count(*) FROM insights)                             AS insights,

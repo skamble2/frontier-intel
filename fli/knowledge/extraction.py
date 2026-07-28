@@ -182,8 +182,9 @@ def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int
     for ins in extracted:
         verdict = verify_quote(doc["raw_content"], ins.quote)
         if verdict is None:
-            # per-insight hallucination-control counter — this is D1's denominator,
-            # so it must be logged, never silently skipped.
+            # Per-insight hallucination-control counter. This is the
+            # denominator of the quote-verification rate, so it must be logged
+            # rather than silently skipped.
             storage.log_rejection(conn, document_id, "verification",
                                   "quote_unverified", ins.quote[:200])
             continue
@@ -248,17 +249,18 @@ def extract_all(conn: sqlite3.Connection, llm: LLM, max_docs: int = 60) -> dict:
 
 
 def report_measurements(conn: sqlite3.Connection) -> None:
-    """D1 (per-insight quote verification), D2 (event-type distribution), rejection rate."""
+    """Quote-verification rate, event-type distribution, rejection reasons."""
     total = conn.execute("SELECT count(*) c FROM insights").fetchone()["c"]
-    # per-insight failures (each dropped insight is one quote_unverified row), so
-    # D1 is the true kept/(kept+failed) rate — not inflated by multi-insight docs.
+    # Per-insight failures: each dropped insight is one quote_unverified row,
+    # so this is the true kept/(kept+failed) rate, not inflated by multi-
+    # insight documents.
     fails = conn.execute("SELECT count(*) c FROM rejections"
                          " WHERE reason='quote_unverified'").fetchone()["c"]
     if total + fails:
-        print(f"D1 quote verification (cumulative, per-insight): {total}/{total + fails}"
+        print(f"quote verification (cumulative, per-insight): {total}/{total + fails}"
               f" exact ({100 * total / (total + fails):.0f}%); dropped: {fails}")
     if total:
-        print("D2 event types:")
+        print("event types:")
         for r in conn.execute("SELECT event_type, count(*) c FROM insights"
                               " GROUP BY 1 ORDER BY c DESC"):
             print(f"  {r['event_type']}: {r['c']} ({100 * r['c'] / total:.0f}%)")
@@ -269,9 +271,7 @@ def report_measurements(conn: sqlite3.Connection) -> None:
 
 
 def main() -> None:
-    """Stage 2 on its own. Previously only reachable inside `fli.cli pipeline`,
-    so there was no way to extract from newly-ingested documents without
-    re-running ingestion."""
+    """Stage 2 on its own, without re-running ingestion."""
     import argparse
     from pathlib import Path
     from fli.ops.llm import LLM, have_api_key

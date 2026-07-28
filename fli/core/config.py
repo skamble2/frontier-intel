@@ -18,11 +18,10 @@ ARXIV_DELAY_S = 3               # arXiv API politeness (their published guidance
 BLOG_BODY_MIN = 1500
 
 # --- stage-1 filter (L2) --------------------------------------------------
-# Measured per source type: arXiv abstracts are short but dense, GitHub releases
-# are long but often boilerplate. Lowered twice from observed false rejections
-# ("Introducing Gemini Omni" at 127 chars). See docs/report-notes.md.
-# A post is capped at 280 characters, so the default 400-char fallback floor
-# would reject EVERY tweet as too_short. 'social' needs its own entry.
+# Per source type: arXiv abstracts are short but dense, GitHub releases are long
+# but often boilerplate. Lowered twice from observed false rejections. A post is
+# capped at 280 characters, so the 400-char fallback floor would reject every
+# tweet as too_short — 'social' needs its own entry.
 MIN_CHARS = {"blog": 100, "newsroom": 100, "github": 400, "arxiv": 150,
              "social": 60}
 # A release tag is signal regardless of length (DeepSeek-V3 v1.0.0 at 164 chars
@@ -38,11 +37,9 @@ X_USER_COST_USD = 0.010         # User: Read (handle -> id, cached after once)
 # These are a SPENDING control, not a tuning knob. The run stops when it hits
 # them, so a pagination bug cannot drain the balance.
 X_MAX_POSTS_PER_ACCOUNT = 20
-# Raised from 400/$3.00 DELIBERATELY, not because a run hit the cap. Adding
-# researcher handles takes the account list from 8 to ~50, and at the old
-# ceiling the 400-post cap bound after roughly the first 20 accounts — every
-# researcher after that would have been silently skipped, which is the failure
-# mode a cap is supposed to prevent, not cause.
+# Raised from 400/$3.00 when researcher handles took the account list from 8 to
+# ~50: at the old ceiling the post cap bound after roughly 20 accounts, silently
+# skipping every researcher after that.
 #   worst case: 50 users x $0.010 + 1000 posts x $0.005 = $5.50
 X_MAX_POSTS_PER_RUN = 1000      # ceiling of $5.00 of posts in any single run
 X_RUN_BUDGET_USD = 8.00         # abort before starting if projected spend exceeds this
@@ -57,8 +54,8 @@ MAX_INSIGHTS_PER_DOC = 5        # length-proportional cap; fixed arXiv over-extr
 EXPANSION_WINDOW_DAYS = 365     # co-author discovery lookback
 
 # --- clustering (L3) ------------------------------------------------------
-# Jaccard on claim tokens. Measured from the similarity distribution, not guessed
-# measured from the similarity distribution, not guessed.
+# Jaccard on claim tokens, read off the similarity distribution rather than
+# guessed — see `cluster --histogram`.
 CLUSTER_THETA = 0.4
 
 # --- features (L3) --------------------------------------------------------

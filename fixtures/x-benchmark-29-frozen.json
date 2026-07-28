@@ -1,0 +1,209 @@
+{
+ "source": "X API live run 2026-07-26, $0.175",
+ "n": 29,
+ "posts": [
+  {
+   "id": "2080815626113954288",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2080815626113954288",
+   "created_at": "2026-07-25T00:41:19.000Z",
+   "text": "@huggingface We recognize there are a lot of questions and speculative details circulating related to the Hugging Face incident. \n\nThis is an unprecedented incident, and we think it marks an important moment for AI safety. \n\nWe are still conducting a thorough review along with external"
+  },
+  {
+   "id": "2080392280549253392",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2080392280549253392",
+   "created_at": "2026-07-23T20:39:06.000Z",
+   "text": "You can also use ChatGPT Voice in Codex from the iOS app with paired remote access. Android support is coming soon."
+  },
+  {
+   "id": "2080378182469857576",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2080378182469857576",
+   "created_at": "2026-07-23T19:43:04.000Z",
+   "text": "ChatGPT Voice is now in the desktop app.\n\nControl your computer and direct multiple agents running  in ChatGPT Work or Codex, using just your voice. \n\nIt's powered by GPT-Live, so it can speak, listen, and coordinate work in the app at the same time.\n\nRolling out globally today https://t.co/ODZWKqecCf"
+  },
+  {
+   "id": "2080339986717790394",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2080339986717790394",
+   "created_at": "2026-07-23T17:11:18.000Z",
+   "text": "More than 300 million people turn to ChatGPT with health-related questions each week\u2014and we\u2019re continuing to improve how our models respond.\n\nWe work with hundreds of physicians around the world to measure and improve accuracy, safety, communication, context awareness, https://t.co/j8BwEkn14b"
+  },
+  {
+   "id": "2080339983962181983",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2080339983962181983",
+   "created_at": "2026-07-23T17:11:17.000Z",
+   "text": "We built this experience based on feedback from early testers and physicians.\n\nWith your permission, ChatGPT can use relevant context you\u2019ve connected in Health across your conversations \u2014 to help you compare a new result with prior tests, summarize changes since your last https://t.co/joWXUxjQjO"
+  },
+  {
+   "id": "2080339982288568709",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2080339982288568709",
+   "created_at": "2026-07-23T17:11:17.000Z",
+   "text": "Health in ChatGPT is starting to roll out to U.S. users.\n\nYou can securely connect Apple Health and supported medical records to understand your information in context, track what has changed, and have more informed conversations.\n\nhttps://t.co/W2E6oT8c91"
+  },
+  {
+   "id": "2080321522040807769",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2080321522040807769",
+   "created_at": "2026-07-23T15:57:56.000Z",
+   "text": "To ensure this model is deployed responsibly, we\u2019re starting with a limited-access pilot for governments and trusted partners. \u2192 https://t.co/7DwOw7OKN8"
+  },
+  {
+   "id": "2080321519952056441",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2080321519952056441",
+   "created_at": "2026-07-23T15:57:55.000Z",
+   "text": "By combining speed and efficiency, 3.5 Flash Cyber lets defense specialists check significantly more code paths.\n\nIn testing on our own codebases \u2013 including @googlechrome and @Android \u2013 it consistently caught complex, unique vulnerabilities that standard models missed. https://t.co/JKvamuRevz"
+  },
+  {
+   "id": "2080321516814647630",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2080321516814647630",
+   "created_at": "2026-07-23T15:57:54.000Z",
+   "text": "Gemini 3.5 Flash Cyber is our specialized, lightweight model built to help security teams spot and patch vulnerabilities before they can be exploited. \ud83e\uddf5 https://t.co/XpiKcvwjeI"
+  },
+  {
+   "id": "2079925576077324552",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2079925576077324552",
+   "created_at": "2026-07-22T13:44:35.000Z",
+   "text": "We\u2019re expanding our work with the US Dept. of @ENERGY on the Genesis Mission \u2013 an initiative to double the pace of scientific discovery within a decade. \ud83e\uddea\n\nBy committing $40M in AI tokens and @GoogleCloud credits, more lab researchers will gain access to Gemini and other AI https://t.co/jsHtsiUNJC"
+  },
+  {
+   "id": "2079916436232036614",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2079916436232036614",
+   "created_at": "2026-07-22T13:08:16.000Z",
+   "text": "New for enterprises: OpenAI Presence helps companies deploy trusted voice and chat agents across customer and internal workflows.\n\nAI agents can answer questions, use company systems, take approved actions, and escalate to people when needed\u2014while improving over time.\n\nOpenAI"
+  },
+  {
+   "id": "2079658951264920020",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2079658951264920020",
+   "created_at": "2026-07-21T20:05:06.000Z",
+   "text": "We're partnering with @huggingface to investigate an unprecedented security incident.  \n\nCyber-capable OpenAI models compromised Hugging Face production during a benchmark evaluation.\n\nSharing preliminary findings to help defenders understand emerging risks:"
+  },
+  {
+   "id": "2079653801502380543",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2079653801502380543",
+   "created_at": "2026-07-21T19:44:39.000Z",
+   "text": "It even outperforms 3 Flash on many agentic and coding benchmarks.\n\n3.5 Flash-Lite is rolling out in the @GeminiApp and @Google Search, with API access in @GoogleAIStudio and @AndroidStudio.\n\nFind out more \u2192 https://t.co/oa7uvBIu0N https://t.co/7z1EAzkwkl"
+  },
+  {
+   "id": "2079653799602368604",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2079653799602368604",
+   "created_at": "2026-07-21T19:44:38.000Z",
+   "text": "Gemini 3.5 Flash-Lite is our fast, cost-effective model for scaling repetitive use cases like sorting tickets and extracting data.\n\nWatch how it performs against 3.5 Flash on a series of high volume tasks \u2193 https://t.co/km2wa21mUJ"
+  },
+  {
+   "id": "2079647256941412817",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2079647256941412817",
+   "created_at": "2026-07-21T19:18:38.000Z",
+   "text": "We had guessed reward seeking might increase over the course of capabilities-focused RL training, but had no way of measuring it until now.\n\nWe\u2019re continuing to collaborate with Apollo Research to improve how reward-seeking is measured during training\u2014and better detect whether"
+  },
+  {
+   "id": "2079647254701634028",
+   "handle": "OpenAI",
+   "url": "https://x.com/OpenAI/status/2079647254701634028",
+   "created_at": "2026-07-21T19:18:38.000Z",
+   "text": "Contrastive SDF gives copies of the same model opposing beliefs about what the grader prefers, then measures how their behavior changes. https://t.co/eXSh5LKJ0j"
+  },
+  {
+   "id": "2079615468294320365",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2079615468294320365",
+   "created_at": "2026-07-21T17:12:19.000Z",
+   "text": "It\u2019s much better at writing production-ready code faster without getting stuck in loops.\n\nPlus, it excels at multimodal tasks like analyzing charts, understanding documents, and report drafting.\n\n3.6 Flash is rolling out in the @GeminiApp and developers can start building in https://t.co/Bpv3haXc6P"
+  },
+  {
+   "id": "2079615466356580535",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2079615466356580535",
+   "created_at": "2026-07-21T17:12:19.000Z",
+   "text": "Gemini 3.6 Flash builds directly on feedback from 3.5 Flash.\n\nWatch how it compares on quality and token usage \u2193 https://t.co/UsVzHv0VOQ"
+  },
+  {
+   "id": "2079589701795627317",
+   "handle": "GoogleDeepMind",
+   "url": "https://x.com/GoogleDeepMind/status/2079589701795627317",
+   "created_at": "2026-07-21T15:29:56.000Z",
+   "text": "Gemini 3.6 Flash and 3.5 Flash-Lite are rolling out now in the @GeminiApp.\n\nDevelopers can start building via the API in @GoogleAIStudio and @AndroidStudio.\n\nGemini 3.5 Flash Cyber will be exclusively available via CodeMender soon as part of a limited-access pilot program.\n\nFind https://t.co/tullYV1Mtd"
+  },
+  {
+   "id": "2079256626771665098",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2079256626771665098",
+   "created_at": "2026-07-20T17:26:25.000Z",
+   "text": "We're offering grants of up to $50,000 in Claude usage credits to researchers accelerating cures for rare diseases.\n\nThis is our first focused call within AI for Science, our program supporting scientists using Claude to speed up discovery. https://t.co/rZEmwh07cd"
+  },
+  {
+   "id": "2077452649000042614",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2077452649000042614",
+   "created_at": "2026-07-15T17:58:03.000Z",
+   "text": "We tested many AI models, including Claude, in the four scenarios. Even though these weren\u2019t real incidents, they demonstrate clear misaligned behavior that should be studied further and mitigated.\n\nFind all the transcripts from the scenarios here: https://t.co/ihd6Ch437y"
+  },
+  {
+   "id": "2077452646303006927",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2077452646303006927",
+   "created_at": "2026-07-15T17:58:02.000Z",
+   "text": "New Anthropic research: Agentic misalignment in Summer 2026.\n\nA year after our blackmail experiments, we found four more ways that today\u2019s autonomous AI agents misbehave in simulations.\n\nRead more: https://t.co/MMDuJapeV6 https://t.co/ZuZeX3uHDx"
+  },
+  {
+   "id": "2077026346375540870",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2077026346375540870",
+   "created_at": "2026-07-14T13:44:04.000Z",
+   "text": "We\u2019re committing $10 million CAD and partnering with leading AI institutions in Canada to help fund new AI research. \n\nhttps://t.co/A8wpanWYQO"
+  },
+  {
+   "id": "2076719549060382802",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2076719549060382802",
+   "created_at": "2026-07-13T17:24:58.000Z",
+   "text": "While the values Claude expresses shape millions of conversations every day, we don't yet understand why they vary, or whether that's desired.\n\nThis approach will allow us to determine what factors influence Claude's value expression\u2014and ultimately how (and whether) to steer it."
+  },
+  {
+   "id": "2076719546954825769",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2076719546954825769",
+   "created_at": "2026-07-13T17:24:58.000Z",
+   "text": "The values Claude expresses also vary with the language of the conversation, most noticeably along the Warmth vs. Rigor axis.\n\nClaude leans most toward warmth in Hindi and Arabic. In Russian, it leans toward rigor\u2014often asking the user for supporting evidence. https://t.co/sRGqSqPW3i"
+  },
+  {
+   "id": "2076719544727716287",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2076719544727716287",
+   "created_at": "2026-07-13T17:24:57.000Z",
+   "text": "While the differences between models are modest overall, we find that each Claude model sits at a different point along these value axes.  \n\nSonnet 4.6, for example, is more playful and affirming, while Opus 4.7 is more likely to give candid critiques. https://t.co/idw9Bgr8tS"
+  },
+  {
+   "id": "2076719542404018631",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2076719542404018631",
+   "created_at": "2026-07-13T17:24:57.000Z",
+   "text": "Because it\u2019s hard to spot patterns by comparing 3,000 values at a time, we clustered similar values together, then identified four key axes along which Claude\u2019s values differ between models: \n\nDeference vs. Caution, Warmth vs. Rigor, Depth vs. Brevity, and Candor vs. Execution. https://t.co/GWkphSDkC7"
+  },
+  {
+   "id": "2076719540785012872",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2076719540785012872",
+   "created_at": "2026-07-13T17:24:56.000Z",
+   "text": "In previous research, we found that Claude expresses over 3,000 values, like honesty and warmth. In new work, we asked how the values Claude expresses vary between Claude models and across languages.\n\nWe analyzed 300K+ anonymized conversations to find out.https://t.co/PgxsMXipt5"
+  },
+  {
+   "id": "2075257492716879967",
+   "handle": "AnthropicAI",
+   "url": "https://x.com/AnthropicAI/status/2075257492716879967",
+   "created_at": "2026-07-09T16:35:17.000Z",
+   "text": "Our Long-Term Benefit Trust has appointed Dr. Ben Bernanke as its newest member. \n\nRead more: https://t.co/j5VgjYtfs4"
+  }
+ ]
+}
