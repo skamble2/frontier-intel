@@ -63,7 +63,18 @@ event_type_prior:
   benchmark: 1
   other: 0
 
-slate_k: 5
+# How many co-author-discovered people may be auto-approved PER LAB.
+#
+# Raised 5 -> 15. At 5 the register held 28 approved people against 1,095
+# pending, and the approved cohort averaged 2.1 papers — while 510 pending
+# candidates already met that bar. The gate was not selecting quality, it was
+# just capping count.
+#
+# This is the one knob that changes how much of the firehose is even eligible:
+# stage 1 rejects a document with `no_tracked_entity`, so more tracked people
+# means more documents reaching extraction. Raising it therefore costs money,
+# which is why it is a policy decision with a named owner rather than a default.
+slate_k: 15
 
 # How far back a ranked report may reach. Without a window, arXiv results from
 # 2024 outranked 2026 launches: 12 of the top 20 were stale or undated.

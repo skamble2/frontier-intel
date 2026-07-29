@@ -149,13 +149,26 @@ def main() -> None:
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
     ap.add_argument("--n", type=int, default=150)
     ap.add_argument("--by", default="soham",
-                    help="your name; stored as human:<name>")
+                    help="your name; stored as human:<name>/<rubric>/r<version>")
+    ap.add_argument("--rubric", default="investment",
+                    help="which rubric you are applying (config/rubrics/NAME.yml). "
+                         "Recorded in the labeler id, because a human judging "
+                         "'what moves a position' and one judging 'what should we "
+                         "adopt' are answering different questions")
     ap.add_argument("--audit", action="store_true",
                     help="review pairs an LLM already judged, to measure agreement")
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
-    labeler = args.by if ":" in args.by else f"human:{args.by}"
+    # The rubric belongs in the id for the same reason it does on LLM labels:
+    # comparing a human's investment judgements against a technical judge
+    # measures disagreement about the QUESTION, not about the events.
+    if ":" in args.by:
+        labeler = args.by
+    else:
+        from fli.core.rubric import load_rubric
+        labeler = f"human:{args.by}/{load_rubric(args.rubric).label_suffix}"
+    print(f"labeler id: {labeler}\n")
     run_cli(conn, args.n, labeler, audit=args.audit)
 
 

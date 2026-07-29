@@ -40,9 +40,15 @@ class TestDeskew(unittest.TestCase):
         sid = storage.upsert_source(self.conn, "arxiv", "s", "http://ax", purpose="register")
         self.doc, _ = storage.store_document(self.conn, sid, "arxiv", "http://ax",
                                              "paper", None)
-        # 7 OpenAI candidates (paper_count 7..1), 2 Mistral (2,1)
-        for i in range(7):
-            self._cand(f"O{i} Author", 10, 1, 7 - i)
+        # Generate slate_k + 2 candidates for the prolific lab, so the cap is
+        # exercised at whatever config/policy.yml currently says. Hardcoding 7
+        # meant this test broke — and looked like a regression — the moment the
+        # owner raised slate_k, which is a policy decision, not a code change.
+        from fli.core.policy import load_policy
+        self.k = load_policy().slate_k
+        self.n_prolific = self.k + 2
+        for i in range(self.n_prolific):
+            self._cand(f"O{i} Author", 10, 1, self.n_prolific - i)
         for i in range(2):
             self._cand(f"M{i} Author", 20, 2, 2 - i)
         # Point overrides at a temp dir. A test must never write into the
@@ -86,7 +92,9 @@ class TestDeskew(unittest.TestCase):
             pending = [dict(r) for r in self.conn.execute(
                 "SELECT * FROM person_candidates WHERE status='pending'")]
             slate = approval._slate(self.conn, pending)
-            self.assertEqual(7, len(slate))          # top-5 of OpenAI's 7 + both Mistral
+            # top-k of the prolific lab, plus both Mistral — the small lab is
+            # never buried by the big one
+            self.assertEqual(self.k + 2, len(slate))
             mistral = {r["id"] for r in self.conn.execute(
                 "SELECT id FROM person_candidates WHERE name LIKE 'M%'")}
             self.assertTrue(mistral <= slate)
@@ -94,7 +102,7 @@ class TestDeskew(unittest.TestCase):
         with self.subTest("approval honours the cap and records how it happened"):
             approval.auto_approve(self.conn)
             bal = reporting.balance_by_lab(self.conn)
-            self.assertEqual(5, bal["OpenAI"]["approved"])    # capped at slate_k
+            self.assertEqual(self.k, bal["OpenAI"]["approved"])   # capped at slate_k
             self.assertEqual(2, bal["Mistral"]["approved"])   # surfaced, not buried
             self.assertEqual({"auto_approved"}, {r["discovered_via"] for r in
                              self.conn.execute("SELECT DISTINCT discovered_via FROM people"

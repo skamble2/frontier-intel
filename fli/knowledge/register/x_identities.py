@@ -61,8 +61,18 @@ CANDIDATES: list[tuple[str, str, str]] = [
     ("woj_zaremba",      "OpenAI",          "Wojciech Zaremba"),
     ("OfirPress",        "OpenAI",          "Ofir Press"),
     ("aidan_mclau",      "OpenAI",          "Aidan McLaughlin"),
-    # Anthropic
+    # Anthropic — deliberately over-weighted. Anthropic has 89 events in the
+    # corpus and ZERO layer-below candidates, because co-author expansion is
+    # arXiv-anchored and Anthropic publishes under collective names. X bios are
+    # the only route to the layer below for a lab that does not put individual
+    # names on papers.
     ("DarioAmodei",      "Anthropic",       "Dario Amodei"),
+    ("janleike",         "Anthropic",       "Jan Leike"),
+    ("nottombrown",      "Anthropic",       "Tom Brown"),
+    ("_saurabh_",        "Anthropic",       "Saurav Kadavath"),
+    ("tomekkorbak",      "Anthropic",       "Tomek Korbak"),
+    ("EthanJPerez",      "Anthropic",       "Ethan Perez"),
+    ("bshlgrs",          "Anthropic",       "Buck Shlegeris"),
     ("jackclarkSF",      "Anthropic",       "Jack Clark"),
     ("ch402",            "Anthropic",       "Chris Olah"),
     ("jaredkaplan",      "Anthropic",       "Jared Kaplan"),
@@ -84,16 +94,27 @@ CANDIDATES: list[tuple[str, str, str]] = [
     ("jaseweston",       "Meta AI",         "Jason Weston"),
     ("tydsh",            "Meta AI",         "Yuandong Tian"),
     ("MikeLewis_Ai",     "Meta AI",         "Mike Lewis"),
+    ("violet_zct",       "Meta AI",         "Chunting Zhou"),
+    ("ArmenAgha",        "Meta AI",         "Armen Aghajanyan"),
+    ("uralik1",          "Meta AI",         "Kalpesh Krishna"),
     # Mistral
     ("arthurmensch",     "Mistral",         "Arthur Mensch"),
     ("GuillaumeLample",  "Mistral",         "Guillaume Lample"),
     ("timlacroix",       "Mistral",         "Timothée Lacroix"),
     ("devendrachaplot",  "Mistral",         "Devendra Chaplot"),
     # DeepSeek
+    # DeepSeek publishes as "DeepSeek-AI"; individual handles are scarce, so a
+    # short list is expected to fail the gate more often than it passes. The
+    # rejections are the finding.
     ("deepseek_ai",      "DeepSeek",        "DeepSeek"),
+    ("zhangchen_xu",     "DeepSeek",        "Zhangchen Xu"),
+    ("wenfeng_liang",    "DeepSeek",        "Liang Wenfeng"),
     # Qwen
     ("JustinLin610",     "Qwen",            "Junyang Lin"),
     ("huybery",          "Qwen",            "Binyuan Hui"),
+    ("_akhaliq",         "Qwen",            "AK"),
+    ("bowenyu",          "Qwen",            "Bowen Yu"),
+    ("keming_lu",        "Qwen",            "Keming Lu"),
     # xAI
     ("elonmusk",         "xAI",             "Elon Musk"),
     ("TheGregYang",      "xAI",             "Greg Yang"),

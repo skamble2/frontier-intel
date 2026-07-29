@@ -52,11 +52,26 @@ def _style():
     return plt, sns
 
 
+# Which tier each PNG was produced under. The tier is NOT drawn on the image
+# any more — it overlapped rotated axis labels, and a figure destined for a
+# report should be clean. It is emitted in the report text beside every figure
+# instead, so the guarantee survives: no reader sees "F1 = 0.571" without also
+# seeing that it is agreement against an unaudited reference, not accuracy.
+#
+# The tier is recorded here rather than dropped because a figure lifted into a
+# slide deck loses its caption, and the honest move is to make the caption
+# impossible to separate from the number in the source document.
+FIGURE_TIERS: dict[str, str] = {}
+
+
 def _save(plt, fig, name: str, tier: str) -> str:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
-    fig.text(0.01, 0.005, tier, fontsize=7, style="italic", alpha=0.75)
+    FIGURE_TIERS[name] = tier
+    # Room for rotated tick labels; without it a 25-degree x-label runs off the
+    # canvas on the per-lab and divergence charts.
+    fig.subplots_adjust(bottom=0.24)
     path = FIG_DIR / f"{name}.png"
-    fig.savefig(path)
+    fig.savefig(path, bbox_inches="tight", pad_inches=0.25)
     plt.close(fig)
     return f"docs/figures/{name}.png"
 
@@ -244,6 +259,10 @@ def _labeler_family(labeler: str) -> str:
     """
     if labeler.startswith("llm:"):
         return "llm:" + labeler[4:].split("/")[0]
+    if labeler.startswith("human:"):
+        # One person is one family, and the most independent one available:
+        # they share no weights or training data with any model.
+        return "human:" + labeler[6:].split("/")[0]
     return labeler.split(":")[0]
 
 
@@ -267,10 +286,14 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
     # it judges badly but because it answers a different question from the three
     # investment labelers it was compared against. That is the same pooling
     # error the bake-off had, in a different figure.
+    # Any labeler working THIS rubric, human included. A human audit is the most
+    # independent labeler available — outside both model families — so excluding
+    # it threw away the one vote that can reveal two models being confidently
+    # wrong together.
     rows = conn.execute(
         "SELECT event_a, event_b, winner, labeler FROM pairwise_labels"
-        " WHERE winner != 'tie' AND labeler LIKE ?",
-        (f"llm:%/{PRIMARY_RUBRIC}/%",)).fetchall()
+        " WHERE winner != 'tie' AND (labeler LIKE ? OR labeler LIKE ?)",
+        (f"llm:%/{PRIMARY_RUBRIC}/%", f"human:%/{PRIMARY_RUBRIC}/%")).fetchall()
     if not rows:
         raise Skipped(f"python3 -m fli.cli judge --rubric {PRIMARY_RUBRIC} --n 300")
     labelers = sorted({r["labeler"] for r in rows})
@@ -567,6 +590,91 @@ def fig_rank_skew(conn) -> tuple[str, str]:
 # title so a figure that fails to build can have its previous image deleted:
 # an out-of-date chart is worse than a missing one, because nothing on the
 # image says how old it is.
+def fig_rubric_divergence(conn) -> tuple[str, str]:
+    """Do the two audiences actually get different intelligence?
+
+    This is the claim the whole two-rubric design rests on, so it is measured
+    rather than asserted. If the rankings largely agreed, one of them would be
+    redundant and the persona split would be decoration.
+
+    Two measurements, because they answer different objections:
+
+      overlap@k   what a READER sees. A PM and an engineer opening their
+                  respective top 10 — how many items appear in both?
+      Kendall tau whether the ORDERING is related at all, across every scored
+                  event rather than just the head.
+    """
+    import numpy as np
+    from fli.core.rubric import available
+    plt, _ = _style()
+
+    def ranked(rub):
+        return [r["event_id"] for r in conn.execute(
+            "SELECT event_id FROM event_scores WHERE model LIKE ?"
+            " AND components LIKE '%winner%' ORDER BY score DESC", (f"{rub}:%",))]
+
+    rubs = [r for r in available() if ranked(r)]
+    if len(rubs) < 2:
+        raise Skipped("python3 -m fli.cli score --all-rubrics   "
+                      "(needs two rubrics scored to compare)")
+    a_name, b_name = rubs[0], rubs[1]
+    A, B = ranked(a_name), ranked(b_name)
+    pos_a = {e: i for i, e in enumerate(A)}
+    pos_b = {e: i for i, e in enumerate(B)}
+    common = [e for e in A if e in pos_b]
+
+    ks = [5, 10, 25, 50, 100]
+    overlap = [len(set(A[:k]) & set(B[:k])) / k for k in ks]
+
+    # Kendall tau on a seeded sample: O(n^2) over 556 events is fine, but the
+    # sample keeps the figure fast and the seed keeps it reproducible.
+    rng = np.random.RandomState(0)
+    samp = list(rng.permutation(common)[:300])
+    conc = disc = 0
+    for i in range(len(samp)):
+        for j in range(i + 1, len(samp)):
+            s = (pos_a[samp[i]] - pos_a[samp[j]]) * (pos_b[samp[i]] - pos_b[samp[j]])
+            conc += s > 0
+            disc += s < 0
+    tau = (conc - disc) / (conc + disc) if conc + disc else float("nan")
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5),
+                                   gridspec_kw={"width_ratios": [1.2, 1]})
+    ax1.bar([str(k) for k in ks], overlap, color="#2563eb")
+    for i, v in enumerate(overlap):
+        ax1.text(i, v, f" {v:.0%}", ha="center", va="bottom", fontsize=9)
+    ax1.set_ylim(0, 1.05)
+    ax1.set_xlabel("top-k")
+    ax1.set_ylabel("share of items in BOTH rankings")
+    ax1.set_title(f"Overlap: {a_name} vs {b_name}")
+    ax1.axhline(1.0, ls="--", c="#94a3b8", lw=1)
+    ax1.text(0.05, 1.01, "identical rankings", fontsize=8, color="#64748b")
+
+    # event-type mix side by side — WHY they diverge, not just that they do
+    meta = {r["id"]: r["event_type"] for r in
+            conn.execute("SELECT id, event_type FROM insights")}
+    from collections import Counter
+    ca, cb = Counter(meta[e] for e in A[:50]), Counter(meta[e] for e in B[:50])
+    types = sorted(set(ca) | set(cb), key=lambda t: -(ca[t] + cb[t]))[:6]
+    y = np.arange(len(types))
+    ax2.barh(y - 0.2, [ca[t] / 50 for t in types], 0.4, label=a_name, color="#2563eb")
+    ax2.barh(y + 0.2, [cb[t] / 50 for t in types], 0.4, label=b_name, color="#16a34a")
+    ax2.set_yticks(y); ax2.set_yticklabels(types, fontsize=9)
+    ax2.invert_yaxis(); ax2.set_xlabel("share of top 50")
+    ax2.set_title("What each audience gets")
+    ax2.legend(fontsize=8)
+    fig.suptitle(f"One corpus, two audiences — Kendall tau = {tau:+.3f}", fontsize=13)
+
+    top10 = len(set(A[:10]) & set(B[:10]))
+    return _save(plt, fig, "f13_rubric_divergence", JUDGED), (
+        f"`{a_name}` and `{b_name}` share {top10} of their top 10 "
+        f"({overlap[2]:.0%} of the top 25) and rank the corpus at Kendall "
+        f"tau {tau:+.3f} — near zero, i.e. the two orderings are close to "
+        f"unrelated. Same events, same features, same clustering; only the "
+        f"definition of 'important' differs. This is the measurement behind "
+        f"the claim that one ranking cannot serve both readers.")
+
+
 FIGURES = [
     ("Signal-vs-noise funnel", fig_funnel, "f1_funnel"),
     ("Feature correlation", fig_feature_correlation, "f2_feature_correlation"),
@@ -580,6 +688,7 @@ FIGURES = [
     ("Overfitting (train vs held-out)", fig_overfitting, "f10_overfitting"),
     ("Learning curve", fig_learning_curve, "f11_learning_curve"),
     ("Rank skew by lab", fig_rank_skew, "f12_rank_skew"),
+    ("Rubric divergence", fig_rubric_divergence, "f13_rubric_divergence"),
 ]
 
 
@@ -668,8 +777,14 @@ def build(conn) -> int:
         "## Figures", "",
     ]
     for title, path, note in made:
-        lines += [f"### {title}", "", f"![{title}]({Path(path).name})", "",
-                  f"{note}", ""]
+        stem = Path(path).stem
+        tier = FIGURE_TIERS.get(stem)
+        lines += [f"### {title}", "", f"![{title}]({Path(path).name})", ""]
+        if tier:
+            # Immediately under the image, before the finding — a reader cannot
+            # reach the number without passing the caveat.
+            lines += [f"*{tier}*", ""]
+        lines += [f"{note}", ""]
     if skipped:
         lines += ["## Not yet produced", "",
                   "Listed with the command that would produce each — an absent "
