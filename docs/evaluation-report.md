@@ -133,3 +133,11 @@ most over-represented: DeepSeek at 2.9x its corpus share (6% of events, 16% of t
 *JUDGED — against an unaudited LLM reference; treat as provisional*
 
 `investment` and `technical` share 2 of their top 10 (20% of the top 25) and rank the corpus at Kendall tau +0.092 — near zero, i.e. the two orderings are close to unrelated. Same events, same features, same clustering; only the definition of 'important' differs. This is the measurement behind the claim that one ranking cannot serve both readers.
+
+### Talent mobility mechanism
+
+![Talent mobility mechanism](f14_mobility.png)
+
+*MECHANICAL — arithmetic over the database, no labels needed*
+
+7 personnel event(s) came from document extraction; 0 were synthesized from affiliation history (a person observed at two labs in succession). 45 of 109 tracked people are re-observable (23 via lab pages, 40 via X bios on a weekly cadence), and 109 were observed inside the last 30 days. The mechanism itself is validated end-to-end in the test suite (tests/knowledge/test_mobility.py plants a move and shows the resulting event reach the digest slate, dated by its arrival) — the live corpus simply has not yet witnessed a move.

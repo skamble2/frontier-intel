@@ -676,6 +676,77 @@ def fig_rubric_divergence(conn) -> tuple[str, str]:
         f"the claim that one ranking cannot serve both readers.")
 
 
+def fig_mobility(conn) -> tuple[str, str]:
+    """Talent movement is the marquee signal and the corpus is thinnest on it.
+
+    Two panels, deliberately separate from every other figure so synthesized
+    events never blend into the extraction statistics:
+
+        left   what the personnel channel has PRODUCED — LLM-extracted events
+               vs moves synthesized from affiliation history (tagged
+               mobility_synthesis in their evidence locator)
+        right  whether the mechanism is ARMED — how much of the register is
+               re-observable, on what surfaces, and how fresh the observations
+               are. Zero synthesized events with an armed register means no
+               move has happened yet; zero with a dark register would mean the
+               mechanism cannot fire. The distinction is the figure.
+    """
+    plt, _ = _style()
+    q = lambda s, *a: conn.execute(s, a).fetchone()[0]
+    synthesized = q("SELECT count(*) FROM insights i JOIN evidence e"
+                    " ON e.id=i.evidence_id WHERE i.event_type='personnel'"
+                    " AND e.locator LIKE '%mobility_synthesis%'")
+    extracted = q("SELECT count(*) FROM insights WHERE event_type='personnel'"
+                  ) - synthesized
+
+    page_people = q("SELECT count(DISTINCT a.person_id) FROM affiliations a"
+                    " JOIN identities i ON i.person_id=a.person_id"
+                    " WHERE a.basis='page_verbatim' AND i.platform='lab_page'")
+    bio_people = q("SELECT count(DISTINCT person_id) FROM identities"
+                   " WHERE platform='x'")
+    fresh = q("SELECT count(DISTINCT person_id) FROM affiliations"
+              " WHERE observed_at >= datetime('now','-30 days')")
+    tracked = q("SELECT count(*) FROM people")
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 4.5))
+    ax1.bar(["LLM-extracted", "register-synthesized"],
+            [extracted, synthesized], color=["#2563eb", "#16a34a"], width=.55)
+    for i, v in enumerate([extracted, synthesized]):
+        ax1.text(i, v, f" {v}", ha="center", va="bottom", fontsize=11)
+    ax1.set_ylabel("personnel events")
+    ax1.set_title("Produced: personnel events by origin")
+    ax1.set_ylim(0, max(extracted, synthesized, 1) * 1.3)
+
+    labels = ["tracked people", "re-observable\n(lab pages)",
+              "re-observable\n(X bios)", "observed in\nlast 30 days"]
+    vals = [tracked, page_people, bio_people, fresh]
+    ax2.bar(labels, vals, color=["#94a3b8", "#2563eb", "#2563eb", "#16a34a"],
+            width=.6)
+    for i, v in enumerate(vals):
+        ax2.text(i, v, f" {v}", ha="center", va="bottom", fontsize=11)
+    ax2.set_title("Armed: register re-observation coverage")
+    ax2.tick_params(axis="x", labelsize=9)
+
+    detectable = q("SELECT count(DISTINCT person_id) FROM affiliations"
+                   " WHERE basis='page_verbatim'")
+    return _save(plt, fig, "f14_mobility", MECHANICAL), (
+        f"{extracted} personnel event(s) came from document extraction; "
+        f"{synthesized} were synthesized from affiliation history "
+        f"(a person observed at two labs in succession). {detectable} of "
+        f"{tracked} tracked people are re-observable ({page_people} via lab "
+        f"pages, {bio_people} via X bios on a weekly cadence), and {fresh} "
+        f"were observed inside the last 30 days. The mechanism itself is "
+        f"validated end-to-end in the test suite (tests/knowledge/"
+        f"test_mobility.py plants a move and shows the resulting event reach "
+        f"the digest slate, dated by its arrival) — the live corpus simply "
+        f"has not yet witnessed a move."
+        if synthesized == 0 else
+        f"{synthesized} move(s) synthesized from affiliation history against "
+        f"{extracted} extracted personnel event(s); {detectable} of {tracked} "
+        f"tracked people are re-observable and {fresh} were observed inside "
+        f"the last 30 days.")
+
+
 FIGURES = [
     ("Signal-vs-noise funnel", fig_funnel, "f1_funnel"),
     ("Feature correlation", fig_feature_correlation, "f2_feature_correlation"),
@@ -690,6 +761,7 @@ FIGURES = [
     ("Learning curve", fig_learning_curve, "f11_learning_curve"),
     ("Rank skew by lab", fig_rank_skew, "f12_rank_skew"),
     ("Rubric divergence", fig_rubric_divergence, "f13_rubric_divergence"),
+    ("Talent mobility mechanism", fig_mobility, "f14_mobility"),
 ]
 
 
