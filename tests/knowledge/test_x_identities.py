@@ -5,13 +5,14 @@ and no token: the decision that admits a row into `identities` is the part
 worth pinning down, not the HTTP around it.
 """
 import unittest
-from pathlib import Path
 from unittest import mock
 
 from fli import storage
 from fli.core.http import FetchError
 from fli.knowledge.register import x_identities as X
-from fli.knowledge.register.x_identities import bio_names_lab, classify
+from fli.knowledge.register.x_identities import (TIER_FOR_METHOD,
+                                                 bio_names_lab, classify)
+from tests.helpers import DBTestCase
 
 
 class TestBioMatching(unittest.TestCase):
@@ -50,15 +51,12 @@ class TestAdmissionRule(unittest.TestCase):
 
     def test_tiers_satisfy_the_C4_pairing_rule(self):
         """C4 lives in the validation layer and only runs against a populated
-        DB, so it caught this in production rather than in CI. Pinning the
-        pairing here means the rule is enforced where the values are chosen."""
-        tier_for_method = {"exact": {"verbatim", "name_match_only"},
-                           "coauthor_overlap": {"corroborated"},
-                           "manual": {"manual_approved"},
-                           "self_link": {"verbatim"}}
+        DB, so it caught this in production rather than in CI. The rule itself
+        is TIER_FOR_METHOD, defined once in x_identities and imported by
+        checks.py — this test pins classify's output to it at the source."""
         for profile, pid in [(self.BIO, None), (self.BLANK, 42)]:
             _d, tier, method = classify(profile, "Anthropic", pid)
-            self.assertIn(tier, tier_for_method[method], f"{tier}/{method}")
+            self.assertIn(tier, TIER_FOR_METHOD[method], f"{tier}/{method}")
 
     def test_unknown_person_with_silent_bio_is_rejected(self):
         """No evidence, no row. This is the case that keeps a mistyped or
@@ -126,7 +124,7 @@ class _FakeClient:
         return p
 
 
-class TestWritePath(unittest.TestCase):
+class TestWritePath(DBTestCase):
     """Exercises the DATABASE writes, not just the decision.
 
     This class exists because of a specific failure: `classify` was fully
@@ -137,8 +135,7 @@ class TestWritePath(unittest.TestCase):
     """
 
     def setUp(self):
-        self.conn = storage.connect(Path(":memory:"))
-        storage.init_db(self.conn)
+        super().setUp()
         self.conn.execute("INSERT INTO labs (name, is_public_company) VALUES ('Anthropic', 0)")
         self.conn.execute("INSERT INTO labs (name, is_public_company) VALUES ('Meta AI', 1)")
         self.conn.execute(

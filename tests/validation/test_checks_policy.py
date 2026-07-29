@@ -5,11 +5,11 @@ and the policy is the one part of this system the engineer does not own.
 """
 import sqlite3
 import unittest
-from pathlib import Path
 
 from fli import storage
 from fli.core.policy import parse_policy
 from fli.validation.checks import policy_attribution_failures
+from tests.helpers import DBTestCase
 
 POLICY = parse_policy({
     "version": 3,
@@ -23,16 +23,11 @@ POLICY = parse_policy({
 })
 
 
-class TestC17(unittest.TestCase):
+class TestC17(DBTestCase):
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.sid = storage.upsert_source(self.conn, "blog", "s", "http://s")
         self._n = 0
-
-    def tearDown(self):
-        self.conn.close()
 
     def _scored(self, policy_version, event_type="release"):
         self._n += 1

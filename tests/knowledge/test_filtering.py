@@ -3,23 +3,17 @@
 Three behaviours: the pass/reject decision, near-duplicate suppression, and the
 regression that keeps re-versions of one URL from suppressing themselves.
 """
-import sqlite3
-import unittest
-from pathlib import Path
-
 from fli import storage
 from fli.knowledge.filtering import stage1, suppress_near_dups
+from tests.helpers import DBTestCase
 
 
-class TestStage1Decision(unittest.TestCase):
+class TestStage1Decision(DBTestCase):
     """Per-source-type length floors, the releases.atom exemption, and the
     lab-authorship requirement for papers."""
 
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.conn.execute("INSERT INTO labs (name) VALUES ('OpenAI')")
 
     def _doc(self, source_type, source_url, content, published=None, url="http://d"):

@@ -4,9 +4,7 @@ X is the only paid source, so the tests that matter are the ones about money and
 about attribution. Runs entirely against a fake client: no token, no network,
 nothing spent.
 """
-import sqlite3
 import unittest
-from pathlib import Path
 from unittest import mock
 
 from fli import storage
@@ -14,6 +12,7 @@ from fli.core.config import (MIN_CHARS, X_MAX_POSTS_PER_RUN, X_POST_COST_USD,
                              X_RUN_BUDGET_USD, X_USER_COST_USD)
 from fli.ingestion import x_api
 from fli.knowledge.filtering import stage1
+from tests.helpers import DBTestCase, memory_db
 
 
 class TestCostControl(unittest.TestCase):
@@ -40,15 +39,12 @@ class TestCostControl(unittest.TestCase):
                                c.spend_usd)
 
 
-class TestTweetsSurviveStage1(unittest.TestCase):
+class TestTweetsSurviveStage1(DBTestCase):
     """A post is <=280 chars. The default 400-char fallback floor would reject
     every single one as too_short, which is why 'social' needs its own entry."""
 
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.conn.execute("INSERT INTO labs (id, name) VALUES (1, 'OpenAI')")
 
     def test_social_has_its_own_floor_below_the_post_limit(self):
@@ -78,14 +74,12 @@ class TestTweetsSurviveStage1(unittest.TestCase):
         self.assertEqual("too_short", reason)
 
 
-class TestAttribution(unittest.TestCase):
+class TestAttribution(DBTestCase):
     """The rule that protects C12: a person tweeting is not their employer
     announcing, so researcher accounts must carry no lab."""
 
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.conn.execute("INSERT INTO people (id, canonical_name) VALUES (1,'Jane Doe')")
         sid = storage.upsert_source(self.conn, "blog", "p", "http://p")
         doc, _ = storage.store_document(self.conn, sid, "blog", "http://p", "Jane Doe", None)
@@ -112,9 +106,7 @@ class TestAttribution(unittest.TestCase):
 
 class TestDryRun(unittest.TestCase):
     def test_dry_run_makes_no_request_and_needs_no_token(self):
-        conn = sqlite3.connect(":memory:")
-        conn.row_factory = sqlite3.Row
-        conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        conn = memory_db()
         with mock.patch("fli.core.http.http_get",
                         side_effect=AssertionError("dry run must not fetch")):
             out = x_api.ingest(conn, dry_run=True)

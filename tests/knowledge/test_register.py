@@ -4,7 +4,6 @@ Co-author expansion finds far more candidates for prolific labs, so
 approval must cap per lab or the register skews to whoever publishes most.
 """
 import json
-import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -12,6 +11,7 @@ from pathlib import Path
 from fli import storage
 from fli.knowledge.register import approval, reporting
 from fli.knowledge.register.approval import valid_candidate_name
+from tests.helpers import DBTestCase
 
 
 class TestCandidateName(unittest.TestCase):
@@ -26,14 +26,11 @@ class TestCandidateName(unittest.TestCase):
                 self.assertFalse(valid_candidate_name(bad))
 
 
-class TestDeskew(unittest.TestCase):
+class TestDeskew(DBTestCase):
     """Per-lab slates surface non-dominant labs; the override file wins."""
 
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.conn.execute("INSERT INTO labs (id, name) VALUES (1,'OpenAI'),(2,'Mistral')")
         self._seed(10, "Owen Openai", 1)
         self._seed(20, "Manon Mistral", 2)
@@ -62,6 +59,7 @@ class TestDeskew(unittest.TestCase):
     def tearDown(self):
         approval.OVERRIDES_PATH = self._saved_path
         self._tmp.cleanup()
+        super().tearDown()
 
     def _seed(self, pid, name, lab_id):
         self.conn.execute(

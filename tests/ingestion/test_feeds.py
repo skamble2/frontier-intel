@@ -1,5 +1,6 @@
 """fli.ingestion.feeds - LAYER 1 feed/sitemap parsing and body hydration."""
 import unittest
+from unittest import mock
 
 from fli.core.http import FetchError
 from fli.ingestion import feeds
@@ -7,44 +8,36 @@ from fli.ingestion.feeds import parse_feed
 
 
 class TestHydratedBody(unittest.TestCase):
-    """Blog teasers get the linked article fetched; other cases don't."""
-
-    def setUp(self):
-        self._orig = feeds.http_get
-
-    def tearDown(self):
-        feeds.http_get = self._orig
+    """Blog teasers get the linked article fetched; other cases don't.
+    `mock.patch` rather than hand-swapped globals: a mid-test failure must
+    never leak a fake http_get into the tests that run after it."""
 
     def test_thin_blog_fetches_article(self):
-        feeds.http_get = lambda u: (
-            "<html><body>" + "Full article body. " * 50 + "</body></html>", "")
-        body = feeds._hydrated_body({"content": "teaser", "link": "http://x/a"}, "blog")
+        with mock.patch.object(feeds, "http_get", return_value=(
+                "<html><body>" + "Full article body. " * 50 + "</body></html>", "")):
+            body = feeds._hydrated_body({"content": "teaser", "link": "http://x/a"}, "blog")
         self.assertIn("Full article body.", body)
         self.assertGreater(len(body), 900)
 
     def test_full_blog_not_fetched(self):
-        def boom(u):
-            raise AssertionError("should not fetch a full-body feed")
-        feeds.http_get = boom
-        self.assertEqual(
-            feeds._hydrated_body({"content": "x" * 2000, "link": "http://x/a"}, "blog"),
-            "x" * 2000)
+        with mock.patch.object(feeds, "http_get",
+                               side_effect=AssertionError("should not fetch a full-body feed")):
+            self.assertEqual(
+                feeds._hydrated_body({"content": "x" * 2000, "link": "http://x/a"}, "blog"),
+                "x" * 2000)
 
     def test_github_not_fetched(self):
-        def boom(u):
-            raise AssertionError("release notes are the content")
-        feeds.http_get = boom
-        self.assertEqual(
-            feeds._hydrated_body({"content": "short release", "link": "http://x/r"}, "github"),
-            "short release")
+        with mock.patch.object(feeds, "http_get",
+                               side_effect=AssertionError("release notes are the content")):
+            self.assertEqual(
+                feeds._hydrated_body({"content": "short release", "link": "http://x/r"}, "github"),
+                "short release")
 
     def test_fetch_failure_keeps_teaser(self):
-        def boom(u):
-            raise FetchError("down")
-        feeds.http_get = boom
-        self.assertEqual(
-            feeds._hydrated_body({"content": "teaser", "link": "http://x/a"}, "blog"),
-            "teaser")
+        with mock.patch.object(feeds, "http_get", side_effect=FetchError("down")):
+            self.assertEqual(
+                feeds._hydrated_body({"content": "teaser", "link": "http://x/a"}, "blog"),
+                "teaser")
 
 
 class TestParseFeed(unittest.TestCase):

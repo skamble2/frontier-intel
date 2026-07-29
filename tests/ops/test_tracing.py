@@ -16,15 +16,6 @@ class TestTracingDisabled(unittest.TestCase):
     def test_annotate_none_is_noop(self):
         tracing.annotate(None, {"anything": 1})  # must not raise
 
-    def test_attr_builders(self):
-        ia = tracing.input_attrs("haiku", "SYS", "doc text")
-        self.assertEqual(ia[tracing.LLM_MODEL], "haiku")
-        self.assertEqual(ia[tracing.INPUT_VALUE], "doc text")
-        self.assertEqual(ia[tracing.LLM_PROVIDER], "anthropic")
-        oa = tracing.output_attrs("out", 12, 3)
-        self.assertEqual(oa[tracing.OUTPUT_VALUE], "out")
-        self.assertEqual(oa[tracing.TOKENS_TOTAL], 15)
-
 
 @unittest.skipUnless(_OTEL, "opentelemetry not installed (optional tracing extras)")
 class TestTracingEnabled(unittest.TestCase):

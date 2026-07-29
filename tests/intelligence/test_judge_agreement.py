@@ -5,17 +5,14 @@ labelers that both answer 'a' most of the time agree at a high rate while
 sharing no judgement at all. Chance correction is the whole point, and the
 degenerate case below is the one that motivated it.
 """
-import sqlite3
 import unittest
 
-from fli import storage
 from fli.intelligence.judge import agreement
+from tests.helpers import memory_db
 
 
 def _db(votes_a, votes_b):
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    storage.init_db(conn)
+    conn = memory_db()
     conn.execute("INSERT INTO sources (source_type,name,url) VALUES ('blog','s','u')")
     conn.execute("INSERT INTO raw_documents (source_id,source_type,url,content_hash,"
                  "raw_content,retrieved_at) VALUES (1,'blog','u','h','x','t')")
@@ -63,11 +60,8 @@ class TestCohensKappa(unittest.TestCase):
 
 
 class TestProviderRouting(unittest.TestCase):
-    def test_models_route_to_the_right_provider(self):
-        from fli.ops.llm import provider_for
-        self.assertEqual(provider_for("claude-sonnet-5"), "anthropic")
-        self.assertEqual(provider_for("gpt-5.2"), "openai")
-        self.assertEqual(provider_for("o4-mini"), "openai")
+    """Only the refusal behaviour is tested; the routing table's contents are
+    config, and a test that restates them just breaks on every addition."""
 
     def test_unknown_model_refuses_rather_than_guessing(self):
         """Guessing would send an API key to the wrong endpoint."""

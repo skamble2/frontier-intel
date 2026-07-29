@@ -35,6 +35,7 @@ from fli import storage
 from fli.core.text import contains_verbatim, html_to_text
 from fli.core.policy import PolicyError, describe, load_policy
 from fli.knowledge.register import valid_candidate_name
+from fli.knowledge.register.x_identities import TIER_FOR_METHOD
 
 
 def check(name: str, failures: list[str], all_failures: list[str]) -> None:
@@ -104,13 +105,9 @@ def run(conn: sqlite3.Connection) -> int:
                " WHERE i.id IS NULL")]
     check("C3 people are evidenced", bad, all_failures)
 
-    tier_for_method = {"exact": {"verbatim", "name_match_only"},
-                       "coauthor_overlap": {"corroborated"},
-                       "manual": {"manual_approved"},
-                       "self_link": {"verbatim"}}
     bad = []
     for r in conn.execute("SELECT * FROM identities"):
-        if r["confidence_tier"] not in tier_for_method[r["resolution_method"]]:
+        if r["confidence_tier"] not in TIER_FOR_METHOD[r["resolution_method"]]:
             bad.append(f"identity {r['id']}: tier {r['confidence_tier']}"
                        f" inconsistent with method {r['resolution_method']}")
         if r["evidence_id"] is None:

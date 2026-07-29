@@ -7,11 +7,11 @@ bugs that were found and measured — each names the bug and the number it moved
 import json
 import sqlite3
 import unittest
-from pathlib import Path
 
 from fli import storage
 from fli.knowledge.extraction import (extract, readable_text, resolve_lab,
                                       run_stage2, verify_quote)
+from tests.helpers import DBTestCase
 
 
 class TestQuoteVerification(unittest.TestCase):
@@ -43,14 +43,12 @@ class TestQuoteVerification(unittest.TestCase):
                 self.assertEqual(expected, readable_text(given))
 
 
-class TestLabResolution(unittest.TestCase):
+class TestLabResolution(DBTestCase):
     """Token-subset matching: suffixes like 'AI' must not block a match, but
     ambiguous or unknown names must resolve to None rather than guess."""
 
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         for i, n in enumerate(["OpenAI", "Meta AI", "Mistral", "Google DeepMind",
                                "DeepSeek", "Qwen"], 1):
             self.conn.execute("INSERT INTO labs (id, name) VALUES (?,?)", (i, n))
@@ -75,15 +73,12 @@ class TestLabResolution(unittest.TestCase):
                 self.assertEqual(expected, resolve_lab(self.conn, given))
 
 
-class TestEventEntities(unittest.TestCase):
+class TestEventEntities(DBTestCase):
     """`insights` is the event; `event_entities` carries its 0..N entities.
     Every attribution is evidence-backed and carries a basis."""
 
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.conn.execute("INSERT INTO labs (id, name) VALUES (1, 'OpenAI')")
         self.conn.execute("INSERT INTO people (id, canonical_name) VALUES (2, 'Jane Doe')")
         sid = storage.upsert_source(self.conn, "blog", "s", "http://f")
@@ -171,15 +166,12 @@ def _insights(*specs):
 CLASSIFY = json.dumps({"event_type": "release", "substantive": True, "reason": "launch"})
 
 
-class TestStage2(unittest.TestCase):
+class TestStage2(DBTestCase):
     """One document yields several quote-verified events, each separately
     attributed — and unverifiable quotes are COUNTED, never silently dropped."""
 
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.execute("PRAGMA foreign_keys = ON")
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.conn.execute("INSERT INTO labs (id, name) VALUES (1, 'OpenAI')")
         self.conn.execute("INSERT INTO people (id, canonical_name) VALUES (2, 'Sam Altman')")
         sid = storage.upsert_source(self.conn, "blog", "s", "http://feed",

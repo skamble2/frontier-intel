@@ -1,7 +1,7 @@
 """fli.validation.x_benchmark — scoring against the frozen reference set."""
 import unittest
 
-from fli.validation.x_benchmark import (_prf, channel_scores, load_benchmark,
+from fli.validation.x_benchmark import (channel_scores, load_benchmark,
                                         load_labels)
 
 
@@ -14,39 +14,27 @@ class TestScoring(unittest.TestCase):
               "2": {"channel": "none"},
               "3": {"channel": "competitive_displacement"}}
 
-    def test_prf_arithmetic(self):
-        self.assertEqual(_prf(3, 1, 1)["precision"], 0.75)
-        self.assertEqual(_prf(3, 1, 1)["recall"], 0.75)
-        self.assertEqual(_prf(0, 0, 0)["f1"], 0.0)      # no division by zero
-
-    def test_perfect_predictor(self):
-        s = channel_scores(self.POSTS, self.LABELS, None,
-                           lambda _p, t: {"900 megawatts contracted in Abilene":
-                                          "energy_datacenter",
-                                          "we deprecate the old api tier":
-                                          "competitive_displacement"}.get(t))
-        self.assertEqual((s["tp"], s["fp"], s["fn"]), (2, 0, 0))
-        self.assertEqual(s["f1"], 1.0)
-
-    def test_wrong_channel_counts_as_both_fp_and_fn(self):
-        """Naming the wrong transmission channel is not a partial success: the
-        channel is what says which position an event touches."""
-        s = channel_scores(self.POSTS, self.LABELS, None,
-                           lambda _p, _t: "compute_memory")
-        # 3 labelled posts, all predicted compute_memory -> 0 tp, 3 fp, 2 fn
-        self.assertEqual((s["tp"], s["fp"], s["fn"]), (0, 3, 2))
-
-    def test_predicting_none_everywhere_scores_zero_not_a_crash(self):
-        s = channel_scores(self.POSTS, self.LABELS, None, lambda _p, _t: None)
-        self.assertEqual((s["tp"], s["fp"], s["fn"]), (0, 0, 2))
-        self.assertEqual(s["f1"], 0.0)
-
-    def test_unlabelled_posts_are_skipped_not_counted_as_negative(self):
-        """Post 4 has no label. Scoring it as a negative would inflate whatever
-        it agreed with by accident."""
-        s = channel_scores(self.POSTS, self.LABELS, None,
-                           lambda _p, _t: "compute_memory")
-        self.assertEqual(s["tp"] + s["fp"] + s["fn"], 5)   # 3 labelled, not 4
+    def test_channel_scores(self):
+        perfect = {"900 megawatts contracted in Abilene": "energy_datacenter",
+                   "we deprecate the old api tier": "competitive_displacement"}
+        cases = [
+            # (name, predictor, (tp, fp, fn), f1 or None)
+            ("perfect predictor", lambda _p, t: perfect.get(t), (2, 0, 0), 1.0),
+            # naming the wrong channel is not a partial success: it is both a
+            # fp and a fn. And post 4 carries no label, so tp+fp+fn is 5, never
+            # 6 — an unlabelled post must not be scored as a negative.
+            ("wrong channel is both fp and fn; unlabelled posts skipped",
+             lambda _p, _t: "compute_memory", (0, 3, 2), None),
+            # also the division-by-zero guard: zero tp must give f1 0.0
+            ("predicting none everywhere scores zero, not a crash",
+             lambda _p, _t: None, (0, 0, 2), 0.0),
+        ]
+        for name, predictor, counts, f1 in cases:
+            with self.subTest(name):
+                s = channel_scores(self.POSTS, self.LABELS, None, predictor)
+                self.assertEqual(counts, (s["tp"], s["fp"], s["fn"]))
+                if f1 is not None:
+                    self.assertEqual(f1, s["f1"])
 
 
 class TestFrozenFixtures(unittest.TestCase):

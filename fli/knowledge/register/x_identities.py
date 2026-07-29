@@ -158,6 +158,15 @@ def _person_by_name(conn: sqlite3.Connection, name: str) -> int | None:
     return None
 
 
+# The C4 pairing rule: the confidence tiers each resolution method may assert.
+# Defined once, here, where the values are chosen; the validation battery (C4)
+# and the unit tests both import it, so the rule cannot drift between them.
+TIER_FOR_METHOD = {"exact": {"verbatim", "name_match_only"},
+                   "coauthor_overlap": {"corroborated"},
+                   "manual": {"manual_approved"},
+                   "self_link": {"verbatim"}}
+
+
 def classify(profile: dict, lab: str, person_id: int | None) -> tuple[str, str, str]:
     """(decision, tier, method) for one fetched profile. Pure — unit-testable
     without a network, which is why the API call is not inlined here."""

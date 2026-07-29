@@ -1,16 +1,12 @@
 """fli.intelligence.clustering - LAYER 3 near-duplicate event clustering."""
-import unittest
-import sqlite3
-from pathlib import Path
 
 from fli import storage
+from tests.helpers import DBTestCase
 
 
-class TestClusterDB(unittest.TestCase):
+class TestClusterDB(DBTestCase):
     def setUp(self):
-        self.conn = sqlite3.connect(":memory:")
-        self.conn.row_factory = sqlite3.Row
-        self.conn.executescript(Path(storage.SCHEMA_PATH).read_text())
+        super().setUp()
         self.sid = storage.upsert_source(self.conn, "blog", "s", "http://f")
 
     def _insight(self, claim, event_type):
