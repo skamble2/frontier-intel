@@ -128,3 +128,41 @@ class TestMoveDetection(MobilityCase):
         bases = [r["basis"] for r in self.conn.execute(
             "SELECT basis FROM event_entities WHERE role IN ('mover_from','mover_to')")]
         self.assertEqual(bases, ["source_inferred", "source_inferred"])
+
+
+class TestDigestVisibility(MobilityCase):
+    """The end-to-end promise: a synthesized move reaches the digest slate.
+
+    Lab pages carry no published_at, so without the locator-date rule in
+    top_events the undated filter would silently hide every move the register
+    detects. This holds that whole chain: detect -> cluster -> score ->
+    top_events, on an in-memory DB with a recent arrival.
+    """
+
+    def test_synthesized_move_surfaces_in_the_slate_dated_by_arrival(self):
+        from datetime import datetime, timedelta, timezone
+        from fli.intelligence import clustering, scoring
+
+        departed = (datetime.now(timezone.utc) - timedelta(days=30)
+                    ).strftime("%Y-%m-%dT00:00:00Z")
+        arrived = (datetime.now(timezone.utc) - timedelta(days=2)
+                   ).strftime("%Y-%m-%dT00:00:00Z")
+        self.affiliate(1, 1, departed)
+        self.affiliate(1, 2, arrived)
+        self.assertEqual(self.detect()["created"], 1)
+        event_id = self.personnel_events()[0]["id"]
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            clustering.cluster_all(self.conn)
+        # scoring itself is trained on judgements this tiny DB does not have;
+        # what mobility must prove is that the slate rules (undated filter,
+        # cluster collapse) pass the event through once it carries a score.
+        self.conn.execute("UPDATE insights SET score=1.0 WHERE id=?", (event_id,))
+
+        rows, dropped = scoring.top_events(self.conn, k=10)
+        slate_ids = [r["id"] for r in rows]
+        self.assertIn(event_id, slate_ids,
+                      f"synthesized move missing from slate; dropped={dropped}")
+        seen = rows[slate_ids.index(event_id)]
+        self.assertEqual(seen["published_at"], arrived,
+                         "the event must be dated by its arrival observation")
