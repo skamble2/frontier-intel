@@ -108,6 +108,11 @@ def main() -> None:
     print("\n=== re-observe affiliations ===")
     register.observe(conn)
 
+    # Mobility synthesis runs immediately after re-observation so a detected
+    # move lands in THIS run's digest, before clustering/scoring see the corpus.
+    print("\n=== mobility synthesis ===")
+    register.detect_mobility_events(conn)
+
     print("\n=== cluster ===")
     c = clustering.cluster_all(conn)
     print(f"clusters: {c['clusters']} over {c['insights']} insights"
