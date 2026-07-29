@@ -104,8 +104,9 @@ single-user project, one database).
 ## Ingestion pipeline
 
 One command runs the whole daily cycle (ingest 141 sources across 5 types →
-stage-1 filter → stage-2 extraction → re-observe affiliations → validation
-battery; exit 0 = green):
+stage-1 filter → stage-2 extraction → re-observe affiliations → clustering →
+features → per-rubric scoring → evaluation report → validation battery;
+exit 0 = green):
 
 ```bash
 python3 -m fli.cli pipeline                    # extraction capped at 60 docs/run
@@ -113,20 +114,25 @@ python3 -m fli.cli pipeline --max-extract 200  # raise the cost cap explicitly
 ```
 
 Stage 2 needs `ANTHROPIC_API_KEY` (from `.env`); without it that stage is
-skipped and everything deterministic still runs and stays green. Each run
+skipped and everything deterministic still runs and stays green. Scoring
+trains on the judge labels already in the DB — the paid stages (`judge`, `x`)
+are never run by the pipeline and stay manual. Each run
 prints the quote-verification rate, the event-type distribution, and
 cumulative LLM cost.
 
 Idempotent: re-runs hash-dedup everything already stored, never re-extract a
 document that has an insight or a stage-2 verdict, only extract the latest
 version of each URL, skip already-rejected docs, and observe at most one
-affiliation per person/lab per day. To schedule
-hourly:
+affiliation per person/lab per day.
 
-```
-crontab -e
-0 * * * * cd ~/Downloads/BitCapCaseStudy/frontier-intel && ./.venv/bin/python -m fli.cli pipeline >> pipeline.log 2>&1
-```
+**Scheduled run (GitHub Actions).** `.github/workflows/pipeline.yml` runs the
+pipeline daily at 06:00 UTC (or on demand via *Run workflow*) and, when the
+validation battery is green, commits `data/fli.db`, the regenerated
+`docs/evaluation-report.md`, `docs/figures/` and `docs/metrics-out.txt` back
+to the repo — so the published numbers always match the committed DB. Set the
+`ANTHROPIC_API_KEY` repository secret (*Settings → Secrets and variables →
+Actions*) to enable stage-2 extraction; without it the scheduled run still
+executes every deterministic stage. A red run commits nothing.
 
 Individual stages, if needed: `python3 -m fli.cli ingest`, `python3 -m fli.cli filter`,
 `python3 -m fli.cli register observe`.
@@ -217,6 +223,11 @@ deterministic pipeline is unaffected. Endpoint override: `PHOENIX_COLLECTOR_ENDP
 in a **separate** dedicated venv — never this one or base.)
 
 ## Scoring & validation
+
+`python3 -m fli.cli pipeline` already runs all of the deterministic stages
+below (cluster → features → score → evaluate → checks) on every run — the
+individual commands remain for debugging one stage at a time. Only `judge`
+(new pairwise labels, SPENDS) is a separate, deliberate step.
 
 Order matters — clusters gate the corroboration feature, features gate training.
 

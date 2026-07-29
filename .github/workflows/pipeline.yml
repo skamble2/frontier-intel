@@ -1,0 +1,58 @@
+# Daily pipeline: ingest -> filter -> extract -> score -> evaluate -> checks,
+# then commit the updated DB and generated report back to the repo.
+#
+# Paid stages are NOT run here: `judge` (new pairwise labels) and `x` (paid
+# source) stay manual. The only spend is one Anthropic extraction batch per
+# day, capped by --max-extract. Without the ANTHROPIC_API_KEY secret the
+# extraction stage is skipped and every deterministic stage still runs.
+name: pipeline
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily 06:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+# Never let two runs race on committing data/fli.db.
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline (exit 0 = validation battery green)
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: python -m fli.cli pipeline --max-extract 60
+
+      - name: Regenerate metrics dump
+        run: sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
+
+      # Only reached when the run was green (previous steps exit non-zero
+      # otherwise), so a red run never commits a broken DB.
+      - name: Commit results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/fli.db docs/evaluation-report.md docs/metrics-out.txt docs/figures
+          if git diff --cached --quiet; then
+            echo "nothing changed"
+            exit 0
+          fi
+          git commit -m "pipeline: daily run $(date -u +%F)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"

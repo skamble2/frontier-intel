@@ -1,11 +1,15 @@
 """Daily pipeline: ingest all feeds -> stage-1 filter -> stage-2 extraction
 (skipped without an API key; everything else stays deterministic and green)
--> re-observe affiliations -> validation battery. Exit code is the battery's
-verdict.
+-> re-observe affiliations -> cluster -> features -> score (per rubric,
+skipped for a rubric with too few judge labels) -> evaluation report ->
+validation battery. Exit code is the battery's verdict.
+
+The paid stages stay manual: `judge` (new pairwise labels) and `x` (paid
+source) are never run here — scoring trains on the labels already in the DB.
 
 Run:  python -m fli.cli pipeline [--db PATH] [--max-extract N]
-Schedule (hourly example):  crontab -e ->
-  0 * * * * cd <repo> && ./.venv/bin/python -m fli.cli pipeline >> pipeline.log 2>&1
+Scheduled daily by .github/workflows/pipeline.yml, which commits data/fli.db
+and the regenerated report back after a green run.
 """
 from __future__ import annotations
 
@@ -14,12 +18,17 @@ import sys
 from pathlib import Path
 
 from fli.validation import checks
+from fli.validation import evaluation
 from fli.knowledge import expansion as expand
 from fli.knowledge import extraction
 from fli.ingestion import feeds
 from fli.knowledge import filtering as filter1
 from fli.knowledge import register
+from fli.intelligence import clustering
+from fli.intelligence import features as featmod
+from fli.intelligence import scoring
 from fli import storage
+from fli.core.rubric import available as available_rubrics
 from fli.ops import tracing
 from fli.core.text import norm
 from fli.ops.llm import LLM, have_api_key
@@ -99,6 +108,32 @@ def main() -> None:
     print("\n=== re-observe affiliations ===")
     register.observe(conn)
 
+    print("\n=== cluster ===")
+    c = clustering.cluster_all(conn)
+    print(f"clusters: {c['clusters']} over {c['insights']} insights"
+          f" ({c['clustered_events']} in multi-event clusters,"
+          f" largest={c['largest_cluster']})")
+
+    print("\n=== features ===")
+    f = featmod.compute_features(conn)
+    print(f"features: {f['features_per_insight']} per insight"
+          f" x {f['insights']} insights")
+
+    print("\n=== score (per rubric, existing judge labels only) ===")
+    for name in available_rubrics():
+        try:
+            scoring.print_report(scoring.bakeoff(conn, rubric=name))
+        except SystemExit as e:
+            # bakeoff refuses to train on <10 labels; a missing rubric's
+            # labels must not kill the scheduled run.
+            print(f"  {name}: skipped ({e})")
+
+    print("\n=== evaluate (figures + report) ===")
+    try:
+        evaluation.build(conn)
+    except Exception as e:  # a chart must not kill the run
+        print(f"evaluation unavailable: {type(e).__name__}: {e}")
+
     print("\n=== run summary ===")
     print(f"items seen: {stats['items_seen']}  new docs: {stats['docs_new']}"
           f"  hash-dups caught: {stats['hash_dups']}")
@@ -106,7 +141,13 @@ def main() -> None:
     print(f"urls with multiple stored versions: {url_versions(conn)}")
 
     print("\n=== checks ===")
-    sys.exit(checks.run(conn))
+    verdict = checks.run(conn)
+    # Checkpoint the WAL back into fli.db before exiting: the -wal/-shm
+    # sidecars are gitignored, so a committed DB that hasn't been
+    # checkpointed would silently miss this run's writes.
+    conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    conn.close()
+    sys.exit(verdict)
 
 
 if __name__ == "__main__":
