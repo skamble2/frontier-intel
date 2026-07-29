@@ -108,6 +108,22 @@ def main() -> None:
     print("\n=== re-observe affiliations ===")
     register.observe(conn)
 
+    # Bio re-observation is the X-side of observe(): bios are where moves are
+    # announced. Gated on the token exactly like extraction is gated on its
+    # key, cadence-capped in fetch_log so daily runs spend at most
+    # ~$0.41/week, and it must land BEFORE mobility synthesis so a rewritten
+    # bio becomes a personnel event in this same run.
+    print("\n=== re-observe X bios ===")
+    from fli.ingestion.x_api import bearer_token
+    if not bearer_token():
+        print("skipped: no X_BEARER_TOKEN (deterministic stages unaffected)")
+    else:
+        try:
+            register.reobserve_x_bios(conn)
+        except Exception as e:  # API/network failure must not kill the run
+            print(f"bio re-observation unavailable: {e}"
+                  " (deterministic stages unaffected)")
+
     # Mobility synthesis runs immediately after re-observation so a detected
     # move lands in THIS run's digest, before clustering/scoring see the corpus.
     print("\n=== mobility synthesis ===")
