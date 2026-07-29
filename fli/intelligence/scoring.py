@@ -38,10 +38,13 @@ from fli.core.text import norm
 # a p@10 can differ from 1.0 or 0.0 by more than one event.
 MIN_FAIRNESS_N = 10
 
-# The persona whose ranking also lands in insights.score, and which the
-# evaluation figures describe unless told otherwise. Named rather than assumed
-# so "which audience is this figure about?" has an answer in the code.
-PRIMARY_RUBRIC = "investment"
+
+def primary_rubric() -> str:
+    """The persona whose ranking also lands in insights.score, and which the
+    evaluation figures describe unless told otherwise. Which audience the fund
+    serves by default is a business decision, so it comes from
+    config/policy.yml at call time rather than being hard-coded here."""
+    return load_policy().primary_rubric
 
 
 def hand_weights() -> dict[str, float]:
@@ -353,7 +356,7 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
     # insights.score is a single column and can only hold one audience's
     # opinion, so it is written for the pooled run and the primary rubric only.
     # Other rubrics are read through event_scores via top_events(rubric=...).
-    if persist and rubric in (None, PRIMARY_RUBRIC):
+    if persist and rubric in (None, primary_rubric()):
         _write_winner_scores(conn, ids, names, Xz, model_scores[winner], winner, extras)
 
     # p@10's base rate: with many ties, few events have net_wins > 0, so a high

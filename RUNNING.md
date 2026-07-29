@@ -62,6 +62,10 @@ python3 -m fli.cli register seed     # 7 labs + seed people (fetch + verbatim-na
 python3 -m fli.cli register report   # register counts
 ```
 
+The tracked universe (labs, their pages, seed people, X-handle candidates)
+lives in `config/register_seeds.yml`, next to `register_overrides.yml` —
+editing who is tracked is a config change, not a code change.
+
 **Co-author expansion** lives in `fli/knowledge/expansion.py` (`python3 -m fli.cli expand`).
 It anchors on RESEARCH seeds only (founders are tracked but are not
 co-authorship anchors), so one CEO's broad institutional paper no longer swamps

@@ -1,0 +1,195 @@
+# Register seed data — the tracked labs, their founding people, and the curated
+# X-handle candidate list. Moved out of fli/knowledge/register/{seeding,
+# x_identities}.py so the tracked universe is config, editable without a code
+# change, alongside register_overrides.yml.
+#
+# Everything here is a CANDIDATE, not a fact. Seeding is gated on a VERBATIM
+# name match in a fetched lab page; an X handle is admitted only if the live
+# profile corroborates it. Failures land in `rejections`, so the miss rate is
+# a number in the report rather than a silent gap.
+
+labs:
+  - name: OpenAI
+    is_public_company: 0
+    parent_ticker: null
+    pages:
+      - {url: "https://en.wikipedia.org/wiki/OpenAI", channel: third_party}
+  - name: Anthropic
+    is_public_company: 0
+    parent_ticker: null
+    pages:
+      - {url: "https://www.anthropic.com/company", channel: official}
+      - {url: "https://en.wikipedia.org/wiki/Anthropic", channel: third_party}
+  - name: Google DeepMind
+    is_public_company: 1
+    parent_ticker: GOOGL
+    pages:
+      - {url: "https://deepmind.google/about/", channel: official}
+      - {url: "https://en.wikipedia.org/wiki/Google_DeepMind", channel: third_party}
+  - name: Meta AI
+    is_public_company: 1
+    parent_ticker: META
+    # ai.meta.com/research removed 2026-07-23: refused urllib on 6/6 attempts
+    # (HTTP 400; browser-stack only). Coverage via Wikipedia + feeds.
+    pages:
+      - {url: "https://en.wikipedia.org/wiki/Meta_AI", channel: third_party}
+  - name: Mistral
+    is_public_company: 0
+    parent_ticker: null
+    pages:
+      - {url: "https://mistral.ai/company", channel: official}
+      - {url: "https://en.wikipedia.org/wiki/Mistral_AI", channel: third_party}
+  - name: DeepSeek
+    is_public_company: 0
+    parent_ticker: null
+    pages:
+      - {url: "https://www.deepseek.com/", channel: official}
+      - {url: "https://en.wikipedia.org/wiki/DeepSeek", channel: third_party}
+  - name: Qwen
+    is_public_company: 1
+    parent_ticker: BABA
+    pages:
+      - {url: "https://qwenlm.github.io/", channel: official}
+      - {url: "https://en.wikipedia.org/wiki/Qwen", channel: third_party}
+  - name: xAI
+    is_public_company: 0
+    parent_ticker: null
+    # x.ai serves its company page client-side, the same wall as the OpenAI
+    # blog and Mistral newsroom. Both URLs are listed anyway: whichever fails
+    # is recorded in fetch_log, so the gap stays visible in the data.
+    pages:
+      - {url: "https://x.ai/about", channel: official}
+      - {url: "https://en.wikipedia.org/wiki/XAI_(company)", channel: third_party}
+
+seed_people:
+  - {lab: OpenAI,          name: Sam Altman,        role: CEO,             tier: founder}
+  - {lab: OpenAI,          name: Greg Brockman,     role: President,       tier: founder}
+  - {lab: OpenAI,          name: Jakub Pachocki,    role: Chief Scientist, tier: research_lead}
+  - {lab: OpenAI,          name: Mark Chen,         role: Chief Research Officer, tier: research_lead}
+  - {lab: Anthropic,       name: Dario Amodei,      role: CEO,             tier: founder}
+  - {lab: Anthropic,       name: Daniela Amodei,    role: President,       tier: founder}
+  # research-role founders are tiered research_lead so they anchor co-author
+  # expansion: a hands-on Chief Scientist / CTO co-authors real
+  # research, unlike a CEO co-signing an institutional paper.
+  - {lab: Anthropic,       name: Jared Kaplan,      role: Chief Science Officer, tier: research_lead}
+  - {lab: Anthropic,       name: Chris Olah,        role: null,            tier: research_lead}
+  - {lab: Google DeepMind, name: Demis Hassabis,    role: CEO,             tier: founder}
+  - {lab: Google DeepMind, name: Koray Kavukcuoglu, role: CTO,             tier: research_lead}
+  - {lab: Meta AI,         name: Yann LeCun,        role: Chief AI Scientist, tier: research_lead}
+  - {lab: Meta AI,         name: Alexandr Wang,     role: null,            tier: research_lead}
+  - {lab: Mistral,         name: Arthur Mensch,     role: CEO,             tier: founder}
+  - {lab: Mistral,         name: Guillaume Lample,  role: Chief Scientist, tier: research_lead}
+  - {lab: Mistral,         name: Timothée Lacroix,  role: CTO,             tier: research_lead}
+  - {lab: DeepSeek,        name: Liang Wenfeng,     role: CEO,             tier: founder}
+  - {lab: Qwen,            name: Junyang Lin,       role: null,            tier: research_lead}
+  # xAI seeds are candidates, not assertions: several of the founding research
+  # team have since left. A name survives only if it appears verbatim on a
+  # fetched page, the same gate every other seed passes, and failures land in
+  # `rejections` as seed_name_not_on_page so the miss rate is measurable.
+  #
+  # A departed founder is not a mistake to prune. Affiliations are append-only
+  # with an `observed_at`, so one person observed at two labs in a window is
+  # exactly the mobility event this system exists to catch.
+  - {lab: xAI,             name: Elon Musk,         role: CEO,             tier: founder}
+  - {lab: xAI,             name: Greg Yang,         role: null,            tier: research_lead}
+  - {lab: xAI,             name: Jimmy Ba,          role: null,            tier: research_lead}
+  - {lab: xAI,             name: Yuhuai Wu,         role: null,            tier: research_lead}
+  - {lab: xAI,             name: Christian Szegedy, role: null,            tier: research_lead}
+  - {lab: xAI,             name: Igor Babuschkin,   role: null,            tier: research_lead}
+
+# Person-level fallback pages, fetched only when every lab page misses the name.
+person_pages:
+  Koray Kavukcuoglu:
+    - {url: "https://blog.google/authors/koray-kavukcuoglu/", channel: official}
+  Junyang Lin:
+    - {url: "https://en.wikipedia.org/wiki/Junyang_Lin", channel: third_party}
+
+# (handle, lab, person name as we expect the profile to render it)
+#
+# CANDIDATES, not facts. Every row is checked against the live profile before
+# anything is written. Lab attribution here only decides which lab name we look
+# for in the bio; it is never itself stored as truth.
+x_candidates:
+  # OpenAI
+  - {handle: sama,             lab: OpenAI,          name: Sam Altman}
+  - {handle: gdb,              lab: OpenAI,          name: Greg Brockman}
+  - {handle: merettm,          lab: OpenAI,          name: Mark Chen}
+  - {handle: npew,             lab: OpenAI,          name: Noam Brown}
+  - {handle: woj_zaremba,      lab: OpenAI,          name: Wojciech Zaremba}
+  - {handle: OfirPress,        lab: OpenAI,          name: Ofir Press}
+  - {handle: aidan_mclau,      lab: OpenAI,          name: Aidan McLaughlin}
+  # Anthropic — deliberately over-weighted. Anthropic has 89 events in the
+  # corpus and ZERO layer-below candidates, because co-author expansion is
+  # arXiv-anchored and Anthropic publishes under collective names. X bios are
+  # the only route to the layer below for a lab that does not put individual
+  # names on papers.
+  - {handle: DarioAmodei,      lab: Anthropic,       name: Dario Amodei}
+  - {handle: janleike,         lab: Anthropic,       name: Jan Leike}
+  - {handle: nottombrown,      lab: Anthropic,       name: Tom Brown}
+  - {handle: _saurabh_,        lab: Anthropic,       name: Saurav Kadavath}
+  - {handle: tomekkorbak,      lab: Anthropic,       name: Tomek Korbak}
+  - {handle: EthanJPerez,      lab: Anthropic,       name: Ethan Perez}
+  - {handle: bshlgrs,          lab: Anthropic,       name: Buck Shlegeris}
+  - {handle: jackclarkSF,      lab: Anthropic,       name: Jack Clark}
+  - {handle: ch402,            lab: Anthropic,       name: Chris Olah}
+  - {handle: jaredkaplan,      lab: Anthropic,       name: Jared Kaplan}
+  - {handle: sleepinyourhat,   lab: Anthropic,       name: Sam Bowman}
+  - {handle: Ethan_Perez,      lab: Anthropic,       name: Ethan Perez}
+  - {handle: catherineols,     lab: Anthropic,       name: Catherine Olsson}
+  - {handle: AmandaAskell,     lab: Anthropic,       name: Amanda Askell}
+  # Google DeepMind
+  - {handle: demishassabis,    lab: Google DeepMind, name: Demis Hassabis}
+  - {handle: koraykv,          lab: Google DeepMind, name: Koray Kavukcuoglu}
+  - {handle: OriolVinyalsML,   lab: Google DeepMind, name: Oriol Vinyals}
+  - {handle: quocleix,         lab: Google DeepMind, name: Quoc Le}
+  - {handle: jeffdean,         lab: Google DeepMind, name: Jeff Dean}
+  - {handle: _rockt,           lab: Google DeepMind, name: Tim Rocktaschel}
+  - {handle: shaneglegg,       lab: Google DeepMind, name: Shane Legg}
+  # Meta AI
+  - {handle: ylecun,           lab: Meta AI,         name: Yann LeCun}
+  - {handle: alexandr_wang,    lab: Meta AI,         name: Alexandr Wang}
+  - {handle: jaseweston,       lab: Meta AI,         name: Jason Weston}
+  - {handle: tydsh,            lab: Meta AI,         name: Yuandong Tian}
+  - {handle: MikeLewis_Ai,     lab: Meta AI,         name: Mike Lewis}
+  - {handle: violet_zct,       lab: Meta AI,         name: Chunting Zhou}
+  - {handle: ArmenAgha,        lab: Meta AI,         name: Armen Aghajanyan}
+  - {handle: uralik1,          lab: Meta AI,         name: Kalpesh Krishna}
+  # Mistral
+  - {handle: arthurmensch,     lab: Mistral,         name: Arthur Mensch}
+  - {handle: GuillaumeLample,  lab: Mistral,         name: Guillaume Lample}
+  - {handle: timlacroix,       lab: Mistral,         name: Timothée Lacroix}
+  - {handle: devendrachaplot,  lab: Mistral,         name: Devendra Chaplot}
+  # DeepSeek
+  # DeepSeek publishes as "DeepSeek-AI"; individual handles are scarce, so a
+  # short list is expected to fail the gate more often than it passes. The
+  # rejections are the finding.
+  - {handle: deepseek_ai,      lab: DeepSeek,        name: DeepSeek}
+  - {handle: zhangchen_xu,     lab: DeepSeek,        name: Zhangchen Xu}
+  - {handle: wenfeng_liang,    lab: DeepSeek,        name: Liang Wenfeng}
+  # Qwen
+  - {handle: JustinLin610,     lab: Qwen,            name: Junyang Lin}
+  - {handle: huybery,          lab: Qwen,            name: Binyuan Hui}
+  - {handle: _akhaliq,         lab: Qwen,            name: AK}
+  - {handle: bowenyu,          lab: Qwen,            name: Bowen Yu}
+  - {handle: keming_lu,        lab: Qwen,            name: Keming Lu}
+  # xAI
+  - {handle: elonmusk,         lab: xAI,             name: Elon Musk}
+  - {handle: TheGregYang,      lab: xAI,             name: Greg Yang}
+  - {handle: jimmybajimmyba,   lab: xAI,             name: Jimmy Ba}
+  - {handle: Yuhu_ai_,         lab: xAI,             name: Yuhuai Wu}
+  - {handle: ChrSzegedy,       lab: xAI,             name: Christian Szegedy}
+  - {handle: ibab,             lab: xAI,             name: Igor Babuschkin}
+  - {handle: tobypohlen,       lab: xAI,             name: Toby Pohlen}
+
+# Bio spellings that indicate a lab. Deliberately generous on surface form and
+# strict on word boundaries, reusing the same matcher the policy lexicon uses.
+# (Substring matching would score "metaphor" as Meta and "fairness" as FAIR.)
+lab_bio_terms:
+  OpenAI:          [openai, "@openai"]
+  Anthropic:       [anthropic, "@anthropicai"]
+  Google DeepMind: [deepmind, "@googledeepmind", google deepmind]
+  Meta AI:         [meta ai, "@aiatmeta", fair, meta]
+  Mistral:         [mistral, "@mistralai"]
+  DeepSeek:        [deepseek, "@deepseek_ai"]
+  Qwen:            [qwen, "@alibaba_qwen", alibaba]
+  xAI:             [xai, "@xai"]

@@ -1,93 +1,56 @@
 """Seed the register: the tracked labs and their founding people.
 
 Seeding is gated on a VERBATIM name match in a fetched lab page - a
-person enters the register only with evidence behind them."""
+person enters the register only with evidence behind them.
+
+The seed data itself (labs, pages, people, X-handle candidates) lives in
+config/register_seeds.yml alongside register_overrides.yml: the tracked
+universe is a judgement call, not code, so editing it must not be a code
+change. This module keeps the same LABS / LAB_PAGES / SEED_PEOPLE /
+PERSON_PAGES shapes it always exposed."""
 import json
 import sqlite3
 import urllib.parse
+from functools import lru_cache
+
+import yaml
 
 from fli import storage
 from fli.core.http import FetchError, http_get
+from fli.core.paths import SEEDS_PATH
 from fli.core.text import contains_verbatim, html_to_text
 
-LABS = [
-    # name, is_public_company, parent_ticker
-    ("OpenAI",          0, None),
-    ("Anthropic",       0, None),
-    ("Google DeepMind", 1, "GOOGL"),
-    ("Meta AI",         1, "META"),
-    ("Mistral",         0, None),
-    ("DeepSeek",        0, None),
-    ("Qwen",            1, "BABA"),
-    ("xAI",             0, None),
-]
+
+@lru_cache(maxsize=1)
+def load_seeds() -> dict:
+    """Parse config/register_seeds.yml once. A missing or malformed file is a
+    hard error - there is deliberately no hardcoded fallback list."""
+    if not SEEDS_PATH.exists():
+        raise FileNotFoundError(
+            f"seed file not found: {SEEDS_PATH}\nIt holds the tracked labs, "
+            f"seed people and X-handle candidates, and is required.")
+    raw = yaml.safe_load(SEEDS_PATH.read_text(encoding="utf-8"))
+    for key in ("labs", "seed_people", "person_pages", "x_candidates",
+                "lab_bio_terms"):
+        if key not in raw:
+            raise ValueError(f"{SEEDS_PATH}: missing key `{key}`")
+    return raw
 
 
-LAB_PAGES = {
-    "OpenAI":          [("https://en.wikipedia.org/wiki/OpenAI", "third_party")],
-    "Anthropic":       [("https://www.anthropic.com/company", "official"),
-                        ("https://en.wikipedia.org/wiki/Anthropic", "third_party")],
-    "Google DeepMind": [("https://deepmind.google/about/", "official"),
-                        ("https://en.wikipedia.org/wiki/Google_DeepMind", "third_party")],
-    # ai.meta.com/research removed 2026-07-23: refused urllib on 6/6 attempts
-    # (HTTP 400; browser-stack only). Coverage via Wikipedia + feeds.
-    "Meta AI":         [("https://en.wikipedia.org/wiki/Meta_AI", "third_party")],
-    "Mistral":         [("https://mistral.ai/company", "official"),
-                        ("https://en.wikipedia.org/wiki/Mistral_AI", "third_party")],
-    "DeepSeek":        [("https://www.deepseek.com/", "official"),
-                        ("https://en.wikipedia.org/wiki/DeepSeek", "third_party")],
-    "Qwen":            [("https://qwenlm.github.io/", "official"),
-                        ("https://en.wikipedia.org/wiki/Qwen", "third_party")],
-    # x.ai serves its company page client-side, the same wall as the OpenAI
-    # blog and Mistral newsroom. Both URLs are listed anyway: whichever fails is
-    # recorded in fetch_log, so the gap stays visible in the data.
-    "xAI":             [("https://x.ai/about", "official"),
-                        ("https://en.wikipedia.org/wiki/XAI_(company)", "third_party")],
-}
+_seeds = load_seeds()
 
+# name, is_public_company, parent_ticker
+LABS = [(l["name"], l["is_public_company"], l["parent_ticker"])
+        for l in _seeds["labs"]]
 
-SEED_PEOPLE = [
-    ("OpenAI",          "Sam Altman",        "CEO",             "founder"),
-    ("OpenAI",          "Greg Brockman",     "President",       "founder"),
-    ("OpenAI",          "Jakub Pachocki",    "Chief Scientist", "research_lead"),
-    ("OpenAI",          "Mark Chen",         "Chief Research Officer", "research_lead"),
-    ("Anthropic",       "Dario Amodei",      "CEO",             "founder"),
-    ("Anthropic",       "Daniela Amodei",    "President",       "founder"),
-    # research-role founders are tiered research_lead so they anchor co-author
-    # expansion: a hands-on Chief Scientist / CTO co-authors real
-    # research, unlike a CEO co-signing an institutional paper.
-    ("Anthropic",       "Jared Kaplan",      "Chief Science Officer", "research_lead"),
-    ("Anthropic",       "Chris Olah",        None,              "research_lead"),
-    ("Google DeepMind", "Demis Hassabis",    "CEO",             "founder"),
-    ("Google DeepMind", "Koray Kavukcuoglu", "CTO",             "research_lead"),
-    ("Meta AI",         "Yann LeCun",        "Chief AI Scientist", "research_lead"),
-    ("Meta AI",         "Alexandr Wang",     None,              "research_lead"),
-    ("Mistral",         "Arthur Mensch",     "CEO",             "founder"),
-    ("Mistral",         "Guillaume Lample",  "Chief Scientist", "research_lead"),
-    ("Mistral",         "Timothée Lacroix",  "CTO",             "research_lead"),
-    ("DeepSeek",        "Liang Wenfeng",     "CEO",             "founder"),
-    ("Qwen",            "Junyang Lin",       None,              "research_lead"),
-    # xAI seeds are candidates, not assertions: several of the founding research
-    # team have since left. A name survives only if it appears verbatim on a
-    # fetched page, the same gate every other seed passes, and failures land in
-    # `rejections` as seed_name_not_on_page so the miss rate is measurable.
-    #
-    # A departed founder is not a mistake to prune. Affiliations are append-only
-    # with an `observed_at`, so one person observed at two labs in a window is
-    # exactly the mobility event this system exists to catch.
-    ("xAI",             "Elon Musk",         "CEO",             "founder"),
-    ("xAI",             "Greg Yang",         None,              "research_lead"),
-    ("xAI",             "Jimmy Ba",          None,              "research_lead"),
-    ("xAI",             "Yuhuai Wu",         None,              "research_lead"),
-    ("xAI",             "Christian Szegedy", None,              "research_lead"),
-    ("xAI",             "Igor Babuschkin",   None,              "research_lead"),
-]
+LAB_PAGES = {l["name"]: [(p["url"], p["channel"]) for p in l["pages"]]
+             for l in _seeds["labs"]}
 
+SEED_PEOPLE = [(p["lab"], p["name"], p["role"], p["tier"])
+               for p in _seeds["seed_people"]]
 
-PERSON_PAGES = {
-    "Koray Kavukcuoglu": [("https://blog.google/authors/koray-kavukcuoglu/", "official")],
-    "Junyang Lin":       [("https://en.wikipedia.org/wiki/Junyang_Lin", "third_party")],
-}
+PERSON_PAGES = {name: [(p["url"], p["channel"]) for p in pages]
+                for name, pages in _seeds["person_pages"].items()}
 
 
 def seed_labs(conn: sqlite3.Connection) -> None:

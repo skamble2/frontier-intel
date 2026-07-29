@@ -20,7 +20,8 @@ The second tier is `name_match_only`, not `corroborated`: agreeing with a name
 already in the register is a name match, and `corroborated` is reserved for an
 independent second source (check C4 enforces the pairing).
 
-The third case is the point. The candidate list below is a starting guess, and
+The third case is the point. The candidate list (config/register_seeds.yml,
+`x_candidates`) is a starting guess, and
 guesses about who works where go stale fastest of anything in this system —
 people move, that is the signal we are chasing. Handles that fail land in
 `rejections` with the bio that failed them, so the miss rate is a number in the
@@ -47,96 +48,25 @@ from fli.core.config import X_MAX_USER_LOOKUPS, X_USER_COST_USD
 from fli.core.http import FetchError
 from fli.core.text import name_key
 
-# (handle, lab, person name as we expect the profile to render it)
+# The curated candidate list and per-lab bio spellings live in
+# config/register_seeds.yml (x_candidates / lab_bio_terms), next to the seed
+# people they extend. Same shapes as before:
 #
-# CANDIDATES, not facts. Every row is checked against the live profile before
+# CANDIDATES: (handle, lab, person name as we expect the profile to render it).
+# Candidates, not facts — every row is checked against the live profile before
 # anything is written. Lab attribution here only decides which lab name we look
 # for in the bio; it is never itself stored as truth.
-CANDIDATES: list[tuple[str, str, str]] = [
-    # OpenAI
-    ("sama",             "OpenAI",          "Sam Altman"),
-    ("gdb",              "OpenAI",          "Greg Brockman"),
-    ("merettm",          "OpenAI",          "Mark Chen"),
-    ("npew",             "OpenAI",          "Noam Brown"),
-    ("woj_zaremba",      "OpenAI",          "Wojciech Zaremba"),
-    ("OfirPress",        "OpenAI",          "Ofir Press"),
-    ("aidan_mclau",      "OpenAI",          "Aidan McLaughlin"),
-    # Anthropic — deliberately over-weighted. Anthropic has 89 events in the
-    # corpus and ZERO layer-below candidates, because co-author expansion is
-    # arXiv-anchored and Anthropic publishes under collective names. X bios are
-    # the only route to the layer below for a lab that does not put individual
-    # names on papers.
-    ("DarioAmodei",      "Anthropic",       "Dario Amodei"),
-    ("janleike",         "Anthropic",       "Jan Leike"),
-    ("nottombrown",      "Anthropic",       "Tom Brown"),
-    ("_saurabh_",        "Anthropic",       "Saurav Kadavath"),
-    ("tomekkorbak",      "Anthropic",       "Tomek Korbak"),
-    ("EthanJPerez",      "Anthropic",       "Ethan Perez"),
-    ("bshlgrs",          "Anthropic",       "Buck Shlegeris"),
-    ("jackclarkSF",      "Anthropic",       "Jack Clark"),
-    ("ch402",            "Anthropic",       "Chris Olah"),
-    ("jaredkaplan",      "Anthropic",       "Jared Kaplan"),
-    ("sleepinyourhat",   "Anthropic",       "Sam Bowman"),
-    ("Ethan_Perez",      "Anthropic",       "Ethan Perez"),
-    ("catherineols",     "Anthropic",       "Catherine Olsson"),
-    ("AmandaAskell",     "Anthropic",       "Amanda Askell"),
-    # Google DeepMind
-    ("demishassabis",    "Google DeepMind", "Demis Hassabis"),
-    ("koraykv",          "Google DeepMind", "Koray Kavukcuoglu"),
-    ("OriolVinyalsML",   "Google DeepMind", "Oriol Vinyals"),
-    ("quocleix",         "Google DeepMind", "Quoc Le"),
-    ("jeffdean",         "Google DeepMind", "Jeff Dean"),
-    ("_rockt",           "Google DeepMind", "Tim Rocktaschel"),
-    ("shaneglegg",       "Google DeepMind", "Shane Legg"),
-    # Meta AI
-    ("ylecun",           "Meta AI",         "Yann LeCun"),
-    ("alexandr_wang",    "Meta AI",         "Alexandr Wang"),
-    ("jaseweston",       "Meta AI",         "Jason Weston"),
-    ("tydsh",            "Meta AI",         "Yuandong Tian"),
-    ("MikeLewis_Ai",     "Meta AI",         "Mike Lewis"),
-    ("violet_zct",       "Meta AI",         "Chunting Zhou"),
-    ("ArmenAgha",        "Meta AI",         "Armen Aghajanyan"),
-    ("uralik1",          "Meta AI",         "Kalpesh Krishna"),
-    # Mistral
-    ("arthurmensch",     "Mistral",         "Arthur Mensch"),
-    ("GuillaumeLample",  "Mistral",         "Guillaume Lample"),
-    ("timlacroix",       "Mistral",         "Timothée Lacroix"),
-    ("devendrachaplot",  "Mistral",         "Devendra Chaplot"),
-    # DeepSeek
-    # DeepSeek publishes as "DeepSeek-AI"; individual handles are scarce, so a
-    # short list is expected to fail the gate more often than it passes. The
-    # rejections are the finding.
-    ("deepseek_ai",      "DeepSeek",        "DeepSeek"),
-    ("zhangchen_xu",     "DeepSeek",        "Zhangchen Xu"),
-    ("wenfeng_liang",    "DeepSeek",        "Liang Wenfeng"),
-    # Qwen
-    ("JustinLin610",     "Qwen",            "Junyang Lin"),
-    ("huybery",          "Qwen",            "Binyuan Hui"),
-    ("_akhaliq",         "Qwen",            "AK"),
-    ("bowenyu",          "Qwen",            "Bowen Yu"),
-    ("keming_lu",        "Qwen",            "Keming Lu"),
-    # xAI
-    ("elonmusk",         "xAI",             "Elon Musk"),
-    ("TheGregYang",      "xAI",             "Greg Yang"),
-    ("jimmybajimmyba",   "xAI",             "Jimmy Ba"),
-    ("Yuhu_ai_",         "xAI",             "Yuhuai Wu"),
-    ("ChrSzegedy",       "xAI",             "Christian Szegedy"),
-    ("ibab",             "xAI",             "Igor Babuschkin"),
-    ("tobypohlen",       "xAI",             "Toby Pohlen"),
-]
+#
+# LAB_BIO_TERMS: bio spellings that indicate a lab. Deliberately generous on
+# surface form and strict on word boundaries, reusing the same matcher the
+# policy lexicon uses.
+from fli.knowledge.register.seeding import load_seeds
 
-# Bio spellings that indicate a lab. Deliberately generous on surface form and
-# strict on word boundaries, reusing the same matcher the policy lexicon uses.
-LAB_BIO_TERMS = {
-    "OpenAI":          ["openai", "@openai"],
-    "Anthropic":       ["anthropic", "@anthropicai"],
-    "Google DeepMind": ["deepmind", "@googledeepmind", "google deepmind"],
-    "Meta AI":         ["meta ai", "@aiatmeta", "fair", "meta"],
-    "Mistral":         ["mistral", "@mistralai"],
-    "DeepSeek":        ["deepseek", "@deepseek_ai"],
-    "Qwen":            ["qwen", "@alibaba_qwen", "alibaba"],
-    "xAI":             ["xai", "@xai"],
-}
+CANDIDATES: list[tuple[str, str, str]] = [
+    (c["handle"], c["lab"], c["name"]) for c in load_seeds()["x_candidates"]]
+
+LAB_BIO_TERMS = {lab: list(terms)
+                 for lab, terms in load_seeds()["lab_bio_terms"].items()}
 
 
 def bio_names_lab(bio: str, lab: str) -> bool:

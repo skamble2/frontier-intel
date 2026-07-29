@@ -56,7 +56,8 @@ _KEYS = {"version", "owner", "effective_from", "source", "channels",
 # and a v3 file (with them). That is what makes the rollout safe: new code
 # reads old config, so the code can ship before the policy is swapped.
 _OPTIONAL_KEYS = {"positions", "window_days", "show_undated",
-                  "max_per_lab", "story_rare_df", "story_days"}
+                  "max_per_lab", "story_rare_df", "story_days",
+                  "primary_rubric"}
 _POSITION_KEYS = {"ticker", "name", "weight_pct", "thesis", "exposure_terms"}
 
 
@@ -87,6 +88,10 @@ class Policy:
     hand_weights: dict[str, float]
     window_days: int = 90
     show_undated: bool = False
+    # The persona whose ranking also lands in insights.score, and which the
+    # evaluation figures describe unless told otherwise. Optional with a
+    # default so a v2/v3 policy file that predates the key still loads.
+    primary_rubric: str = "investment"
     # Slate composition — render-time only, never seen by the scorer.
     max_per_lab: int = 0            # 0 = no cap
     story_rare_df: float = 0.0      # 0 = same-story suppression off
@@ -167,6 +172,10 @@ def parse_policy(raw: dict) -> Policy:
             "policy.yml: `story_rare_df` is a FRACTION of claims (0-1), not a "
             "count. 0.03 means 'a token in at most 3% of claims'; 3 would make "
             "every token uncommon and collapse the slate to one item per lab.")
+    primary_rubric = raw.get("primary_rubric", "investment")
+    if not isinstance(primary_rubric, str) or not primary_rubric.strip():
+        raise PolicyError("policy.yml: `primary_rubric` must be the name of a "
+                          "rubric file (config/rubrics/<name>.yml)")
 
     channels = {}
     for name, terms in (raw["channels"] or {}).items():
@@ -221,6 +230,7 @@ def parse_policy(raw: dict) -> Policy:
         hand_weights={str(k): float(v) for k, v in weights.items()},
         window_days=int(raw.get("window_days", 90)),
         show_undated=bool(raw.get("show_undated", False)),
+        primary_rubric=primary_rubric.strip(),
         max_per_lab=int(raw.get("max_per_lab", 0)),
         story_rare_df=float(raw.get("story_rare_df", 0.0)),
         story_days=int(raw.get("story_days", 7)),

@@ -277,9 +277,10 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
     the family level rather than per labeler id.
     """
     from fli.intelligence.weak_supervision import dawid_skene
-    from fli.intelligence.scoring import PRIMARY_RUBRIC
+    from fli.intelligence.scoring import primary_rubric
     import numpy as np
     plt, _ = _style()
+    rubric = primary_rubric()
     # ONE RUBRIC ONLY. Dawid-Skene assumes every labeler is estimating the SAME
     # latent truth, and rubrics estimate different ones by design. Pooling them
     # scored the technical labeler at 0.523 — barely above chance — not because
@@ -293,9 +294,9 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
     rows = conn.execute(
         "SELECT event_a, event_b, winner, labeler FROM pairwise_labels"
         " WHERE winner != 'tie' AND (labeler LIKE ? OR labeler LIKE ?)",
-        (f"llm:%/{PRIMARY_RUBRIC}/%", f"human:%/{PRIMARY_RUBRIC}/%")).fetchall()
+        (f"llm:%/{rubric}/%", f"human:%/{rubric}/%")).fetchall()
     if not rows:
-        raise Skipped(f"python3 -m fli.cli judge --rubric {PRIMARY_RUBRIC} --n 300")
+        raise Skipped(f"python3 -m fli.cli judge --rubric {rubric} --n 300")
     labelers = sorted({r["labeler"] for r in rows})
     families = {_labeler_family(l) for l in labelers}
     if len(families) < 2:
@@ -330,7 +331,7 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
     ax.set_title("Labeler reliability")
     per = ", ".join(f"{labelers[j]} {acc[j]:.3f}" for j in order)
     return _save(plt, fig, "f6_labeler_reliability", JUDGED), (
-        f"Rubric `{PRIMARY_RUBRIC}` only: {len(items)} pairs x {len(labelers)} "
+        f"Rubric `{rubric}` only: {len(items)} pairs x {len(labelers)} "
         f"labelers across {len(families)} independent model families "
         f"({', '.join(sorted(families))}). Estimated accuracy: {per}. "
         f"Reliability is inferred from disagreement between families, so the "
@@ -351,7 +352,7 @@ def fig_bakeoff(conn) -> tuple[str, str]:
         raise Skipped("python3 -m fli.cli score --bakeoff")
     from fli.intelligence import scoring
     # persist=False: a figure must not rewrite the scores it is describing.
-    res = scoring.bakeoff(conn, rubric=scoring.PRIMARY_RUBRIC, persist=False)
+    res = scoring.bakeoff(conn, rubric=scoring.primary_rubric(), persist=False)
     models = sorted(res["report"], key=lambda m: -(res["report"][m]["heldout_acc"] or 0))
     accs = [res["report"][m]["heldout_acc"] for m in models]
     colors = ["#16a34a" if m == res["winner"] else
@@ -377,7 +378,7 @@ def fig_ablation(conn) -> tuple[str, str]:
     if not conn.execute("SELECT count(*) FROM event_scores").fetchone()[0]:
         raise Skipped("python3 -m fli.cli score --bakeoff")
     from fli.intelligence import scoring
-    abl = scoring.bakeoff(conn, rubric=scoring.PRIMARY_RUBRIC,
+    abl = scoring.bakeoff(conn, rubric=scoring.primary_rubric(),
                           persist=False)["ablation"]
     items = sorted(abl.items(), key=lambda kv: kv[1])
     fig, ax = plt.subplots(figsize=(9, 5))
@@ -398,7 +399,7 @@ def fig_per_lab_fairness(conn) -> tuple[str, str]:
     if not conn.execute("SELECT count(*) FROM event_scores").fetchone()[0]:
         raise Skipped("python3 -m fli.cli score --bakeoff")
     from fli.intelligence import scoring
-    per_lab = scoring.bakeoff(conn, rubric=scoring.PRIMARY_RUBRIC,
+    per_lab = scoring.bakeoff(conn, rubric=scoring.primary_rubric(),
                               persist=False)["per_lab_p10"]
     if not per_lab:
         raise Skipped("python3 -m fli.cli judge --n 150   (needs more labels)")
@@ -440,7 +441,7 @@ def fig_overfitting(conn) -> tuple[str, str]:
     Xz, _, _ = scoring._standardize(X)
     # One rubric only: pooling labels from audiences that disagree by design
     # would give a train/test gap describing no ranking that ships.
-    pairs = scoring.load_pairs(conn, rubric=scoring.PRIMARY_RUBRIC)
+    pairs = scoring.load_pairs(conn, rubric=scoring.primary_rubric())
     tr, te = scoring._split(pairs)
     Xtr, ytr = scoring._pair_xy(tr, Xz, row)
     if len(Xtr) < 8:
@@ -499,7 +500,7 @@ def fig_learning_curve(conn) -> tuple[str, str]:
     plt, _ = _style()
     from fli.intelligence import scoring
     from fli.intelligence.features import feature_matrix
-    pairs = scoring.load_pairs(conn, rubric=scoring.PRIMARY_RUBRIC)
+    pairs = scoring.load_pairs(conn, rubric=scoring.primary_rubric())
     decided = [p for p in pairs if p[2] != "tie"]
     if len(decided) < 30:
         raise Skipped("python3 -m fli.cli judge --n 300")

@@ -120,6 +120,12 @@ max_per_lab: 2
 story_rare_df: 0.03
 story_days: 7
 
+# The persona whose ranking also lands in insights.score, and which the
+# evaluation figures describe unless told otherwise. Which audience the fund
+# serves by default is a business decision, so it lives here, not in code.
+# Must name a rubric file: config/rubrics/<name>.yml.
+primary_rubric: investment
+
 hand_weights:
   recency: 1.0
   corroboration: 0.6

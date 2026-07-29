@@ -153,7 +153,7 @@ def _parse(raw: str, max_rule: int = 6) -> dict | None:
 
 def judge_pairs(conn, n: int = 150, dry_run: bool = False,
                 model: str | None = None,
-                rubric_name: str = "investment") -> dict:
+                rubric_name: str | None = None) -> dict:
     """Judge pairs under one rubric with one model.
 
     Both are part of the labeler id (`llm:<model>/<rubric>/r<v>`), and
@@ -171,7 +171,7 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
     from fli.core.rubric import load_rubric
 
     policy = load_policy()
-    rubric = load_rubric(rubric_name)
+    rubric = load_rubric(rubric_name or policy.primary_rubric)
     system = build_rubric_system(rubric, list(policy.channels) + ["none"])
     model = model or MODEL_FOR_TASK["judge"]
     labeler = f"llm:{model}/{rubric.label_suffix}"
@@ -250,7 +250,7 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
     return dict(stats)
 
 
-def consistency_check(conn, n: int = 40, rubric_name: str = "investment") -> dict:
+def consistency_check(conn, n: int = 40, rubric_name: str | None = None) -> dict:
     """Judge each pair both ways and count how often the answer flips.
 
     Removing the tie option makes the judge decisive, not reproducible. Asking
@@ -271,7 +271,7 @@ def consistency_check(conn, n: int = 40, rubric_name: str = "investment") -> dic
     model = MODEL_FOR_TASK["judge"]
     preflight(model, n * 2)
     policy = load_policy()
-    rubric = load_rubric(rubric_name)
+    rubric = load_rubric(rubric_name or policy.primary_rubric)
     system = build_rubric_system(rubric, list(policy.channels) + ["none"])
     llm = LLM(conn)
     pairs = sample_pairs(conn, n)[:n]
@@ -399,9 +399,10 @@ def main() -> None:
                          "both judged. Reads only, spends nothing")
     ap.add_argument("--labelers", action="store_true",
                     help="list labeler ids present in the database")
-    ap.add_argument("--rubric", default="investment", metavar="NAME",
+    ap.add_argument("--rubric", default=None, metavar="NAME",
                     help="which audience's definition of important to judge by "
-                         "(config/rubrics/NAME.yml). Default: investment")
+                         "(config/rubrics/NAME.yml). Default: the policy's "
+                         "`primary_rubric`")
     ap.add_argument("--rubrics", action="store_true",
                     help="list available rubrics and exit")
     args = ap.parse_args()

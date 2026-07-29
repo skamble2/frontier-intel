@@ -150,8 +150,9 @@ def main() -> None:
     ap.add_argument("--n", type=int, default=150)
     ap.add_argument("--by", default="soham",
                     help="your name; stored as human:<name>/<rubric>/r<version>")
-    ap.add_argument("--rubric", default="investment",
-                    help="which rubric you are applying (config/rubrics/NAME.yml). "
+    ap.add_argument("--rubric", default=None,
+                    help="which rubric you are applying (config/rubrics/NAME.yml; "
+                         "default: the policy's `primary_rubric`). "
                          "Recorded in the labeler id, because a human judging "
                          "'what moves a position' and one judging 'what should we "
                          "adopt' are answering different questions")
@@ -166,8 +167,10 @@ def main() -> None:
     if ":" in args.by:
         labeler = args.by
     else:
+        from fli.core.policy import load_policy
         from fli.core.rubric import load_rubric
-        labeler = f"human:{args.by}/{load_rubric(args.rubric).label_suffix}"
+        rubric_name = args.rubric or load_policy().primary_rubric
+        labeler = f"human:{args.by}/{load_rubric(rubric_name).label_suffix}"
     print(f"labeler id: {labeler}\n")
     run_cli(conn, args.n, labeler, audit=args.audit)
 
