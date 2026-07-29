@@ -44,6 +44,12 @@ X_MAX_POSTS_PER_ACCOUNT = 20
 X_MAX_POSTS_PER_RUN = 1000      # ceiling of $5.00 of posts in any single run
 X_RUN_BUDGET_USD = 8.00         # abort before starting if projected spend exceeds this
 X_MAX_USER_LOOKUPS = 60         # register seeding: one User: Read per candidate
+# Bio re-observation cadence: an identity's bio is re-fetched at most once per
+# this many days no matter how often the pipeline runs. Bios are where moves
+# are announced, and 7 days bounds the steady-state spend at
+# ~41 identities x $0.010 / week = $0.41 while keeping detection latency well
+# inside the mobility pairing window.
+X_BIO_REOBSERVE_DAYS = 7
 
 # --- extraction (L2) ------------------------------------------------------
 MAX_INSIGHTS_PER_DOC = 5        # length-proportional cap; fixed arXiv over-extraction

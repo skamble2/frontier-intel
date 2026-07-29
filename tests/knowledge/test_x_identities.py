@@ -216,5 +216,129 @@ class TestWritePath(DBTestCase):
                          [("newperson", "Noam Brown", "Brand New Person")])
 
 
+class _FakeReobsClient:
+    """Profiles for the re-observation cases: unchanged, moved, and blanked."""
+
+    PROFILES = {
+        "steady": {"name": "Steady Person", "description": "Researcher @AnthropicAI"},
+        "mover":  {"name": "Moving Person", "description": "Now scaling llamas at Meta AI"},
+        "blank":  {"name": "Blank Person",  "description": "opinions my own"},
+    }
+
+    def __init__(self, *a, **k):
+        self.users_read = 0
+
+    def user_profile(self, handle):
+        self.users_read += 1
+        return self.PROFILES[handle]
+
+
+class TestBioReobservation(DBTestCase):
+    """reobserve_x_bios: the X-side of observe(). A bio rewritten from lab A
+    to lab B must append the arrival observation that mobility synthesis pairs
+    into a personnel event in the same pipeline run."""
+
+    def setUp(self):
+        super().setUp()
+        # Departure observed relative to the real clock: the arrival is stamped
+        # now_utc(), so a fixed date here would drift past the 90-day pairing
+        # window as the calendar advances and fail this suite from October on.
+        from datetime import datetime, timedelta, timezone
+        old = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
+        self.conn.execute("INSERT INTO labs (id, name) VALUES (1,'Anthropic'),(2,'Meta AI')")
+        self.mover_id = self._identity("mover", "Moving Person", lab_id=1,
+                                       observed_at=old)
+        self._identity("steady", "Steady Person", lab_id=1, observed_at=old)
+        self._identity("blank", "Blank Person", lab_id=1, observed_at=old)
+
+    def _identity(self, handle, name, lab_id, observed_at) -> int:
+        """A person admitted at seeding time: identity + dated affiliation,
+        both evidenced by a stored profile document, as the seeder writes them."""
+        cur = self.conn.execute(
+            "INSERT INTO people (canonical_name, seniority_tier, discovered_via,"
+            " first_seen_at) VALUES (?,?,?,?)", (name, "ic", "seed", storage.now_utc()))
+        pid = cur.lastrowid
+        url = f"https://x.com/{handle}#profile"
+        sid = storage.upsert_source(self.conn, "social", f"@{handle} profile", url,
+                                    channel="third_party", purpose="register")
+        doc, _ = storage.store_document(self.conn, sid, "social", url,
+                                        f"@{handle}\n{name}\n\nold bio\n", None)
+        ev = storage.insert_evidence(self.conn, doc, "{}", name, "exact", 1.0)
+        self.conn.execute(
+            "INSERT INTO identities (person_id, platform, handle, confidence_tier,"
+            " resolution_method, evidence_id) VALUES (?,?,?,?,?,?)",
+            (pid, "x", handle, "verbatim", "self_link", ev))
+        self.conn.execute(
+            "INSERT INTO affiliations (person_id, lab_id, basis, observed_at,"
+            " evidence_id) VALUES (?,?,?,?,?)",
+            (pid, lab_id, "page_verbatim", observed_at, ev))
+        return pid
+
+    def _run(self, **kw):
+        with mock.patch("fli.ingestion.x_api.bearer_token", lambda: "fake"), \
+             mock.patch("fli.ingestion.x_api.XClient", _FakeReobsClient):
+            return X.reobserve_x_bios(self.conn, **kw)
+
+    def test_moved_bio_appends_arrival_and_mobility_pairs_it(self):
+        res = self._run()
+        self.assertEqual(res["new_lab"], 1)     # mover: Anthropic -> Meta AI
+        self.assertEqual(res["no_lab"], 1)      # blank: no tracked lab named
+        # the arrival observation is exactly what mobility synthesis pairs
+        from fli.knowledge.register.mobility import detect_mobility_events
+        import contextlib, io
+        with contextlib.redirect_stdout(io.StringIO()):
+            out = detect_mobility_events(self.conn, window_days=90)
+        self.assertEqual(out["created"], 1)
+        ev = self.conn.execute(
+            "SELECT attributed_person_id p, attributed_lab_id l FROM insights"
+            " WHERE event_type='personnel'").fetchone()
+        self.assertEqual((ev["p"], ev["l"]), (self.mover_id, 2))
+
+    def test_unchanged_bio_is_a_dated_reobservation_not_a_move(self):
+        self._run()
+        import contextlib, io
+        from fli.knowledge.register.mobility import detect_mobility_events
+        with contextlib.redirect_stdout(io.StringIO()):
+            out = detect_mobility_events(self.conn, window_days=90)
+        # steady's re-observation is same-lab: currency, never an event
+        steady = self.conn.execute(
+            "SELECT COUNT(*) FROM affiliations a JOIN people p ON p.id=a.person_id"
+            " WHERE p.canonical_name='Steady Person' AND a.lab_id=1").fetchone()[0]
+        self.assertEqual(steady, 2)
+        self.assertEqual(out["created"], 1)     # only the mover fires
+
+    def test_cadence_gate_skips_recently_observed(self):
+        self._run()
+        again = self._run()
+        self.assertEqual(again.get("observed", 0), 0)
+        self.assertEqual(again.get("spend_usd", 1.0), 0.0)
+
+    def test_dry_run_spends_nothing_and_writes_nothing(self):
+        before = self.conn.execute("SELECT COUNT(*) FROM affiliations").fetchone()[0]
+        res = self._run(dry_run=True)
+        self.assertTrue(res["dry_run"])
+        self.assertEqual(
+            before, self.conn.execute("SELECT COUNT(*) FROM affiliations").fetchone()[0])
+
+    def test_cost_cap_bounds_a_single_run(self):
+        res = self._run(max_lookups=1)
+        self.assertEqual(res["observed"] + res["no_lab"] + res["errors"], 1)
+
+    def test_evidence_quotes_occur_in_stored_documents(self):
+        """Same C2 invariant the seeder is pinned to: the bio quoted as
+        evidence must be a substring of the stored profile document."""
+        from fli.core.text import contains_verbatim
+        self._run()
+        rows = list(self.conn.execute(
+            "SELECT e.id, e.verbatim_content, d.raw_content FROM evidence e"
+            " JOIN raw_documents d ON d.id = e.document_id"
+            " WHERE e.locator LIKE '%reobservation%'"))
+        self.assertTrue(rows, "no re-observation evidence written")
+        for r in rows:
+            self.assertTrue(
+                contains_verbatim(r["raw_content"], r["verbatim_content"]),
+                f"evidence {r['id']} is not a substring of its document")
+
+
 if __name__ == "__main__":
     unittest.main()
