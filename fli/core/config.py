@@ -16,6 +16,13 @@ ARXIV_DELAY_S = 3               # arXiv API politeness (their published guidance
 # Below this, the feed served a teaser, so hydrate the body from the article
 # page (measured: OpenAI/DeepMind blogs ~250-430 chars vs Meta's full 27k).
 BLOG_BODY_MIN = 1500
+# Domains whose article pages render the body client-side, so a direct fetch
+# returns a shell (measured 2026-07-29: 27 openai.com blog docs averaged 286
+# visible chars against Anthropic's 228KB; 14 of them died in stage 2 as
+# low_substance). For these, and only these, a thin direct fetch falls back to
+# a text-rendering proxy. Mistral is NOT listed: its newsroom arrives full via
+# sitemap (avg 292KB, measured the same day).
+JS_WALLED_DOMAINS = {"openai.com"}
 
 # --- stage-1 filter (L2) --------------------------------------------------
 # Per source type: arXiv abstracts are short but dense, GitHub releases are long

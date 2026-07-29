@@ -40,6 +40,49 @@ class TestHydratedBody(unittest.TestCase):
                 "teaser")
 
 
+class TestJsWallFallback(unittest.TestCase):
+    """JS-walled domains (config.JS_WALLED_DOMAINS) serve a shell to direct
+    fetches; the rendering proxy recovers the body. The longest candidate
+    always wins, so the fallback can never make a document poorer."""
+
+    WALLED = {"content": "teaser only", "link": "https://openai.com/index/story"}
+
+    def test_thin_shell_falls_back_to_rendered_text(self):
+        article = "Rendered article body. " * 100
+        with mock.patch.object(feeds, "http_get",
+                               return_value=("<html><body>shell</body></html>", "")), \
+             mock.patch.object(feeds, "http_get_rendered", return_value=article):
+            self.assertEqual(feeds._hydrated_body(dict(self.WALLED), "blog"), article)
+
+    def test_rich_direct_fetch_skips_the_proxy(self):
+        html = "<html><body>" + "Full body. " * 200 + "</body></html>"
+        with mock.patch.object(feeds, "http_get", return_value=(html, "")), \
+             mock.patch.object(feeds, "http_get_rendered",
+                               side_effect=AssertionError("proxy must not be used")):
+            self.assertIn("Full body.", feeds._hydrated_body(dict(self.WALLED), "blog"))
+
+    def test_unwalled_domain_never_uses_the_proxy(self):
+        entry = {"content": "teaser", "link": "https://example.com/post"}
+        with mock.patch.object(feeds, "http_get",
+                               return_value=("<html><body>thin</body></html>", "")), \
+             mock.patch.object(feeds, "http_get_rendered",
+                               side_effect=AssertionError("proxy must not be used")):
+            self.assertEqual(feeds._hydrated_body(entry, "blog"), "teaser")
+
+    def test_proxy_failure_keeps_best_candidate(self):
+        with mock.patch.object(feeds, "http_get",
+                               return_value=("<html><body>shell but longer</body></html>", "")), \
+             mock.patch.object(feeds, "http_get_rendered", side_effect=FetchError("429")):
+            self.assertEqual(feeds._hydrated_body(dict(self.WALLED), "blog"),
+                             "shell but longer")
+
+    def test_subdomain_counts_as_walled(self):
+        self.assertTrue(feeds._js_walled("https://www.openai.com/x"))
+        self.assertTrue(feeds._js_walled("https://openai.com/x"))
+        self.assertFalse(feeds._js_walled("https://notopenai.com/x"))
+        self.assertFalse(feeds._js_walled("https://openai.com.evil.example/x"))
+
+
 class TestSitemapDates(unittest.TestCase):
     """Sitemap ingestion must store the page's own date, not lastmod: lastmod
     is when the page last changed, and a template rerender once re-dated an

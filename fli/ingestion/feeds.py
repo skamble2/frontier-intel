@@ -15,8 +15,8 @@ from email.utils import parsedate_to_datetime
 
 from fli import storage
 from fli.core.text import html_to_text, page_published
-from fli.core.http import FetchError, http_get
-from fli.core.config import (ARXIV_DELAY_S, BLOG_BODY_MIN,
+from fli.core.http import FetchError, http_get, http_get_rendered
+from fli.core.config import (ARXIV_DELAY_S, BLOG_BODY_MIN, JS_WALLED_DOMAINS,
                             MAX_ENTRIES_PER_FEED, MAX_SITEMAP_PAGES)
 
 ATOM = "{http://www.w3.org/2005/Atom}"
@@ -29,11 +29,11 @@ CONTENT_NS = "{http://purl.org/rss/1.0/modules/content/}"
 # paths, so a sitemap or substitute feed is used; Meta AI's own blog offers only
 # a gzipped sitemap and is substituted by the Engineering feed.
 #
-# JS-rendering wall: the OpenAI blog and Mistral newsroom render article bodies
-# client-side, so http_get returns a shell and only the headline and teaser are
-# recovered. The classifier then discards the thin ones. This is a known
-# coverage trade-off, not a bug in `_hydrated_body` — closing it needs headless
-# browser rendering, which is out of scope.
+# JS-rendering wall: the OpenAI blog renders article bodies client-side, so a
+# direct fetch returns a shell with only headline and teaser. Those domains are
+# listed in JS_WALLED_DOMAINS and hydrated through the rendering proxy in
+# `_hydrated_body` — measured before the fallback: 27 docs averaging 286 chars,
+# 14 rejected in stage 2 as low_substance.
 FEEDS = [
     ("OpenAI",          "blog",   "feed",    "https://openai.com/news/rss.xml"),
     ("Google DeepMind", "blog",   "feed",    "https://deepmind.google/blog/rss.xml"),
@@ -130,22 +130,41 @@ def _entry_doc(entry: dict) -> str:
             f"\n\n{entry['content']}")
 
 
+def _js_walled(url: str) -> bool:
+    host = urllib.parse.urlparse(url).netloc.lower()
+    return any(host == d or host.endswith("." + d) for d in JS_WALLED_DOMAINS)
+
+
 def _hydrated_body(entry: dict, source_type: str) -> str:
     """Body to store for a feed entry. Blog feeds often carry only a teaser;
     when the entry body is thin, fetch the linked article and use its visible
     text if richer. GitHub release notes ARE the content and are never
-    re-fetched; a failed fetch falls back to the teaser. JS-rendered sites
-    (OpenAI) return a shell whose text isn't richer than the teaser, so the
-    teaser is kept by design — see the JS-rendering-wall note on FEEDS."""
+    re-fetched; a failed fetch falls back to the teaser.
+
+    JS-rendered sites (JS_WALLED_DOMAINS) return a shell whose text isn't
+    richer than the teaser; for those, and only when the direct fetch is
+    still thin, the body is fetched once more through the rendering proxy.
+    The longest candidate wins, so no fallback can ever make a document
+    poorer than the teaser the feed already gave us."""
     body = entry["content"]
     if source_type != "blog" or len(body) >= BLOG_BODY_MIN or not entry["link"]:
         return body
+    best = body
     try:
         html, _ = http_get(entry["link"])
+        fetched = html_to_text(html)
+        if len(fetched) > len(best):
+            best = fetched
     except FetchError:
-        return body
-    fetched = html_to_text(html)
-    return fetched if len(fetched) > len(body) else body
+        pass
+    if len(best) < BLOG_BODY_MIN and _js_walled(entry["link"]):
+        try:
+            rendered = http_get_rendered(entry["link"])
+            if len(rendered) > len(best):
+                best = rendered
+        except FetchError:
+            pass
+    return best
 
 
 def _lab_id(conn, lab_name: str) -> int | None:

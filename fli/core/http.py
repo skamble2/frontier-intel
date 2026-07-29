@@ -57,3 +57,18 @@ def http_get(url: str, headers: dict[str, str] | None = None) -> tuple[str, str]
     except (UnicodeDecodeError, LookupError):
         return (raw.decode("utf-8", errors="replace"),
                 f"decode={charset}!failed;utf-8;replace")
+
+
+# Text-rendering proxy for JS-walled pages: prepending the URL asks r.jina.ai
+# to render the page in a headless browser and return its readable text.
+# A protocol constant, not a tuning knob — WHICH domains use it is the knob
+# (JS_WALLED_DOMAINS in config).
+RENDER_PROXY = "https://r.jina.ai/"
+
+
+def http_get_rendered(url: str) -> str:
+    """GET a page through the rendering proxy; returns readable TEXT, not
+    HTML. Raises FetchError like http_get — callers treat the proxy as one
+    more fetch that may fail, never as a guarantee."""
+    body, _ = http_get(RENDER_PROXY + url)
+    return body
