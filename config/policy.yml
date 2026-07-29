@@ -91,6 +91,12 @@ window_days: 90
 # them reached the top 20. An event we cannot date cannot be shown as recent.
 show_undated: false
 
+# Mobility synthesis pairing bound: last-seen-at-lab-A and first-seen-at-lab-B
+# further apart than this many days is a stale pairing, not a fresh move.
+# NOT a delay — detection runs every pipeline run and the event is emitted in
+# the same run whose re-observation saw the arrival.
+mobility_window_days: 90
+
 # Most a single lab may occupy in one slate. Google DeepMind is 147 of 503
 # events (128 of the 286 inside the window) and took 5 of the first 10 slots.
 # That is the corpus, not a scoring bug — but a digest where half the items come

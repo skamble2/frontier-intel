@@ -531,7 +531,15 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
     rows = conn.execute(
         f"SELECT i.id, i.claim, {score_expr} AS score, i.score_components,"
         " i.event_type, i.cluster_id, COALESCE(l.name,'(unattributed)') lab,"
-        " d.published_at, d.url, d.source_type, ev.verbatim_content quote"
+        # A synthesized mobility event's document is a lab page, which has no
+        # published_at; its honest date is the arrival observation recorded in
+        # its locator. Without this the digest's undated rule would silently
+        # hide every move the register detects.
+        " COALESCE(d.published_at,"
+        "   CASE WHEN ev.locator LIKE '%mobility_synthesis%'"
+        "        THEN json_extract(ev.locator,'$.to_first_observed') END)"
+        "   AS published_at,"
+        " d.url, d.source_type, ev.verbatim_content quote"
         " FROM insights i"
         " JOIN evidence ev ON ev.id = i.evidence_id"
         " JOIN raw_documents d ON d.id = ev.document_id"

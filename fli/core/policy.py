@@ -57,7 +57,7 @@ _KEYS = {"version", "owner", "effective_from", "source", "channels",
 # reads old config, so the code can ship before the policy is swapped.
 _OPTIONAL_KEYS = {"positions", "window_days", "show_undated",
                   "max_per_lab", "story_rare_df", "story_days",
-                  "primary_rubric"}
+                  "primary_rubric", "mobility_window_days"}
 _POSITION_KEYS = {"ticker", "name", "weight_pct", "thesis", "exposure_terms"}
 
 
@@ -88,6 +88,11 @@ class Policy:
     hand_weights: dict[str, float]
     window_days: int = 90
     show_undated: bool = False
+    # Pairing bound for mobility synthesis: last-seen-at-A and first-seen-at-B
+    # further apart than this is a stale pairing, not a fresh move. NOT a
+    # latency — detection runs every pipeline run and emits the same run the
+    # arrival observation lands.
+    mobility_window_days: int = 90
     # The persona whose ranking also lands in insights.score, and which the
     # evaluation figures describe unless told otherwise. Optional with a
     # default so a v2/v3 policy file that predates the key still loads.
@@ -230,6 +235,7 @@ def parse_policy(raw: dict) -> Policy:
         hand_weights={str(k): float(v) for k, v in weights.items()},
         window_days=int(raw.get("window_days", 90)),
         show_undated=bool(raw.get("show_undated", False)),
+        mobility_window_days=int(raw.get("mobility_window_days", 90)),
         primary_rubric=primary_rubric.strip(),
         max_per_lab=int(raw.get("max_per_lab", 0)),
         story_rare_df=float(raw.get("story_rare_df", 0.0)),
