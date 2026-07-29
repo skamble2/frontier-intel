@@ -20,6 +20,9 @@ C15 scored events have features  every event in event_scores has an insight_feat
 C16 bake-off covers identical set  every model in event_scores scores the same event set
 C17 scores cite a known policy     every event_scores row names the current policy version,
                                    and every event type in the corpus is ranked by it
+C18 dates are the page's own       published_at agrees with the date the page itself
+                                   declares (a sitemap lastmod is when the page last
+                                   changed, not when the story happened)
 
 Run:  python -m fli.cli checks [--db PATH]
 """
@@ -29,13 +32,19 @@ import argparse
 import hashlib
 import sqlite3
 import sys
+from datetime import date
 from pathlib import Path
 
 from fli import storage
-from fli.core.text import contains_verbatim, html_to_text
+from fli.core.text import contains_verbatim, html_to_text, page_published
 from fli.core.policy import PolicyError, describe, load_policy
 from fli.knowledge.register import valid_candidate_name
 from fli.knowledge.register.x_identities import TIER_FOR_METHOD
+
+# A page's byline and its stored published_at may legitimately disagree by a
+# little (timezones, edits shortly after publication). Beyond this many days
+# the stored date is describing a different event than the page is.
+DATE_DRIFT_MAX_DAYS = 14
 
 
 def check(name: str, failures: list[str], all_failures: list[str]) -> None:
@@ -215,6 +224,23 @@ def run(conn: sqlite3.Connection) -> int:
     else:
         bad = policy_attribution_failures(conn, policy)
     check("C17 scores cite a known policy", bad, all_failures)
+
+    bad = []
+    for r in conn.execute(
+            "SELECT id, url, published_at, raw_content FROM raw_documents"
+            " WHERE published_at IS NOT NULL AND raw_content LIKE '%<h%'"):
+        own = page_published(r["raw_content"])
+        if not own:
+            continue
+        try:
+            drift = abs((date.fromisoformat(r["published_at"][:10])
+                         - date.fromisoformat(own)).days)
+        except ValueError:
+            continue
+        if drift > DATE_DRIFT_MAX_DAYS:
+            bad.append(f"doc {r['id']}: stored {r['published_at'][:10]} but the"
+                       f" page says {own} ({drift}d apart) {r['url']}")
+    check("C18 dates are the page's own", bad, all_failures)
 
     if policy is not None:
         print(f"\n{describe(policy)}")

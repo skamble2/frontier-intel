@@ -3,6 +3,7 @@
 Everything here is a deterministic function of its arguments, which is
 why `norm` can be shared by extraction and by the checks battery - a
 split-brain between those two once caused a false C2 failure."""
+import re
 import unicodedata
 from html.parser import HTMLParser
 
@@ -73,3 +74,49 @@ def name_key(name: str) -> str:
     without the fold every disagreement becomes a second identity.
     """
     return " ".join(sorted(fold_accents(norm(name)).split()))
+
+
+# --- page publication date ---------------------------------------------------
+#
+# A sitemap's <lastmod> says when a page last CHANGED, not when its story
+# happened: one site-wide template rerender re-dated an eight-month-old release
+# announcement to "last week" and put it back on the digest. The page's own
+# declaration of its date outranks the sitemap's bookkeeping.
+_DATE_PATTERNS = [
+    # machine-readable first: unambiguous, placed by the publisher
+    re.compile(r'"datePublished"\s*:\s*"(\d{4}-\d{2}-\d{2})'),
+    re.compile(r'property="article:published_time"\s+content="(\d{4}-\d{2}-\d{2})'),
+    re.compile(r'<time[^>]+datetime="(\d{4}-\d{2}-\d{2})'),
+]
+# visible byline date ("Nov 24, 2025"), trusted only near the headline —
+# anywhere else it is as likely a related-articles sidebar as a byline.
+_VISIBLE_DATE = re.compile(
+    r"((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+"
+    r"\d{1,2},\s+(?:19|20)\d{2})")
+_H1 = re.compile(r"<h1[\s>]")
+_MONTH_NUM = {m: i for i, m in enumerate(
+    "jan feb mar apr may jun jul aug sep oct nov dec".split(), 1)}
+_H1_WINDOW = 400   # chars after the <h1>; measured bylines sit within ~150
+
+
+def page_published(html: str) -> str | None:
+    """The page's own publication date as YYYY-MM-DD, or None.
+
+    Pure function of the HTML. Priority: JSON-LD datePublished, OpenGraph
+    article:published_time, a <time datetime> tag, then a visible
+    "Mon DD, YYYY" byline within {_H1_WINDOW} chars of the first <h1>.
+    """
+    for pat in _DATE_PATTERNS:
+        m = pat.search(html)
+        if m:
+            return m.group(1)
+    h1 = _H1.search(html)
+    if h1:
+        m = _VISIBLE_DATE.search(html, h1.start(), h1.start() + _H1_WINDOW)
+        if m:
+            mon, day, year = re.match(
+                r"([A-Za-z]+)\.?\s+(\d{1,2}),\s+(\d{4})", m.group(1)).groups()
+            month = _MONTH_NUM.get(mon[:3].lower())
+            if month:
+                return f"{int(year):04d}-{month:02d}-{int(day):02d}"
+    return None

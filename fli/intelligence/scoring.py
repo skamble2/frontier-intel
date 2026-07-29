@@ -482,7 +482,12 @@ class SlateFilter:
 
 
 def _parse_ts(s: str) -> datetime:
-    return datetime.fromisoformat(s.replace("Z", "+00:00"))
+    """ISO timestamp or bare date -> aware datetime. Naive values (a page
+    byline like '2025-11-24', or a date-only sitemap lastmod) are taken as
+    UTC; comparing naive with aware raises, and a slate must not crash on
+    the honest form of a date."""
+    dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
 def top_events(conn, k: int = 10, window_days: int | None = None,

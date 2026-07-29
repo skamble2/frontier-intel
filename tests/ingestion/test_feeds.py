@@ -40,6 +40,35 @@ class TestHydratedBody(unittest.TestCase):
                 "teaser")
 
 
+class TestSitemapDates(unittest.TestCase):
+    """Sitemap ingestion must store the page's own date, not lastmod: lastmod
+    is when the page last changed, and a template rerender once re-dated an
+    8-month-old announcement into the digest window."""
+
+    PAGE = ('<html><h1>Introducing Opus</h1><div>Nov 24, 2025</div>'
+            '<p>' + 'body text. ' * 100 + '</p></html>')
+    SITEMAP = """<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        <url><loc>https://www.anthropic.com/news/opus</loc>
+        <lastmod>2026-07-23</lastmod></url></urlset>"""
+
+    def test_page_byline_beats_lastmod(self):
+        from tests.helpers import memory_db
+        conn = memory_db()
+        try:
+            fetches = {"https://www.anthropic.com/sitemap.xml": self.SITEMAP,
+                       "https://www.anthropic.com/news/opus": self.PAGE}
+            with mock.patch.object(feeds, "http_get",
+                                   side_effect=lambda u, **kw: (fetches[u], "")):
+                feeds.ingest_sitemap(conn, "Anthropic",
+                                     "https://www.anthropic.com/sitemap.xml")
+            row = conn.execute(
+                "SELECT published_at FROM raw_documents WHERE url LIKE '%/news/opus'"
+            ).fetchone()
+            self.assertEqual(row["published_at"], "2025-11-24")
+        finally:
+            conn.close()
+
+
 class TestParseFeed(unittest.TestCase):
     RSS = """<rss version="2.0"><channel>
         <item><title>T1</title><link>http://x/1</link>

@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 
 from fli import storage
-from fli.core.text import html_to_text
+from fli.core.text import html_to_text, page_published
 from fli.core.http import FetchError, http_get
 from fli.core.config import (ARXIV_DELAY_S, BLOG_BODY_MIN,
                             MAX_ENTRIES_PER_FEED, MAX_SITEMAP_PAGES)
@@ -225,8 +225,12 @@ def ingest_sitemap(conn, lab: str, url: str) -> tuple[int, int]:
         except FetchError as e:
             storage.log_fetch(conn, source_id, "error", detail=f"{page_url}: {e}")
             continue
+        # lastmod is when the page last CHANGED (a template rerender re-dated
+        # an 8-month-old announcement to "last week" and put it back on the
+        # digest); the page's own byline/metadata date wins when present.
+        published = page_published(html) or lastmod
         _, is_new = storage.store_page(conn, source_id, "newsroom",
-                                       page_url, html, lastmod)
+                                       page_url, html, published)
         new += is_new
     storage.log_fetch(conn, source_id, "ok", items_found=new,
                       detail=f"{len(pages)} pages under {prefix}, {new} new")
