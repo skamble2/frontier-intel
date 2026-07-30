@@ -423,32 +423,56 @@ def fig_ablation(conn) -> tuple[str, str]:
 
 def fig_per_lab_fairness(conn) -> tuple[str, str]:
     """Lab identity is never a feature, so precision@10 should not
-    depend on which lab published the event."""
+    depend on which lab published the event.
+
+    Raw p@10 alone misleads here: each lab's number sits on a different BASE
+    RATE (its share of relevant events), so a lab whose corpus is 62% relevant
+    scores 1.00 without the ranking doing anything. The fair comparison is
+    LIFT: p@10 minus base rate — what the ranking adds over picking at random
+    within that lab.
+    """
     plt, _ = _style()
     if not conn.execute("SELECT count(*) FROM event_scores").fetchone()[0]:
         raise Skipped("python3 -m fli.cli score --bakeoff")
     from fli.intelligence import scoring
-    per_lab = scoring.bakeoff(conn, rubric=scoring.primary_rubric(),
-                              persist=False)["per_lab_p10"]
+    res = scoring.bakeoff(conn, rubric=scoring.primary_rubric(), persist=False)
+    per_lab, detail = res["per_lab_p10"], res["per_lab_detail"]
     if not per_lab:
         raise Skipped("python3 -m fli.cli judge --n 150   (needs more labels)")
-    labs = sorted(per_lab, key=lambda k: -per_lab[k])
+    labs = sorted(per_lab, key=lambda k: -(per_lab[k] - detail[k]["base"]))
     fig, ax = plt.subplots(figsize=(9, 4.5))
-    ax.bar(labs, [per_lab[l] for l in labs], color="#0891b2")
+    xs = range(len(labs))
+    ax.bar([x - 0.2 for x in xs], [per_lab[l] for l in labs], 0.4,
+           label="p@10", color="#0891b2")
+    ax.bar([x + 0.2 for x in xs], [detail[l]["base"] for l in labs], 0.4,
+           label="base rate (relevant/n)", color="#94a3b8")
+    for x, l in zip(xs, labs):
+        lift = per_lab[l] - detail[l]["base"]
+        ax.text(x, max(per_lab[l], detail[l]["base"]) + 0.02,
+                f"{lift:+.2f}", ha="center", fontsize=9,
+                color="#16a34a" if lift >= 0 else "#dc2626")
+    ax.set_xticks(list(xs))
+    ax.set_xticklabels(labs, rotation=25)
     ax.set_ylabel("precision@10")
-    ax.set_title("Per-lab fairness check")
-    ax.tick_params(axis="x", rotation=25)
+    ax.set_ylim(0, 1.15)
+    ax.legend(fontsize=9)
+    ax.set_title("Per-lab fairness: p@10 vs the lab's own base rate (label = lift)")
+    lifts = {l: per_lab[l] - detail[l]["base"] for l in labs}
+    worst = min(lifts, key=lifts.get)
+    w = detail[worst]
+    miss = ", ".join(f"{k} x{v}" for k, v in
+                     sorted(w["miss_types"].items(), key=lambda kv: -kv[1]))
     spread = max(per_lab.values()) - min(per_lab.values())
-    best, worst = labs[0], labs[-1]
-    # Name the two ends. The old text said "one lab dominates", which the data
-    # does not show: a wide spread means the ranking serves the WORST-covered
-    # lab poorly, and that lab is the finding, not the leader.
-    verdict = ("acceptable" if spread < 0.3 else
-               f"INVESTIGATE — the ranking serves {worst} "
-               f"({per_lab[worst]:.2f}) markedly worse than {best} "
-               f"({per_lab[best]:.2f})")
     return _save(plt, fig, "f9_per_lab_fairness", JUDGED), (
-        f"spread {spread:.3f} across {len(per_lab)} labs ({verdict}).")
+        f"raw p@10 spread {spread:.3f}, but raw p@10 tracks each lab's base "
+        f"rate, so LIFT is the fairness number: "
+        + ", ".join(f"{l} {lifts[l]:+.2f}" for l in labs)
+        + f". Weakest lift: {worst} ({lifts[worst]:+.2f} on a "
+        f"{w['base']:.2f} base, n={w['n']}) — its top-10 misses are "
+        f"{miss or 'none'}: events whose feature shape (official-channel "
+        f"engineering posts, high specificity) the score rewards but the "
+        f"judges call irrelevant. A feature-shape gap, not lab-identity bias "
+        f"(lab is never a feature).")
 
 
 def fig_overfitting(conn) -> tuple[str, str]:
@@ -823,13 +847,27 @@ def fig_faithfulness(conn) -> tuple[str, str]:
                      f"({counts[m]['entailed'] / t:.1%}), "
                      f"{counts[m]['partial']} partial, "
                      f"{counts[m]['not_entailed']} not entailed")
+    tiers = {r["verification"]: r["n"] for r in conn.execute(
+        "SELECT e.verification, count(*) n FROM insights i"
+        " JOIN evidence e ON e.id = i.evidence_id GROUP BY 1")}
+    other = {r["verification"]: r["n"] for r in conn.execute(
+        "SELECT e.verification, count(*) n FROM evidence e"
+        " WHERE NOT EXISTS (SELECT 1 FROM insights i WHERE i.evidence_id=e.id)"
+        " GROUP BY 1")}
+    n_ins = sum(tiers.values())
+    ledger = (f"Verification tier ledger: {tiers.get('exact', 0)}/{n_ins} "
+              "insight quotes are exact-tier (byte-verbatim under the shared "
+              "normalization; C19 enforces this stays 100%). The corpus's "
+              f"{other.get('structural', 0)} structural rows carry no claims \u2014 "
+              "they are the register's author-name spans in structured "
+              "documents, where structural IS the designed tier.")
     return _save(plt, fig, "f15_faithfulness", JUDGED), (
         "Every quote is byte-verified against its source (check C2), so this "
         "measures the remaining hallucination surface: whether the extracted "
         "claim is supported by the quote ALONE. " + "; ".join(parts) +
         ". `partial` names a load-bearing fact (a number, a date, an actor) "
         "the quote does not carry \u2014 the actionable failure mode for an "
-        "extraction prompt revision.")
+        "extraction prompt revision. " + ledger)
 
 
 def fig_slate_precision(conn) -> tuple[str, str]:

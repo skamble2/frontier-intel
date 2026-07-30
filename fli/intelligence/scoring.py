@@ -343,15 +343,29 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
     # Below MIN_FAIRNESS_N, p@10 is arithmetic on too few events to mean
     # anything: a lab with 2 good events scores 1.000, indistinguishable in the
     # figure from a lab with 152. Small-n labs are counted, not scored.
-    per_lab, per_lab_small = {}, {}
+    per_lab, per_lab_small, per_lab_detail = {}, {}, {}
     for lab in sorted(set(lab_of.values())):
         g = {e: gold[e] for e in gold if lab_of.get(e) == lab}
         if not g:
             continue
-        target = per_lab if len(g) >= MIN_FAIRNESS_N else per_lab_small
-        target[lab] = round(_precision_at_k(model_scores[winner], row, g, 10), 3)
-        if target is per_lab_small:
-            per_lab_small[lab] = (per_lab_small[lab], len(g))
+        p10 = round(_precision_at_k(model_scores[winner], row, g, 10), 3)
+        rel = sum(1 for v in g.values() if v > 0)
+        # The top-10 events the ranking got wrong for this lab, by type — raw
+        # p@10 tracks the lab's BASE RATE (rel/n), so diagnosing fairness needs
+        # both the base and what the misses actually are.
+        miss_types: dict = {}
+        for e in sorted(g, key=lambda e: -model_scores[winner][row[e]])[:10]:
+            if g[e] <= 0:
+                et = conn.execute("SELECT event_type FROM insights WHERE id=?",
+                                  (e,)).fetchone()[0]
+                miss_types[et] = miss_types.get(et, 0) + 1
+        per_lab_detail[lab] = {"n": len(g), "relevant": rel,
+                               "base": round(rel / len(g), 3), "p10": p10,
+                               "miss_types": miss_types}
+        if len(g) >= MIN_FAIRNESS_N:
+            per_lab[lab] = p10
+        else:
+            per_lab_small[lab] = (p10, len(g))
 
     # insights.score is a single column and can only hold one audience's
     # opinion, so it is written for the pooled run and the primary rubric only.
@@ -367,6 +381,7 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
             "n_gold_events": len(gold), "n_relevant": n_relevant,
             "report": report, "ablation": ablation, "per_lab_p10": per_lab,
             "per_lab_p10_small_n": per_lab_small,
+            "per_lab_detail": per_lab_detail,
             "logistic_coef": extras["logistic"]["coef"], "gbm": gbm_label}
 
 
