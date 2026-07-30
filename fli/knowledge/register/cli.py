@@ -8,7 +8,7 @@ from fli.knowledge.register.observation import observe
 from fli.knowledge.register.reporting import report
 from fli.knowledge.register.seeding import seed_people
 from fli.knowledge.register.gh_identities import (
-    prune_unnameable_github_people, retract_unverifiable,
+    observe_gh_profiles, prune_unnameable_github_people, retract_unverifiable,
     seed_gh_identities)
 from fli.knowledge.register.x_identities import reobserve_x_bios, seed_x_identities
 
@@ -18,7 +18,8 @@ def main() -> None:
     ap.add_argument("cmd", choices=["seed", "queue", "approve", "reject",
                                     "auto_approve", "observe", "report",
                                     "x_identities", "x_reobserve",
-                                    "gh_identities", "gh_retract"])
+                                    "gh_identities", "gh_observe",
+                                    "gh_retract"])
     ap.add_argument("ids", nargs="*", type=int)
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
     ap.add_argument("--dry-run", action="store_true",
@@ -45,6 +46,8 @@ def main() -> None:
         reobserve_x_bios(conn, dry_run=args.dry_run)
     elif args.cmd == "gh_identities":
         seed_gh_identities(conn, dry_run=args.dry_run)
+    elif args.cmd == "gh_observe":
+        observe_gh_profiles(conn, dry_run=args.dry_run)
     elif args.cmd == "gh_retract":
         # Full GitHub consistency cleanup: withdraw rows whose evidence stopped
         # re-verifying, then prune people the current name gate would reject.

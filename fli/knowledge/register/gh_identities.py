@@ -644,6 +644,20 @@ def prune_unnameable_github_people(conn: sqlite3.Connection,
         conn.execute(f"DELETE FROM affiliations WHERE person_id IN ({q})", ids)
         conn.execute(f"DELETE FROM people WHERE id IN ({q})", ids)
 
+    # Deleting the identity strands its evidence row: nothing references it,
+    # and C10 flags every stranded row forever. Sweep github_profile evidence
+    # that no identity, affiliation, insight, candidate or entity cites — this
+    # also collects strays a previous prune left behind.
+    cur = conn.execute(
+        "DELETE FROM evidence WHERE"
+        " json_extract(locator,'$.kind') = 'github_profile'"
+        " AND NOT EXISTS (SELECT 1 FROM identities i WHERE i.evidence_id = evidence.id)"
+        " AND NOT EXISTS (SELECT 1 FROM affiliations a WHERE a.evidence_id = evidence.id)"
+        " AND NOT EXISTS (SELECT 1 FROM insights n WHERE n.evidence_id = evidence.id)"
+        " AND NOT EXISTS (SELECT 1 FROM person_candidates c WHERE c.evidence_id = evidence.id)"
+        " AND NOT EXISTS (SELECT 1 FROM event_entities ee WHERE ee.evidence_id = evidence.id)")
+    stranded = cur.rowcount
+
     # Runs even when there were no people to prune: source debris outlives the
     # person it belonged to, so this sweep is independent cleanup.
     #
@@ -668,5 +682,103 @@ def prune_unnameable_github_people(conn: sqlite3.Connection,
     conn.commit()
     print(f"  pruned {len(ids)} person row(s). Their pending queue rows survive "
           f"— a real name re-admits them.")
+    print(f"  stranded github_profile evidence removed: {stranded}")
     print(f"  orphan register sources removed: {len(debris)}")
-    return {"people": len(ids), "sources": len(debris)}
+    return {"people": len(ids), "sources": len(debris), "evidence": stranded}
+
+
+# Re-fetching a profile that was observed hours ago buys nothing: employer
+# changes are weekly-scale events. Seven days matches the X bio cadence.
+OBSERVE_CADENCE_DAYS = 7
+
+
+def observe_gh_profiles(conn: sqlite3.Connection, dry_run: bool = False) -> dict:
+    """Re-observe the CURRENT employer of every person with a GitHub identity.
+
+    `seed_gh_identities` skips logins that are already in the register, so a
+    person admitted once was never looked at again — their GitHub identity was
+    plumbing with no downstream signal. This is the GitHub side of `observe()`
+    and `reobserve_x_bios`: re-fetch each known profile, and when its `company`
+    field names a tracked lab, append a dated `page_verbatim` affiliation
+    observation. Mobility synthesis pairs those observations into personnel
+    events — a company field that flips from one lab to another becomes a move
+    in the same pipeline run that saw it.
+
+    A profile that names NO tracked lab appends nothing: absence of evidence is
+    not an observation, and mobility only fires on presence at the new lab.
+
+    Cadence-gated in fetch_log (like X bios), so a daily pipeline re-fetches
+    each profile at most every {OBSERVE_CADENCE_DAYS} days. Free: the REST API
+    costs $0 and one request per profile.
+    """
+    rows = conn.execute(
+        "SELECT i.person_id, i.handle login, p.canonical_name name"
+        " FROM identities i JOIN people p ON p.id = i.person_id"
+        " WHERE i.platform = 'github' GROUP BY i.person_id, i.handle").fetchall()
+    all_labs = [r["name"] for r in conn.execute("SELECT name FROM labs ORDER BY id")]
+    budget = "5,000/hr (token)" if token() else f"{UNAUTH_BUDGET}/hr (NO GITHUB_TOKEN)"
+    print(f"GitHub profile re-observation — {len(rows)} identity(ies),"
+          f" cadence {OBSERVE_CADENCE_DAYS}d, rate budget {budget}, $0")
+    if dry_run:
+        print("DRY RUN — no requests made.")
+        return {"dry_run": True, "profiles": len(rows)}
+
+    observed = skipped_cadence = no_lab = errors = calls = 0
+    for r in rows:
+        if not token() and calls >= UNAUTH_BUDGET:
+            print("  [cap] unauthenticated request budget reached; stopping.")
+            break
+        login = r["login"]
+        url = f"https://github.com/{login}#profile"
+        sid = storage.upsert_source(conn, "github", f"github:{login} profile",
+                                    url, lab_id=None, channel="third_party",
+                                    purpose="register")
+        recent = conn.execute(
+            "SELECT 1 FROM fetch_log WHERE source_id=? AND status='ok'"
+            " AND attempted_at > datetime('now', ?)",
+            (sid, f"-{OBSERVE_CADENCE_DAYS} days")).fetchone()
+        if recent:
+            skipped_cadence += 1
+            continue
+        try:
+            profile = _get(f"/users/{login}")
+            calls += 1
+            time.sleep(0.1)                          # politeness, not a retry
+        except FetchError as e:
+            storage.log_fetch(conn, sid, "error", 0, f"{login}: {str(e)[:180]}")
+            errors += 1
+            continue
+        body = as_document(login, profile)
+        doc_id, _ = storage.store_document(conn, sid, "github", url, body, None)
+        storage.log_fetch(conn, sid, "ok", 1, f"{login}: profile re-observed")
+
+        claimed = lab_from_profile(profile, all_labs)
+        if not claimed or not profile.get("company"):
+            no_lab += 1
+            continue
+        lab_row = conn.execute("SELECT id FROM labs WHERE name=?",
+                               (claimed,)).fetchone()
+        if not lab_row:
+            no_lab += 1
+            continue
+        ev = storage.insert_evidence(
+            conn, doc_id,
+            json.dumps({"kind": "github_profile", "field": "company",
+                        "login": login, "profile_name": r["name"],
+                        "observation": "reobserve"}),
+            profile["company"], "exact", 1.0)
+        conn.execute(
+            "INSERT INTO affiliations (person_id, lab_id, role, basis,"
+            " observed_at, evidence_id) VALUES (?,?,?,?,?,?)",
+            (r["person_id"], lab_row["id"], None, "page_verbatim",
+             storage.now_utc(), ev))
+        conn.commit()
+        observed += 1
+        print(f"  OBS  {login:<22}{r['name'][:24]:<26}{claimed}")
+
+    print(f"\nobserved {observed} · no tracked lab {no_lab} ·"
+          f" within cadence {skipped_cadence} · errors {errors}"
+          f" · {calls} API calls · $0")
+    return {"observed": observed, "no_lab": no_lab,
+            "skipped_cadence": skipped_cadence, "errors": errors,
+            "calls": calls}

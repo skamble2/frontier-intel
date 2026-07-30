@@ -130,6 +130,17 @@ def main() -> None:
             print(f"bio re-observation unavailable: {e}"
                   " (deterministic stages unaffected)")
 
+    # GitHub profiles are the third observation surface, and the free one:
+    # the `company` field is where an engineer's move shows up first. Same
+    # placement rule as X bios — BEFORE mobility synthesis, so a flipped
+    # company field becomes a personnel event in this same run.
+    print("\n=== re-observe GitHub profiles ===")
+    try:
+        register.observe_gh_profiles(conn)
+    except Exception as e:  # API/network failure must not kill the run
+        print(f"gh re-observation unavailable: {e}"
+              " (deterministic stages unaffected)")
+
     # Mobility synthesis runs immediately after re-observation so a detected
     # move lands in THIS run's digest, before clustering/scoring see the corpus.
     print("\n=== mobility synthesis ===")
