@@ -278,6 +278,27 @@ CREATE TABLE IF NOT EXISTS event_positions (
     UNIQUE (event_id, ticker)
 );
 
+-- An alert that has been raised. The row exists so it CANNOT be raised twice:
+-- a push channel that repeats itself every run trains its reader to ignore it,
+-- and the digest already covers everything that is merely interesting.
+--
+-- `reason` is the rule that fired, stored verbatim rather than as a code, so an
+-- alert stays readable after the rule is tuned. `fired_at` is when the system
+-- decided, not when the event happened — the gap between them is a latency
+-- measurement the operator can make from this table alone.
+CREATE TABLE IF NOT EXISTS alerts (
+    id         INTEGER PRIMARY KEY,
+    event_id   INTEGER NOT NULL REFERENCES insights(id),
+    persona    TEXT NOT NULL CHECK (persona IN ('investment','ai_team')),
+    rule       TEXT NOT NULL,               -- which trigger fired
+    reason     TEXT NOT NULL,               -- one line, shown to the reader
+    fired_at   TIMESTAMP NOT NULL,
+    -- how it left the system. 'stdout' is a real channel, not a placeholder:
+    -- the delivery surface is pluggable and the record must say which one ran.
+    delivered_via TEXT NOT NULL,
+    UNIQUE (event_id, persona, rule)
+);
+
 -- Indexes last, so every table they reference exists. Only where a hot path
 -- needs one, each named with the query it serves.
 --   latest_documents runs a correlated subquery on url for every row, and the

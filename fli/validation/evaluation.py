@@ -813,8 +813,15 @@ def _discard_stale(stem: str) -> None:
     """
     png = FIG_DIR / f"{stem}.png"
     if png.exists():
-        png.unlink()
-        print(f"        discarded stale {png.name}")
+        try:
+            png.unlink()
+            print(f"        discarded stale {png.name}")
+        except OSError as e:
+            # A filesystem that forbids unlink (some network/overlay mounts do)
+            # must not kill the whole report over a leftover image. Warn loudly
+            # instead — the report text already states the figure was skipped.
+            print(f"        WARNING could not delete stale {png.name} ({e}); "
+                  f"it is out of date — regenerate on a writable filesystem")
 
 
 def build(conn) -> int:

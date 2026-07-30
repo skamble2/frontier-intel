@@ -15,9 +15,14 @@ from pathlib import Path
 
 FLI = Path(__file__).resolve().parent.parent / "fli"
 
+# `delivery` is the LAST MILE: it reads scored intelligence and renders it per
+# audience. Ranked with validation because both consume every layer below and
+# are consumed only by orchestration — and critically, nothing in the core
+# pipeline may import delivery, so a rendering change can never alter what the
+# system extracted or how it scored.
 RANK = {"core": 0, "ops": 0, "storage": 1,
         "ingestion": 2, "knowledge": 2, "intelligence": 2,
-        "validation": 3, "orchestration": 4}
+        "validation": 3, "delivery": 3, "orchestration": 4}
 
 # ops is cross-cutting: anyone may import it, it may import only core.
 ALLOWED_FROM_OPS = {"core", "storage"}

@@ -90,4 +90,5 @@ class TestStage1Decision(DBTestCase):
 
 
 if __name__ == "__main__":
+    import unittest
     unittest.main()

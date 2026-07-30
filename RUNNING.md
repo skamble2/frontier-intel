@@ -13,6 +13,7 @@ fli/knowledge/      LAYER 2  filtering, extraction, register
 fli/intelligence/   LAYER 3  clustering, features, labels, scoring
 fli/ops/            LLM client, tracing (cross-cutting)
 fli/validation/     C1-C17 invariant battery (reads every layer)
+fli/delivery/       LAYER 4  positions, personas, digest, alerts (nothing imports it)
 fli/orchestration/  pipeline, skeleton (composition only)
 ```
 
@@ -276,6 +277,38 @@ Key constraints, all measured:
   that negative result is reported rather than hidden.
 - No embeddings, no vector store, no second database — SQL plus scikit-learn
   over 556 rows.
+
+## Delivery (what the reader actually receives)
+
+Three of the four delivery stages are deterministic, free, and part of every
+`pipeline` run. Only `personas` — the written reading — spends, so it stays a
+deliberate step.
+
+```bash
+python3 -m fli.cli positions                 # event -> holding edges (free)
+python3 -m fli.cli personas --k 10 --dry-run # prompt + projected spend, sends nothing
+python3 -m fli.cli personas --k 10           # SPENDS ~$0.12; idempotent
+python3 -m fli.cli digest --all --days 7     # docs/digests/<date>-<persona>.{md,pdf}
+python3 -m fli.cli alerts --days 7 --dry-run # what would be pushed, recording nothing
+python3 -m fli.cli alerts --days 7           # push + record, once per event
+```
+
+- **The digest and the persona layer select from the same slate.** Both call
+  `scoring.top_events`, so a paid reading is always attached to something the
+  reader is shown. They used to diverge — the persona layer read the raw
+  ranking and the digest applied the editorial rules, so zero of the ten
+  engineering readings appeared in the engineering digest.
+- **Uncovered items are published as uncovered.** The digest names how many of
+  its items carry no reading rather than dropping them, so the coverage gap is
+  visible in the committed artifact.
+- **The PDF has no dependency.** `fli/delivery/pdf.py` writes PDF 1.4 directly
+  (~200 lines, Helvetica core metrics, clickable source links) and
+  `tests/delivery/test_pdf.py` reads the output back with an independent parser.
+- **Alerts do not fire on score.** The trigger is a signed direction — a
+  classifier-established position edge, or a persona reading at medium-or-better
+  confidence — bounded by the period. A top-decile rule would have missed the
+  one event the system calls a threat to a holding, which scores below the
+  median. The `alerts` table's UNIQUE key means an alert fires exactly once.
 
 ## Metrics harness (reproducible from the committed DB)
 

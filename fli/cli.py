@@ -34,6 +34,11 @@ COMMANDS = {
     "checks": "fli.validation.checks",
     "xbench": "fli.validation.x_benchmark",
     "pipeline": "fli.orchestration.pipeline",
+    # LAYER 4 - delivery, the reader-facing surface
+    "positions": "fli.delivery.positions",
+    "personas": "fli.delivery.personas",          # LLM reading (SPENDS)
+    "digest": "fli.delivery.digest",
+    "alerts": "fli.delivery.alerts",
     "skeleton": "fli.orchestration.skeleton",
 }
 

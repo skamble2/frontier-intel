@@ -184,6 +184,32 @@ x_candidates:
 # Bio spellings that indicate a lab. Deliberately generous on surface form and
 # strict on word boundaries, reusing the same matcher the policy lexicon uses.
 # (Substring matching would score "metaphor" as Meta and "fairness" as FAIR.)
+# GitHub organisations owned by each lab.
+#
+# Two things are mined from these, both free:
+#   /orgs/<org>/public_members  GitHub itself asserting membership — the only
+#                               signal in the register needing no inference at
+#                               all. Volume is low because most people keep
+#                               membership private, but every hit is certain.
+#   /orgs/<org>/repos           the lab's RESEARCH repos, not just the SDK we
+#                               already track. This matters: the SDK repos gave
+#                               engineers and produced zero overlap with the
+#                               arXiv population, because the people who ship a
+#                               client library are not the people who write the
+#                               papers. Research repos are where those overlap.
+#
+# Some labs publish under a differently-named org (Meta's research code lives
+# under facebookresearch), so this is a list per lab rather than a name guess.
+github_orgs:
+  OpenAI:          [openai]
+  Anthropic:       [anthropics]
+  Google DeepMind: [google-deepmind, deepmind, google-research]
+  Meta AI:         [facebookresearch, meta-llama, meta-pytorch]
+  Mistral:         [mistralai]
+  DeepSeek:        [deepseek-ai]
+  Qwen:            [QwenLM]
+  xAI:             [xai-org]
+
 lab_bio_terms:
   OpenAI:          [openai, "@openai"]
   Anthropic:       [anthropic, "@anthropicai"]

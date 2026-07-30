@@ -2,10 +2,13 @@
 (skipped without an API key; everything else stays deterministic and green)
 -> re-observe affiliations -> cluster -> features -> score (per rubric,
 skipped for a rubric with too few judge labels) -> evaluation report ->
-validation battery. Exit code is the battery's verdict.
+positions -> digest -> alerts -> validation battery. Exit code is the
+battery's verdict.
 
-The paid stages stay manual: `judge` (new pairwise labels) and `x` (paid
-source) are never run here — scoring trains on the labels already in the DB.
+The paid stages stay manual: `judge` (new pairwise labels), `x` (paid source)
+and `personas` (the written reading) are never run here — scoring trains on the
+labels already in the DB, and the digest publishes the readings that exist,
+naming the items that have none.
 
 Run:  python -m fli.cli pipeline [--db PATH] [--max-extract N]
 Scheduled daily by .github/workflows/pipeline.yml, which commits data/fli.db
@@ -19,6 +22,9 @@ from pathlib import Path
 
 from fli.validation import checks
 from fli.validation import evaluation
+from fli.delivery import alerts
+from fli.delivery import digest
+from fli.delivery import positions
 from fli.knowledge import expansion as expand
 from fli.knowledge import extraction
 from fli.ingestion import feeds
@@ -154,6 +160,25 @@ def main() -> None:
         evaluation.build(conn)
     except Exception as e:  # a chart must not kill the run
         print(f"evaluation unavailable: {type(e).__name__}: {e}")
+
+    # DELIVERY. All three stages are deterministic and free, so they belong in
+    # the scheduled run: a digest that only exists when someone remembers to
+    # ask for it is not a periodic report. `personas` is deliberately NOT here
+    # — it is the one delivery stage that spends, and paid calls stay manual.
+    # The digest names its own uncovered items, so the gap is visible in the
+    # committed artifact rather than hidden.
+    print("\n=== positions (event -> holding edges) ===")
+    try:
+        positions.build(conn)
+    except SystemExit as e:          # no `positions` block in policy.yml
+        print(f"skipped: {e}")
+
+    print("\n=== digest ===")
+    for persona in digest.PERSONA_TITLE:
+        digest.write(conn, persona, days=7)
+
+    print("\n=== alerts ===")
+    alerts.run(conn, days=7)
 
     print("\n=== run summary ===")
     print(f"items seen: {stats['items_seen']}  new docs: {stats['docs_new']}"

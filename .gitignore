@@ -28,6 +28,12 @@ data/*.db-wal
 data/*.db-shm
 data/*.db.bak-*
 data/snapshots/*.db
+# FUSE leaves .fuse_hidden* handles for deleted-but-open files when the DB is
+# opened over a mounted filesystem; pure junk, never a real artifact.
+data/.fuse_hidden*
+# Local macOS marker that keeps Spotlight from indexing (and locking) the DB
+# mid-run. A machine-specific concern, not part of the product.
+data/.metadata_never_index
 
 # --- third-party source material -----------------------------------------
 # BIT Capital's own published factsheet and quarterly report. Used as input to
@@ -43,6 +49,10 @@ research/raw/
 # NOTE: a .gitignore pattern cannot carry a trailing comment — the whole line
 # becomes the pattern, which silently matches nothing.
 pipeline.log
+# Digests are regenerable build output (python3 -m fli.cli digest). One dated
+# sample set is committed as evidence the delivery layer works, force-added past
+# this rule:  git add -f docs/digests/2026-07-30-*
+docs/digests/*
 
 # --- OS / editor ---------------------------------------------------------
 .DS_Store
