@@ -94,6 +94,30 @@ def record_label(conn, event_a: int, event_b: int, winner: str, labeler: str,
     conn.commit()
 
 
+def _disagreement_queue(conn, labeler: str, n: int) -> list[tuple]:
+    """Pairs where two LLM labelers on this labeler's rubric picked OPPOSITE
+    winners and this human has not judged yet. A human label on a pair the
+    model families agree on mostly confirms; on a pair they split on, it
+    decides — so per label this queue carries the most information.
+
+    Blind: the LLM verdicts are deliberately not shown (unlike --audit),
+    so the human judgement stays independent rather than anchored."""
+    suffix = labeler.split("/", 1)[1] if "/" in labeler else ""
+    return [(r["event_a"], r["event_b"], None, None, None)
+            for r in conn.execute(
+                "SELECT x.event_a, x.event_b FROM pairwise_labels x"
+                " JOIN pairwise_labels y ON y.event_a=x.event_a"
+                "  AND y.event_b=x.event_b AND y.labeler > x.labeler"
+                " WHERE x.labeler LIKE 'llm:%' AND y.labeler LIKE 'llm:%'"
+                "  AND x.labeler LIKE '%/' || ? AND y.labeler LIKE '%/' || ?"
+                "  AND x.winner != y.winner"
+                "  AND NOT EXISTS (SELECT 1 FROM pairwise_labels h"
+                "    WHERE h.event_a=x.event_a AND h.event_b=x.event_b"
+                "    AND h.labeler=?)"
+                " ORDER BY x.event_a, x.event_b LIMIT ?",
+                (suffix, suffix, labeler, n))]
+
+
 def _audit_queue(conn, labeler: str, n: int) -> list[tuple]:
     """Pairs an LLM has already judged and this human has not — the audit
     sample. Deterministic order, so the pass is resumable."""
@@ -107,13 +131,19 @@ def _audit_queue(conn, labeler: str, n: int) -> list[tuple]:
                 " ORDER BY l.event_a, l.event_b LIMIT ?", (labeler, n))]
 
 
-def run_cli(conn, n: int, labeler: str, audit: bool = False) -> None:
+def run_cli(conn, n: int, labeler: str, audit: bool = False,
+            disagreements: bool = False) -> None:
     if audit:
         queue = _audit_queue(conn, labeler, n)
         print(f"AUDIT pass as {labeler} — {len(queue)} pair(s) to review.\n"
               f"You are checking RUBRIC COMPLIANCE (docs/labeling-rubric.md),\n"
               f"not deciding what is important. Give your own call; disagreement\n"
               f"is the signal.\n")
+    elif disagreements:
+        queue = _disagreement_queue(conn, labeler, n)
+        print(f"DISAGREEMENT pass as {labeler} — {len(queue)} pair(s) where the\n"
+              f"LLM labelers split. Their verdicts are hidden so your call stays\n"
+              f"independent; each label here settles a model-family coin flip.\n")
     else:
         done = {(r["event_a"], r["event_b"]) for r in conn.execute(
             "SELECT event_a, event_b FROM pairwise_labels WHERE labeler=?", (labeler,))}
@@ -158,6 +188,9 @@ def main() -> None:
                          "adopt' are answering different questions")
     ap.add_argument("--audit", action="store_true",
                     help="review pairs an LLM already judged, to measure agreement")
+    ap.add_argument("--disagreements", action="store_true",
+                    help="label only pairs where the LLM labelers disagree "
+                         "(verdicts hidden) — the highest-information labels")
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
@@ -172,7 +205,8 @@ def main() -> None:
         rubric_name = args.rubric or load_policy().primary_rubric
         labeler = f"human:{args.by}/{load_rubric(rubric_name).label_suffix}"
     print(f"labeler id: {labeler}\n")
-    run_cli(conn, args.n, labeler, audit=args.audit)
+    run_cli(conn, args.n, labeler, audit=args.audit,
+            disagreements=args.disagreements)
 
 
 if __name__ == "__main__":

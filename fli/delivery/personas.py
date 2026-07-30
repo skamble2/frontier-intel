@@ -224,6 +224,14 @@ def _candidates(conn, persona: str, k: int) -> list[int]:
     from fli.intelligence.scoring import top_events   # layer 3 -> layer 2
     rubric = RUBRIC_FOR_PERSONA[persona]
     top = [r["id"] for r in top_events(conn, k=k, rubric=rubric)[0]]
+    # The digest reports on a PERIOD (default a week), and its weekly slate is
+    # not a prefix of the policy-window slate: dedupe and per-lab caps admit
+    # different items when the window shrinks. Rendering only the 90-day list
+    # left the weekly digest printing "no reading" for items this loop had
+    # never seen — so the weekly slate is a candidate set in its own right.
+    week = [r["id"] for r in top_events(conn, k=k, window_days=7,
+                                        rubric=rubric)[0]]
+    top = week + [e for e in top if e not in set(week)]
     if persona != "investment":
         return top
     # EVERY event with position exposure, not only the ones already signed.

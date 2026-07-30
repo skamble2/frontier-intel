@@ -19,16 +19,20 @@ ONE CONTENT MODEL, TWO RENDERERS. `blocks()` returns a list of
 Writing the report twice would let the exported PDF drift from the markdown a
 reviewer reads in the repo, and the drift would be silent.
 
-WHAT IT REFUSES TO DO. No item is promoted for having a signed direction, and
-`unclear` items are not hidden — 57 of 59 position edges are `unclear` by
-design, and a digest that showed only the two signed ones would imply the
-system knows more than it does. Coverage is stated in the header, including how
-many items carry no reading at all.
+WHAT IT REFUSES TO DO. `unclear` items are not hidden — 57 of 59 position
+edges are `unclear` by design, and a digest that showed only the two signed
+ones would imply the system knows more than it does. Coverage is stated in the
+header, including how many items carry no reading at all. Within the slate,
+items whose reading carries a direction or whose exposure has an established
+mechanism are ORDERED first — nothing is dropped or promoted into the slate
+for it, but a PM's first item should be the one the system can say something
+about. The score stays printed on every item so the reordering is visible.
 
 Free and deterministic: no LLM call, no network. Re-running overwrites.
 
 Run:  python3 -m fli.cli digest --persona investment --days 7
       python3 -m fli.cli digest --all --days 7 --pdf
+      python3 -m fli.cli digest --review --persona investment   # keep/cut
 """
 from __future__ import annotations
 
@@ -90,6 +94,22 @@ def _positions(conn) -> dict[int, list[sqlite3.Row]]:
     return out
 
 
+def _mechanism_first(rows, hyp, pos):
+    """Stable reorder: items the system can SAY something about come first.
+
+    An item leads the slate when its reading carries a direction other than
+    `unclear`, or any of its position edges has an established mechanism
+    (a non-NULL channel). Everything else keeps its score order below them —
+    the sort is stable, so within each band the ranking is untouched.
+    """
+    def band(r):
+        h = hyp.get(r["id"])
+        signed = h is not None and h["direction"] != "unclear"
+        mech = any(e["channel"] for e in pos.get(r["id"], []))
+        return 0 if (signed or mech) else 1
+    return sorted(rows, key=band)
+
+
 def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
     """(blocks, stats). The single content model both renderers consume."""
     from fli.intelligence.scoring import top_events        # layer 3 -> layer 2
@@ -100,6 +120,7 @@ def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
                                rubric=rubric.name)
     hyp = _hypotheses(conn, persona)
     pos = _positions(conn) if persona == "investment" else {}
+    rows = _mechanism_first(rows, hyp, pos)
 
     today = dt.date.today()
     start = today - dt.timedelta(days=days)
@@ -137,6 +158,9 @@ def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
           ("meta", "Suppressed by the slate rules — " + ", ".join(
               f"{v} {k2.replace('_', ' ')}" for k2, v in sorted(
                   dropped.items(), key=lambda kv: -kv[1])) + "."),
+          ("meta", "Ordering: items with a signed reading or an established "
+                   "mechanism first, score order within each band — the "
+                   "per-item score shows where each stood in the raw ranking."),
           ("p", UNCLEAR_NOTE[persona])]
 
     for n, r in enumerate(rows, 1):
@@ -257,6 +281,60 @@ def write(conn, persona: str, days: int = 7, k: int = 10,
     return stats
 
 
+def review(conn, persona: str, days: int = 7, k: int = 10,
+           reviewer: str = "soham") -> dict:
+    """Keep/cut pass over the slate the digest would deliver — precision@k.
+
+    Shows exactly what `blocks()` selects (same call, same ordering) and asks
+    the one question the system is built around: would you genuinely want this
+    in the report? Verdicts land in `slate_reviews`; re-reviewing overwrites,
+    because the latest human read is the one that counts. Figure f16 reports
+    the result as REFERENCE-tier precision@k.
+    """
+    from fli.intelligence.scoring import top_events        # layer 3 -> layer 2
+    rubric = load_rubric(RUBRIC_FOR_PERSONA[persona])
+    rows, _ = top_events(conn, k=k, window_days=days, rubric=rubric.name)
+    hyp = _hypotheses(conn, persona)
+    pos = _positions(conn) if persona == "investment" else {}
+    rows = _mechanism_first(rows, hyp, pos)
+    print(f"slate review — {persona}, last {days} days, {len(rows)} item(s), "
+          f"reviewer {reviewer}")
+    print("keep = you'd want this in the report; cut = noise.\n"
+          "k(eep) / c(ut) / s(kip) / q(uit)\n")
+    kept = cut = 0
+    for n, r in enumerate(rows, 1):
+        h = hyp.get(r["id"])
+        print(f"{n}. [{r['lab']} · {r['event_type']} · "
+              f"{_fmt_date(r['published_at'])}] {r['claim']}")
+        if h:
+            print(f"   reading: {h['direction']} ({h['confidence']}) — "
+                  f"{h['hypothesis'][:140]}")
+        for e in pos.get(r["id"], []):
+            print(f"   {e['ticker']} — {e['direction']} via "
+                  f"{e['channel'] or 'no mechanism'}")
+        ans = input("   k/c/s/q > ").strip().lower()
+        if ans in ("q", "quit"):
+            break
+        verdict = {"k": "keep", "c": "cut"}.get(ans)
+        if verdict is None:
+            print("   (skipped)\n")
+            continue
+        conn.execute(
+            "INSERT OR REPLACE INTO slate_reviews (event_id, persona,"
+            " reviewer, verdict, reviewed_at) VALUES (?,?,?,?,?)",
+            (r["id"], persona, reviewer, verdict, storage.now_utc()))
+        conn.commit()
+        kept += verdict == "keep"
+        cut += verdict == "cut"
+        print(f"   saved: {verdict}\n")
+    total = kept + cut
+    if total:
+        print(f"\n{persona}: {kept}/{total} kept — precision@{total} "
+              f"{kept / total:.0%}. Figure f16 picks this up on the next "
+              f"`evaluate` run.")
+    return {"kept": kept, "cut": cut}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
@@ -268,13 +346,20 @@ def main() -> int:
     ap.add_argument("--k", type=int, default=10, help="max items")
     ap.add_argument("--no-pdf", action="store_true",
                     help="markdown only, skip the PDF export")
+    ap.add_argument("--review", action="store_true",
+                    help="keep/cut review of the slate instead of writing it "
+                         "(feeds precision@k, figure f16)")
+    ap.add_argument("--by", default="soham", help="reviewer name for --review")
     args = ap.parse_args()
 
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
     personas = list(PERSONA_TITLE) if args.all else [args.persona]
     for p in personas:
-        write(conn, p, days=args.days, k=args.k, want_pdf=not args.no_pdf)
+        if args.review:
+            review(conn, p, days=args.days, k=args.k, reviewer=args.by)
+        else:
+            write(conn, p, days=args.days, k=args.k, want_pdf=not args.no_pdf)
     return 0
 
 

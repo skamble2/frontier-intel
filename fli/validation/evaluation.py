@@ -85,11 +85,26 @@ class Skipped(Exception):
 # --------------------------------------------------------------------------
 
 def fig_funnel(conn) -> tuple[str, str]:
-    """Firehose -> signal: the whole filtering funnel in one picture."""
+    """Firehose -> signal: the whole filtering funnel in one picture.
+
+    Register documents (GitHub profiles, arXiv author pages fetched to prove
+    an identity) are excluded from every bar: they are fetched to justify a
+    register row, not to yield insights, so counting them deflates the
+    survival rate of the CONTENT pipeline this figure describes. The exclusion
+    is stated in the caption rather than silent."""
     plt, _ = _style()
-    docs = conn.execute("SELECT count(*) FROM raw_documents").fetchone()[0]
+    total = conn.execute("SELECT count(*) FROM raw_documents").fetchone()[0]
+    docs = conn.execute(
+        "SELECT count(*) FROM raw_documents d"
+        " LEFT JOIN sources s ON s.id = d.source_id"
+        " WHERE COALESCE(s.purpose,'content') = 'content'").fetchone()[0]
+    register_docs = total - docs
     rej = dict(conn.execute(
-        "SELECT reason, count(*) FROM rejections GROUP BY 1").fetchall())
+        "SELECT r.reason, count(*) FROM rejections r"
+        " LEFT JOIN raw_documents d ON d.id = r.document_id"
+        " LEFT JOIN sources s ON s.id = d.source_id"
+        " WHERE COALESCE(s.purpose,'content') = 'content'"
+        " GROUP BY 1").fetchall())
     insights = conn.execute("SELECT count(*) FROM insights").fetchone()[0]
     # A funnel must stay a funnel: the last bar has to be a subset of the first.
     # One document yields several events, so plotting the insight count makes
@@ -98,7 +113,7 @@ def fig_funnel(conn) -> tuple[str, str]:
     surviving = conn.execute(
         "SELECT count(DISTINCT ev.document_id) FROM insights i"
         " JOIN evidence ev ON ev.id = i.evidence_id").fetchone()[0]
-    stages = [("documents fetched", docs)]
+    stages = [("content documents fetched", docs)]
     for reason, n in sorted(rej.items(), key=lambda kv: -kv[1])[:6]:
         stages.append((f"rejected: {reason}", -n))
     stages.append(("documents yielding insights", surviving))
@@ -114,9 +129,12 @@ def fig_funnel(conn) -> tuple[str, str]:
     ax.set_title(f"Signal-vs-noise funnel — {surviving} of {docs} documents "
                  f"survived, yielding {insights} events")
     return _save(plt, fig, "f1_funnel", MECHANICAL), (
-        f"{docs} documents fetched; {surviving} survived filtering "
+        f"{docs} content documents fetched; {surviving} survived filtering "
         f"({surviving / docs:.1%}), yielding {insights} events "
-        f"({insights / surviving:.2f} per surviving document)."
+        f"({insights / surviving:.2f} per surviving document). "
+        f"{register_docs} register document(s) (identity-evidence pages) are "
+        f"excluded from every bar \u2014 they are fetched to prove who someone is, "
+        f"not to yield insights."
         if docs and surviving else "no documents")
 
 
@@ -237,12 +255,23 @@ def fig_lexicon_vs_classifier(conn) -> tuple[str, str]:
     ax.set_title("Channel assignment: lexicon vs LLM classifier")
     ax.legend(fontsize=9)
     note = " · ".join(f"{k} F1={v['f1']:.3f}" for k, v in series.items())
-    note += (f" — scored on {len(labels)} labels, none human-audited, under "
-             f"policy v{policy.version}. Agreement with a stated labeler, not "
-             f"accuracy; a lexicon edit moves these numbers by design.")
+    audited = sum(1 for r in labels.values() if r.get("audited"))
+    if audited == len(labels):
+        audit_note, tier = "all human-audited", REFERENCE
+    elif audited:
+        audit_note, tier = f"{audited} human-audited", JUDGED
+    else:
+        audit_note, tier = "none human-audited", JUDGED
+    note += (f" — scored on {len(labels)} labels, {audit_note}, under "
+             f"policy v{policy.version}. ")
+    note += ("Agreement with a human-audited reference."
+             if audited == len(labels) else
+             "Agreement with a stated labeler, not accuracy; a lexicon edit "
+             "moves these numbers by design. Audit the labels with "
+             "`python3 -m fli.cli xbench --audit` to upgrade the tier.")
     if "LLM classifier" not in series:
         note += "  (classifier cache absent: run `python3 -m fli.cli channels`)"
-    return _save(plt, fig, "f5_lexicon_vs_classifier", JUDGED), note
+    return _save(plt, fig, "f5_lexicon_vs_classifier", tier), note
 
 
 # --------------------------------------------------------------------------
@@ -747,6 +776,102 @@ def fig_mobility(conn) -> tuple[str, str]:
         f"the last 30 days.")
 
 
+def fig_faithfulness(conn) -> tuple[str, str]:
+    """Claim<->quote entailment: does the claim follow from the quote alone?
+
+    C2 guarantees every quote is verbatim from its source; this figure covers
+    the remaining gap — whether the CLAIM written above the quote is licensed
+    by it. One bar per verdict, split by judge model if more than one has run.
+    """
+    plt, _ = _style()
+    rows = conn.execute(
+        "SELECT model, verdict, count(*) n FROM claim_checks"
+        " GROUP BY 1, 2 ORDER BY 1").fetchall()
+    if not rows:
+        raise Skipped("python3 -m fli.cli verify")
+    models = sorted({r["model"] for r in rows})
+    order = ["entailed", "partial", "not_entailed"]
+    counts = {m: {v: 0 for v in order} for m in models}
+    for r in rows:
+        counts[r["model"]][r["verdict"]] = r["n"]
+
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    width = 0.8 / len(models)
+    colors = {"entailed": "#16a34a", "partial": "#f59e0b",
+              "not_entailed": "#dc2626"}
+    for mi, m in enumerate(models):
+        xs = [i + mi * width for i in range(len(order))]
+        vals = [counts[m][v] for v in order]
+        ax.bar(xs, vals, width=width * 0.9,
+               color=[colors[v] for v in order],
+               label=m if len(models) > 1 else None)
+        for x, v in zip(xs, vals):
+            ax.text(x, v, f" {v}", ha="center", va="bottom", fontsize=10)
+    ax.set_xticks([i + width * (len(models) - 1) / 2 for i in range(len(order))])
+    ax.set_xticklabels(order)
+    ax.set_ylabel("insights")
+    total = sum(counts[models[0]].values())
+    ent = counts[models[0]]["entailed"]
+    ax.set_title(f"Claim faithfulness \u2014 {ent} of {total} claims fully "
+                 f"entailed by their verified quote ({ent / total:.1%})")
+    if len(models) > 1:
+        ax.legend(fontsize=8)
+    parts = []
+    for m in models:
+        t = sum(counts[m].values())
+        parts.append(f"{m}: {counts[m]['entailed']}/{t} entailed "
+                     f"({counts[m]['entailed'] / t:.1%}), "
+                     f"{counts[m]['partial']} partial, "
+                     f"{counts[m]['not_entailed']} not entailed")
+    return _save(plt, fig, "f15_faithfulness", JUDGED), (
+        "Every quote is byte-verified against its source (check C2), so this "
+        "measures the remaining hallucination surface: whether the extracted "
+        "claim is supported by the quote ALONE. " + "; ".join(parts) +
+        ". `partial` names a load-bearing fact (a number, a date, an actor) "
+        "the quote does not carry \u2014 the actionable failure mode for an "
+        "extraction prompt revision.")
+
+
+def fig_slate_precision(conn) -> tuple[str, str]:
+    """precision@k of the delivered digest slate against a human keep/cut read.
+
+    The one question the case for this system rests on — "did this surface
+    something we'd genuinely want to know?" — answered per persona by the
+    reader marking each delivered item keep or cut (`digest --review`).
+    """
+    plt, _ = _style()
+    rows = conn.execute(
+        "SELECT persona, verdict, count(*) n FROM slate_reviews"
+        " GROUP BY 1, 2").fetchall()
+    if not rows:
+        raise Skipped("python3 -m fli.cli digest --review")
+    personas = sorted({r["persona"] for r in rows})
+    counts = {p: {"keep": 0, "cut": 0} for p in personas}
+    for r in rows:
+        counts[r["persona"]][r["verdict"]] = r["n"]
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    keeps = [counts[p]["keep"] for p in personas]
+    cuts = [counts[p]["cut"] for p in personas]
+    ax.bar(personas, keeps, color="#16a34a", label="keep", width=.5)
+    ax.bar(personas, cuts, bottom=keeps, color="#dc2626", label="cut", width=.5)
+    for i, p in enumerate(personas):
+        t = keeps[i] + cuts[i]
+        ax.text(i, t, f" {keeps[i]}/{t}", ha="center", va="bottom", fontsize=11)
+    ax.set_ylabel("reviewed slate items")
+    ax.legend(fontsize=9)
+    parts = [f"{p}: {counts[p]['keep']}/{counts[p]['keep'] + counts[p]['cut']} "
+             f"kept ({counts[p]['keep'] / (counts[p]['keep'] + counts[p]['cut']):.0%})"
+             for p in personas]
+    ax.set_title("Digest slate precision \u2014 human keep/cut per persona")
+    return _save(plt, fig, "f16_slate_precision", REFERENCE), (
+        "Each delivered digest item was marked keep or cut by a human reader "
+        "(`digest --review`), which is precision@k for the system's central "
+        "question. " + "; ".join(parts) + ". A cut item names the noise the "
+        "slate rules let through; the review is per persona because the two "
+        "audiences call different things noise.")
+
+
 FIGURES = [
     ("Signal-vs-noise funnel", fig_funnel, "f1_funnel"),
     ("Feature correlation", fig_feature_correlation, "f2_feature_correlation"),
@@ -762,6 +887,8 @@ FIGURES = [
     ("Rank skew by lab", fig_rank_skew, "f12_rank_skew"),
     ("Rubric divergence", fig_rubric_divergence, "f13_rubric_divergence"),
     ("Talent mobility mechanism", fig_mobility, "f14_mobility"),
+    ("Claim faithfulness (entailment)", fig_faithfulness, "f15_faithfulness"),
+    ("Digest slate precision@k", fig_slate_precision, "f16_slate_precision"),
 ]
 
 

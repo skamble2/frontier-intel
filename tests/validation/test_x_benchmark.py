@@ -54,10 +54,13 @@ class TestFrozenFixtures(unittest.TestCase):
         for r in load_labels().values():
             self.assertIsInstance(r["audited"], bool)
 
-    def test_no_label_claims_to_be_audited(self):
-        """If this ever fails someone audited the set — good, but the report's
-        'agreement, not accuracy' caveat then needs updating."""
-        self.assertEqual(sum(r["audited"] for r in load_labels().values()), 0)
+    def test_every_label_carries_a_human_audit(self):
+        """The set was human-audited on 2026-07-30 (28 none, 1 talent_movement;
+        3 corrections). f5's caption reads the flag and reports a human
+        reference. If this fails, labels were regenerated or the flag was
+        dropped — either silently demotes every number measured against the
+        set back to LLM-agreement."""
+        self.assertEqual(sum(r["audited"] for r in load_labels().values()), 29)
 
 
 if __name__ == "__main__":

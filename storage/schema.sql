@@ -314,6 +314,21 @@ CREATE TABLE IF NOT EXISTS claim_checks (
     UNIQUE (insight_id, model)
 );
 
+-- Human keep/cut review of a delivered digest slate — precision@k for the one
+-- question the system is built around: "did this surface something we'd
+-- genuinely want to know?". One verdict per (event, persona, reviewer); a
+-- re-review overwrites deliberately, since the latest human read is the one
+-- that counts.
+CREATE TABLE IF NOT EXISTS slate_reviews (
+    id          INTEGER PRIMARY KEY,
+    event_id    INTEGER NOT NULL REFERENCES insights(id),
+    persona     TEXT NOT NULL CHECK (persona IN ('investment','ai_team')),
+    reviewer    TEXT NOT NULL,
+    verdict     TEXT NOT NULL CHECK (verdict IN ('keep','cut')),
+    reviewed_at TIMESTAMP NOT NULL,
+    UNIQUE (event_id, persona, reviewer)
+);
+
 -- Indexes last, so every table they reference exists. Only where a hot path
 -- needs one, each named with the query it serves.
 --   latest_documents runs a correlated subquery on url for every row, and the

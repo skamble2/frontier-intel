@@ -105,7 +105,79 @@ def summary() -> dict:
             "by_channel": channels}
 
 
+def audit(posts_path: Path = BENCHMARK_PATH,
+          labels_path: Path = LABELS_PATH) -> dict:
+    """Human audit pass over the frozen labels — the tier upgrade.
+
+    Every number measured against this set currently reads "agreement with an
+    unaudited LLM labeler". Walking the 29 posts and confirming or correcting
+    each channel turns the reference into a human one: figure f5's caption
+    upgrades itself the moment `audited` flips, because `summary()` counts it.
+
+    The POSTS stay frozen — only the label rows change, and only two fields:
+    `channel` (if corrected) and `audited` (set true once a human has looked).
+    Skipped posts keep `audited: false`, so a partial pass is stated, not
+    hidden. Resumable: already-audited labels are not re-asked.
+    """
+    from fli.core.policy import load_policy
+    posts = {str(p["id"]): p for p in load_benchmark(posts_path)}
+    raw = json.loads(labels_path.read_text()) if labels_path.exists() else []
+    channels = list(load_policy().channels) + ["none"]
+    todo = [r for r in raw
+            if not (str(r.get("audited", "")).strip().lower() == "true"
+                    or r.get("audited") is True)]
+    print(f"X benchmark audit — {len(raw)} labels, {len(raw) - len(todo)} "
+          f"already audited, {len(todo)} to review.")
+    print("For each post: ENTER = confirm the stored channel, or type the "
+          "correct one.")
+    print(f"channels: {', '.join(channels)}")
+    print("s = skip (stays unaudited), q = quit (progress is saved)\n")
+
+    audited = corrected = 0
+    for r in todo:
+        post = posts.get(str(r["id"]))
+        if post is None:
+            continue
+        stored = r.get("channel") or "none"
+        text = " ".join((post.get("text") or "").split())
+        print(f"POST {r['id']}\n  {text[:400]}")
+        print(f"  stored channel: {stored}")
+        while True:
+            ans = input("  ENTER=confirm / channel / s / q > ").strip().lower()
+            if ans in ("", "s", "q") or ans in channels:
+                break
+            print(f"  not a channel. one of: {', '.join(channels)}")
+        if ans == "q":
+            break
+        if ans == "s":
+            print("  (skipped — stays unaudited)\n")
+            continue
+        if ans and ans != stored:
+            r["channel"] = ans
+            corrected += 1
+            print(f"  corrected: {stored} -> {ans}")
+        r["audited"] = True
+        audited += 1
+        print("  audited\n")
+
+    labels_path.write_text(json.dumps(raw, indent=2))
+    print(f"\naudited {audited} label(s) this pass ({corrected} corrected). "
+          f"{sum(1 for r in raw if r.get('audited') is True or str(r.get('audited','')).strip().lower() == 'true')} "
+          f"of {len(raw)} now carry a human audit.")
+    print("re-run `python -m fli.cli evaluate` — f5's tier note updates itself.")
+    return {"audited": audited, "corrected": corrected}
+
+
 def main() -> int:
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="The frozen X benchmark: summary, or a human audit pass.")
+    ap.add_argument("--audit", action="store_true",
+                    help="confirm/correct each frozen label; sets audited=true")
+    args = ap.parse_args()
+    if args.audit:
+        audit()
+        return 0
     s = summary()
     print(f"X benchmark — {s['posts']} posts, {s['labels']} labels, "
           f"{s['audited']} audited")
