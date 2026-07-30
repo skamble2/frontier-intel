@@ -23,6 +23,10 @@ C17 scores cite a known policy     every event_scores row names the current poli
 C18 dates are the page's own       published_at agrees with the date the page itself
                                    declares (a sitemap lastmod is when the page last
                                    changed, not when the story happened)
+C19 insights quote at exact tier   every insight's evidence is verification='exact'
+                                   (structural is the register's tier for author-name
+                                   spans in structured documents; a claim shown to a
+                                   reader must rest on a byte-verbatim quote)
 
 Run:  python -m fli.cli checks [--db PATH]
 """
@@ -241,6 +245,13 @@ def run(conn: sqlite3.Connection) -> int:
             bad.append(f"doc {r['id']}: stored {r['published_at'][:10]} but the"
                        f" page says {own} ({drift}d apart) {r['url']}")
     check("C18 dates are the page's own", bad, all_failures)
+
+    bad = [f"insight {r['id']}: evidence {r['ev_id']} is {r['verification']!r},"
+           f" not 'exact'" for r in conn.execute(
+               "SELECT i.id, e.id ev_id, e.verification FROM insights i"
+               " JOIN evidence e ON e.id = i.evidence_id"
+               " WHERE e.verification != 'exact'")]
+    check("C19 insights quote at exact tier", bad, all_failures)
 
     if policy is not None:
         print(f"\n{describe(policy)}")
