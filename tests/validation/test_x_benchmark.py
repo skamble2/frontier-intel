@@ -41,12 +41,16 @@ class TestFrozenFixtures(unittest.TestCase):
     """The fixtures are the reference set. If they drift, every number measured
     against them silently changes meaning."""
 
-    def test_benchmark_is_the_frozen_29(self):
-        self.assertEqual(len(load_benchmark()), 29)
+    def test_frozen_file_still_holds_exactly_29(self):
+        from fli.validation.x_benchmark import BENCHMARK_PATH
+        self.assertEqual(len(load_benchmark(BENCHMARK_PATH)), 29)
 
     def test_labels_cover_every_post(self):
+        """Every counted label has its post. The reverse need not hold: an
+        extension post's label is invisible until a human audits it."""
         posts, labels = load_benchmark(), load_labels()
-        self.assertEqual({str(p["id"]) for p in posts}, set(labels))
+        self.assertLessEqual(set(labels), {str(p["id"]) for p in posts})
+        self.assertGreaterEqual(len(labels), 29)
 
     def test_boolean_strings_are_normalised(self):
         """The writer stored "False" as a string; a truthy check on that is a
@@ -54,13 +58,27 @@ class TestFrozenFixtures(unittest.TestCase):
         for r in load_labels().values():
             self.assertIsInstance(r["audited"], bool)
 
-    def test_every_label_carries_a_human_audit(self):
-        """The set was human-audited on 2026-07-30 (28 none, 1 talent_movement;
-        3 corrections). f5's caption reads the flag and reports a human
-        reference. If this fails, labels were regenerated or the flag was
-        dropped — either silently demotes every number measured against the
-        set back to LLM-agreement."""
-        self.assertEqual(sum(r["audited"] for r in load_labels().values()), 29)
+    def test_every_counted_label_carries_a_human_audit(self):
+        """The frozen 29 were human-audited on 2026-07-30 (28 none,
+        1 talent_movement; 3 corrections), and unaudited extension rows are
+        dropped by load_labels — so every label that counts is human-audited.
+        If this fails, labels were regenerated, the flag was dropped, or an
+        unaudited seed leaked into scoring: either silently demotes numbers
+        measured against the set back to LLM-agreement (or worse, echo)."""
+        labels = load_labels()
+        self.assertEqual(sum(r["audited"] for r in labels.values()), len(labels))
+        self.assertGreaterEqual(len(labels), 29)
+
+    def test_unaudited_extension_rows_never_count(self):
+        """The extension seed is the channel classifier's own verdict — one of
+        the two systems f5 scores. Counting it before a human confirms would
+        score the classifier against itself."""
+        from fli.validation.x_benchmark import EXT_LABELS_PATH
+        ext = load_labels(EXT_LABELS_PATH)
+        counted = load_labels()
+        for pid, r in ext.items():
+            if not r["audited"]:
+                self.assertNotIn(pid, counted)
 
 
 if __name__ == "__main__":

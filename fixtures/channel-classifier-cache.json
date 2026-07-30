@@ -5962,5 +5962,347 @@
   "quantity": null,
   "confidence": "high",
   "reason": "Capability claim with no quantity moved outside the lab; no compute, energy, market, talent, or data economics consequence."
+ },
+ "d89ed8e265d03b44:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Exclamation with no substantive content; no quantity or commitment disclosed."
+ },
+ "fac8d3a6e17c3337:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Aspirational statement about research direction with no quantified commitment, resource allocation, or market-moving event."
+ },
+ "5f9e4a72fcca657c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Usage growth metric (5×) is internal to Anthropic's product adoption; no quantity commitment or market shift that requires portfolio response."
+ },
+ "e24419f297a6ab9c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "low",
+  "reason": "unparseable"
+ },
+ "444531222916844d:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "low",
+  "reason": "unparseable"
+ },
+ "891c86b71604ca0d:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "User request for video perspective change; no quantity movement affecting external parties or fund portfolio."
+ },
+ "12a8fb64fc10e371:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Personal health anecdote unrelated to frontier AI labs, compute, energy, data economics, competitive markets, or talent movement."
+ },
+ "175268a3d796b210:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product release announcement with qualitative user sentiment; no specific quantity, commitment, or market-moving number disclosed."
+ },
+ "ecc1f52d97cdfab8:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Generic recruitment announcement with no specific headcount, salary commitment, or talent movement data disclosed."
+ },
+ "0bd80347ba88a5cb:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Philosophical argument about human-AI collaboration tradeoffs; no quantity moved in any portfolio transmission channel."
+ },
+ "78722b4f17fc8d0a:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product release announcement with benchmark result; no quantity commitment or market-moving change outside the lab"
+ },
+ "a1a9a62a36b9cbbf:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product integration announcement with no quantified resource commitment, compute allocation, energy contract, market displacement, or talent movement."
+ },
+ "9c3a02ce546445ae:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product usage tips and internal experience sharing; no quantity commitment, market displacement, or resource allocation affecting external parties."
+ },
+ "7dcec3118a3c0485:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Tweet announces publication of an article; no specific quantity, commitment, or market-moving event is disclosed."
+ },
+ "7816f74d3da8c3c7:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product performance claims and speed metrics are marketing announcements with no quantity commitment that affects external parties' resource allocation or market position."
+ },
+ "f56557861d4004d7:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product quality assessment with no quantified resource commitment, market shift, or talent movement affecting external parties."
+ },
+ "5be44976c7c20086:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature announcement (cloud deployment) with no quantified commitment, capacity change, or market displacement signal."
+ },
+ "87833bf8b7518ad9:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Framework/methodology for agent training environments; no external quantity commitment, compute procurement, or market displacement signal."
+ },
+ "c43fbc3aef7d0812:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Generic product philosophy statement with no quantified commitment, resource allocation, or market-moving event."
+ },
+ "d2447b6bb35f5639:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Personal parenting reflection with no bearing on frontier-AI-lab events, technology fund portfolios, or any market quantity."
+ },
+ "927932c343095971:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Social media commentary/meme with no quantifiable commitment or market-moving event"
+ },
+ "ccab4c37f331b316:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This describes a training methodology improvement (SFT+RL interleaving) with no impact on compute resources, energy contracts, market displacement, data economics, or talent movement outside the lab."
+ },
+ "b8ef4b810ccc7c37:v3:claude-haiku-4-5-20251001": {
+  "channel": "compute_memory",
+  "quantity": "hundreds of millions of devices annually",
+  "confidence": "medium",
+  "reason": "Repurposing discarded phones as compute infrastructure changes available compute capacity outside the lab, but the quantity is speculative and deployment timeline unclear."
+ },
+ "99cd5a105b23cbd7:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Nostalgic social media post about a conference experience; no quantity moved, no market commitment, no resource allocation disclosed."
+ },
+ "50c6e4bdfea94684:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement (multimodal input support) with no quantity commitment, market displacement, talent movement, or resource allocation affecting external parties."
+ },
+ "cb79a1ccbd84fbf6:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Statement about research direction and model design philosophy; no quantity commitment, resource allocation, or market-moving event disclosed."
+ },
+ "8f05644380ff2448:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance improvement is research progress with no direct portfolio impact—no compute, energy, market displacement, talent movement, or supply-chain quantity changed."
+ },
+ "b334d0e33ba590aa:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Link text is opaque; without access to the URL content, cannot assess whether any quantity or commitment affecting fund portfolio exposure has moved."
+ },
+ "281cb376d9bf3f90:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This describes research methodology (test case design for model behavior), not a quantity change affecting external parties or fund portfolio holdings."
+ },
+ "a05bcb4a8cb2a95f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Hashtag reference to a location/facility with no quantified commitment, resource allocation, or market-moving event described."
+ },
+ "0282a7fea28d7b33:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark and agent architecture announcement with no disclosed compute, energy, talent movement, data economics shift, or market displacement impact."
+ },
+ "0153f733461e53d8:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Aspirational call for projects with no concrete commitment, quantity, or market-moving event disclosed."
+ },
+ "d6bdc149ad3623b4:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Celebratory/marketing statement with no quantifiable commitment, resource allocation, or market-moving event."
+ },
+ "c8c051b6e2e115a4:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Observational commentary on medical communication practices; no quantity moved in any portfolio-relevant market or resource constraint."
+ },
+ "d22ead8402ab18ec:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Award announcement with no impact on compute, energy, data economics, competitive displacement, or talent movement in frontier AI labs."
+ },
+ "527fa5953f569414:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Essay on AI's potential societal benefits is speculative commentary with no quantified commitment, resource allocation, or market-moving event."
+ },
+ "d1bb160279961cff:v3:claude-haiku-4-5-20251001": {
+  "channel": "talent_movement",
+  "quantity": null,
+  "confidence": "medium",
+  "reason": "Hiring announcement signals talent acquisition pipeline, but no specific headcount or commitment disclosed—only a job posting."
+ },
+ "b4ac6a0897e5fc3f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Internal R&D discussion of model architecture strategies (MoE, routing); no external quantity commitment or market impact."
+ },
+ "c80062a40679dcd6:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no quantified resource commitment, market displacement, or talent movement affecting external parties."
+ },
+ "207b6fc406224b44:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Metaphorical comparison between disease recovery and ML benchmarks; no quantity moved, no market/resource commitment, no portfolio transmission mechanism."
+ },
+ "ba1ecd34248871fa:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark ranking is a performance claim with no direct quantity impact on fund portfolio companies' costs, revenues, or talent availability."
+ },
+ "a7601ae73a044ea4:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Efficiency improvement claim with no external quantity commitment; internal R&D milestone with no portfolio-facing resource or market impact."
+ },
+ "7bbe072d669d6e05:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Philosophical claim about AI alignment strategy with no portfolio-relevant quantity or commitment."
+ },
+ "e7a7d200024dc266:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark achievement announcement with no quantity commitment, resource allocation, or market impact outside the lab."
+ },
+ "69f25e80a22ebb8f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Generic gratitude and self-promotion with no quantified commitments, resource movements, or market-facing changes."
+ },
+ "9fcdd6924aa88978:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Title is a research concept play ('Attention Is All You Need'); no quantity commitment, resource allocation, or market-moving event disclosed."
+ },
+ "b590654f320e98fe:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "low",
+  "reason": "unparseable"
+ },
+ "30bca8e086d6e8c4:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "low",
+  "reason": "unparseable"
+ },
+ "e6dc37f18b4e1699:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "low",
+  "reason": "unparseable"
+ },
+ "11e444b26359ffba:v3:claude-haiku-4-5-20251001": {
+  "channel": "competitive_displacement",
+  "quantity": "300 million weekly users",
+  "confidence": "high",
+  "reason": "Health feature launch with 300M weekly users quantifies market displacement in healthcare/wellness sector away from traditional providers and toward AI."
+ },
+ "5fe21e6b5e747b6b:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product stabilization and UX polish are internal engineering priorities with no external quantity commitment or market impact."
+ },
+ "2bf6aba914ea9fc3:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a social media discussion about tool selection and vendor lock-in concerns; no quantity commitment, resource allocation, or market movement is described."
+ },
+ "769d80064f26a1bb:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Personal parenting recommendation about children's entertainment; no quantity movement affecting fund portfolio."
+ },
+ "4bb750030024315f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Personal movie rankings have no bearing on frontier-AI-lab events or technology fund portfolio mechanics."
+ },
+ "5aa9770dcb07e762:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Academic citation/validation of prior research; no quantity commitment, resource allocation, or market displacement triggered by this acknowledgment."
+ },
+ "9ff01a68a782b0a6:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Commencement speech is a public appearance/speaking engagement with no quantifiable market impact on compute, energy, data economics, competitive displacement, or talent movement."
+ },
+ "29c48b1685f1667b:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Generic launch announcement with no quantified commitment, resource allocation, or market-moving event disclosed."
  }
 }

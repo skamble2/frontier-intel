@@ -1,4 +1,4 @@
-"""The frozen X benchmark: 29 labelled posts, and scoring against them.
+"""The frozen X benchmark: 29 labelled posts, an extension set, and scoring.
 
 Scores any channel-assignment approach against a fixed, human-readable
 reference set. Figure f5 uses it on every `evaluate` run, at zero cost.
@@ -8,14 +8,18 @@ is deliberately no generator here to rebuild them. Regenerating would spend
 money to produce a *different* reference, silently invalidating every number
 ever measured against the old one.
 
-Stated limitation, because it changes how the numbers read: the 29 labels carry
-`audited: false`. They are one LLM's application of the rubric, not a human
-reference, so figures measured against them report agreement with a stated
-labeler, never accuracy.
+The EXTENSION set (`x-benchmark-ext-*.json`, written by `xbench --extend N`)
+grows the reference from posts already ingested into the DB — zero X spend.
+Its rows are seeded by the channel classifier as an audit-time convenience,
+and exactly because that seed shares lineage with a system f5 scores, an
+extension label DOES NOT COUNT until a human audits it: `load_labels()` drops
+unaudited extension rows. No number can ever be an echo of its own seed.
 """
 from __future__ import annotations
 
 import json
+import random
+import re
 from pathlib import Path
 
 from fli.core.paths import FIXTURES_DIR
@@ -24,31 +28,50 @@ from fli.core.paths import FIXTURES_DIR
 # exports kept only so the freeze is diffable.
 BENCHMARK_PATH = FIXTURES_DIR / "x-benchmark-29-frozen.json"
 LABELS_PATH = FIXTURES_DIR / "x-benchmark-29-labels-frozen.json"
+EXT_POSTS_PATH = FIXTURES_DIR / "x-benchmark-ext-posts.json"
+EXT_LABELS_PATH = FIXTURES_DIR / "x-benchmark-ext-labels.json"
 
 
-def load_benchmark(path: Path = BENCHMARK_PATH) -> list[dict]:
-    """The 29 posts, exactly as returned by the live API run on 2026-07-26."""
-    if not path.exists():
-        return []
-    return json.loads(path.read_text()).get("posts", [])
+def load_benchmark(path: Path | None = None) -> list[dict]:
+    """The frozen 29 plus any extension posts. An explicit `path` loads that
+    one file (the audit walks the files separately)."""
+    if path is not None:
+        if not path.exists():
+            return []
+        return json.loads(path.read_text()).get("posts", [])
+    return load_benchmark(BENCHMARK_PATH) + load_benchmark(EXT_POSTS_PATH)
 
 
-def load_labels(path: Path = LABELS_PATH) -> dict[str, dict]:
-    """Reference labels keyed by post id.
-
-    `audited` and `is_signal` were written as the strings "True"/"False".
-    Normalised here rather than at every call site: a truthy check on the string
-    "False" is a bug that reads as correct.
-    """
-    if not path.exists():
-        return {}
-    out = {}
-    for r in json.loads(path.read_text()):
+def _normalise(rows: list[dict]) -> list[dict]:
+    """`audited` and `is_signal` were written as the strings "True"/"False".
+    Normalised here rather than at every call site: a truthy check on the
+    string "False" is a bug that reads as correct."""
+    out = []
+    for r in rows:
         r = dict(r)
         for k in ("audited", "is_signal"):
             if isinstance(r.get(k), str):
                 r[k] = r[k].strip().lower() == "true"
-        out[str(r["id"])] = r
+        out.append(r)
+    return out
+
+
+def load_labels(path: Path | None = None) -> dict[str, dict]:
+    """Reference labels keyed by post id.
+
+    With no explicit path: the frozen 29, plus extension rows a human has
+    audited. Unaudited extension rows are DROPPED — their seed came from the
+    channel classifier, one of the systems f5 scores, so counting them before
+    a human confirms would score the classifier against its own output.
+    """
+    if path is not None:
+        if not path.exists():
+            return {}
+        return {str(r["id"]): r for r in _normalise(json.loads(path.read_text()))}
+    out = load_labels(LABELS_PATH)
+    for pid, r in load_labels(EXT_LABELS_PATH).items():
+        if r.get("audited") is True:
+            out[pid] = r
     return out
 
 
@@ -96,23 +119,100 @@ def channel_scores(posts, labels, policy, channel_fn) -> dict:
 def summary() -> dict:
     """Corpus-level facts about the benchmark: size, coverage, audit state."""
     posts, labels = load_benchmark(), load_labels()
+    ext = load_labels(EXT_LABELS_PATH)
     channels = {}
     for r in labels.values():
         c = r.get("channel") or "none"
         channels[c] = channels.get(c, 0) + 1
     return {"posts": len(posts), "labels": len(labels),
             "audited": sum(1 for r in labels.values() if r.get("audited")),
+            "ext_pending": sum(1 for r in ext.values() if not r.get("audited")),
             "by_channel": channels}
+
+
+def _post_from_document(url: str, body: str, published_at: str | None) -> dict | None:
+    """Rebuild the API post shape from the stored document. `as_document`
+    writes '@handle\\nurl\\n\\ntext', so the inverse is mechanical."""
+    m = re.match(r"https://x\.com/([^/]+)/status/(\d+)$", url)
+    if not m:
+        return None
+    text = body.split("\n\n", 1)[1] if "\n\n" in body else body
+    return {"id": m.group(2), "handle": m.group(1), "url": url,
+            "created_at": published_at, "text": text}
+
+
+def extend(conn, n: int = 71, seed: int = 29) -> dict:
+    """Grow the reference set from posts already in the DB — zero X spend.
+
+    Sampling is round-robin across handles (seeded, reproducible) so no one
+    account dominates the reference. Each new row is seeded with the channel
+    classifier's verdict purely as an audit-time convenience; the row carries
+    `audited: false` and is INVISIBLE to scoring until `xbench --audit`
+    confirms or corrects it (see `load_labels`). Idempotent: already-sampled
+    ids are never re-added, so re-running tops the set up to `n` new rows.
+    """
+    have = {str(p["id"]) for p in load_benchmark()}
+    by_handle: dict[str, list[dict]] = {}
+    for r in conn.execute(
+            "SELECT url, raw_content, published_at FROM raw_documents"
+            " WHERE url LIKE 'https://x.com/%/status/%' ORDER BY url"):
+        p = _post_from_document(r["url"], r["raw_content"], r["published_at"])
+        if p and p["id"] not in have and p["text"].strip():
+            by_handle.setdefault(p["handle"], []).append(p)
+
+    rng = random.Random(seed)
+    for posts in by_handle.values():
+        rng.shuffle(posts)
+    picked: list[dict] = []
+    handles = sorted(by_handle)
+    while len(picked) < n and any(by_handle.values()):
+        for h in handles:
+            if by_handle[h] and len(picked) < n:
+                picked.append(by_handle[h].pop())
+    if not picked:
+        print("extend: no unsampled X posts left in the DB.")
+        return {"added": 0}
+
+    from fli.knowledge.channels import classify
+    from fli.ops.llm import MODEL_FOR_TASK
+    verdicts = classify([p["text"] for p in picked], conn=conn)
+
+    ext_posts = (json.loads(EXT_POSTS_PATH.read_text()).get("posts", [])
+                 if EXT_POSTS_PATH.exists() else [])
+    ext_labels = (json.loads(EXT_LABELS_PATH.read_text())
+                  if EXT_LABELS_PATH.exists() else [])
+    for p in picked:
+        v = verdicts[p["text"]]
+        ext_posts.append(p)
+        ext_labels.append({
+            "id": p["id"], "handle": p["handle"], "url": p["url"],
+            "text": p["text"],
+            "labeler": f"llm:{MODEL_FOR_TASK['channel']}",
+            "audited": False,
+            "channel": v.get("channel") or "none",
+            "is_signal": (v.get("channel") or "none") != "none",
+            "reason": v.get("reason") or ""})
+    EXT_POSTS_PATH.write_text(json.dumps(
+        {"source": "sampled from data/fli.db raw_documents (already-ingested "
+                   "posts; no X API spend)",
+         "n": len(ext_posts), "posts": ext_posts}, indent=2))
+    EXT_LABELS_PATH.write_text(json.dumps(ext_labels, indent=2))
+    print(f"extend: +{len(picked)} posts -> {EXT_POSTS_PATH.name} "
+          f"({len(ext_posts)} total, across {len({p['handle'] for p in ext_posts})} handles).")
+    print("Seed labels are classifier verdicts and DO NOT COUNT until audited.")
+    print("Run `python -m fli.cli xbench --audit` to fold them into the reference.")
+    return {"added": len(picked)}
 
 
 def audit(posts_path: Path = BENCHMARK_PATH,
           labels_path: Path = LABELS_PATH) -> dict:
-    """Human audit pass over the frozen labels — the tier upgrade.
+    """Human audit pass over one labels file — the tier upgrade.
 
-    Every number measured against this set currently reads "agreement with an
-    unaudited LLM labeler". Walking the 29 posts and confirming or correcting
-    each channel turns the reference into a human one: figure f5's caption
-    upgrades itself the moment `audited` flips, because `summary()` counts it.
+    Every number measured against an unaudited row reads "agreement with a
+    stated labeler". Confirming or correcting each channel turns the row into
+    a human reference: figure f5's caption upgrades itself the moment
+    `audited` flips, because `summary()` counts it — and for extension rows,
+    the audit is what makes them count at all (see `load_labels`).
 
     The POSTS stay frozen — only the label rows change, and only two fields:
     `channel` (if corrected) and `audited` (set true once a human has looked).
@@ -126,8 +226,8 @@ def audit(posts_path: Path = BENCHMARK_PATH,
     todo = [r for r in raw
             if not (str(r.get("audited", "")).strip().lower() == "true"
                     or r.get("audited") is True)]
-    print(f"X benchmark audit — {len(raw)} labels, {len(raw) - len(todo)} "
-          f"already audited, {len(todo)} to review.")
+    print(f"X benchmark audit [{labels_path.name}] — {len(raw)} labels, "
+          f"{len(raw) - len(todo)} already audited, {len(todo)} to review.")
     print("For each post: ENTER = confirm the stored channel, or type the "
           "correct one.")
     print(f"channels: {', '.join(channels)}")
@@ -168,19 +268,42 @@ def audit(posts_path: Path = BENCHMARK_PATH,
     return {"audited": audited, "corrected": corrected}
 
 
+def audit_all() -> dict:
+    """Audit the frozen set, then the extension set. Quitting mid-file saves
+    progress; the next run resumes exactly where the human stopped."""
+    totals = {"audited": 0, "corrected": 0}
+    for posts_path, labels_path in ((BENCHMARK_PATH, LABELS_PATH),
+                                    (EXT_POSTS_PATH, EXT_LABELS_PATH)):
+        if not labels_path.exists():
+            continue
+        r = audit(posts_path, labels_path)
+        totals["audited"] += r["audited"]
+        totals["corrected"] += r["corrected"]
+    return totals
+
+
 def main() -> int:
     import argparse
     ap = argparse.ArgumentParser(
-        description="The frozen X benchmark: summary, or a human audit pass.")
+        description="The frozen X benchmark: summary, audit pass, or extension.")
     ap.add_argument("--audit", action="store_true",
-                    help="confirm/correct each frozen label; sets audited=true")
+                    help="confirm/correct each unaudited label; sets audited=true")
+    ap.add_argument("--extend", type=int, metavar="N",
+                    help="sample N already-ingested posts into the extension "
+                         "set (they count only once audited)")
     args = ap.parse_args()
+    if args.extend:
+        from fli import storage
+        extend(storage.connect(), n=args.extend)
+        return 0
     if args.audit:
-        audit()
+        audit_all()
         return 0
     s = summary()
     print(f"X benchmark — {s['posts']} posts, {s['labels']} labels, "
-          f"{s['audited']} audited")
+          f"{s['audited']} audited"
+          + (f", {s['ext_pending']} extension label(s) pending audit"
+             if s["ext_pending"] else ""))
     for c, n in sorted(s["by_channel"].items(), key=lambda kv: -kv[1]):
         print(f"  {c:<28}{n:>4}")
     if s["labels"] and not s["audited"]:

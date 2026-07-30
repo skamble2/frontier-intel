@@ -1,0 +1,503 @@
+{
+  "source": "sampled from data/fli.db raw_documents (already-ingested posts; no X API spend)",
+  "n": 71,
+  "posts": [
+    {
+      "id": "2077804869826613422",
+      "handle": "AIatMeta",
+      "url": "https://x.com/AIatMeta/status/2077804869826613422",
+      "created_at": "2026-07-16T17:17:39.000Z",
+      "text": "We heard you and are happy to announce that Muse Spark 1.1 is now available on @OpenRouter for US-based developers. \n\nWe look forward to seeing what the community builds. https://t.co/rFGgdWU5Ws"
+    },
+    {
+      "id": "2079906355440472284",
+      "handle": "Alibaba_Qwen",
+      "url": "https://x.com/Alibaba_Qwen/status/2079906355440472284",
+      "created_at": "2026-07-22T12:28:12.000Z",
+      "text": "Authentic Details and Deep Knowledge are also major upgrades in this release. Together, they enable Qwen-Image-3.0 to make real breakthroughs in high-value productivity scenarios \u2014 newspaper PDFs, short-drama storyboards, complex UI, and more. As image generation keeps advancing, https://t.co/gq8RagDZvt"
+    },
+    {
+      "id": "2069925173999083974",
+      "handle": "AmandaAskell",
+      "url": "https://x.com/AmandaAskell/status/2069925173999083974",
+      "created_at": "2026-06-24T23:26:33.000Z",
+      "text": "update 2: nooo"
+    },
+    {
+      "id": "2074185363401167261",
+      "handle": "AnthropicAI",
+      "url": "https://x.com/AnthropicAI/status/2074185363401167261",
+      "created_at": "2026-07-06T17:35:01.000Z",
+      "text": "Similar to how humans can think about one thing while doing another, Claude can activate concepts and computations in its J-space that are unrelated to its outputs. https://t.co/J3V73DQ6UY"
+    },
+    {
+      "id": "2079668875986399693",
+      "handle": "ChrSzegedy",
+      "url": "https://x.com/ChrSzegedy/status/2079668875986399693",
+      "created_at": "2026-07-21T20:44:33.000Z",
+      "text": "Generally, I am very excited about the prospects of fully automating strong mathematical reasoning.\n\nSo far, mathematics could not live up to its full potential: becoming the true infrastructure for all of sciences and engineering.\n\nSoon, it will."
+    },
+    {
+      "id": "1977010693460443151",
+      "handle": "DarioAmodei",
+      "url": "https://x.com/DarioAmodei/status/1977010693460443151",
+      "created_at": "2025-10-11T13:57:35.000Z",
+      "text": "Today I met with PM @narendramodi to discuss Anthropic's expansion to India\u2014where Claude Code use is up 5\u00d7 since June. How India deploys AI across critical sectors like education, healthcare, and agriculture for over a billion people will be essential in shaping the future of AI. https://t.co/rt0baeqEeC"
+    },
+    {
+      "id": "2075620281515929716",
+      "handle": "GoogleDeepMind",
+      "url": "https://x.com/GoogleDeepMind/status/2075620281515929716",
+      "created_at": "2026-07-10T16:36:52.000Z",
+      "text": "A model\u2019s chain of thought acts like a scratch pad, offering a window into its reasoning. \ud83d\udcdd\n\nOn the latest episode of our podcast, host @fryrsquared sits down with @NeelNanda5 to explore interpretability \u2013 the science of reverse engineering how neural networks learn and think. https://t.co/JWHFnzzrOD"
+    },
+    {
+      "id": "2011860372349747416",
+      "handle": "GuillaumeLample",
+      "url": "https://x.com/GuillaumeLample/status/2011860372349747416",
+      "created_at": "2026-01-15T17:57:45.000Z",
+      "text": "Master: https://t.co/r5ftstyHpI\nPhD:  https://t.co/Y1NbcqAQ62"
+    },
+    {
+      "id": "2064623877192606111",
+      "handle": "JustinLin610",
+      "url": "https://x.com/JustinLin610/status/2064623877192606111",
+      "created_at": "2026-06-10T08:21:05.000Z",
+      "text": "exactement https://t.co/7fSpnLrw0N"
+    },
+    {
+      "id": "2073163455910330528",
+      "handle": "MistralAI",
+      "url": "https://x.com/MistralAI/status/2073163455910330528",
+      "created_at": "2026-07-03T21:54:20.000Z",
+      "text": "Customers are not an abstraction for us: we exist to help enterprises, public institutions, and industries build their own intelligence, so the value created from their data, workflows, feedback, and models accrues to them rather than to model providers. https://t.co/0IYVIrVjF1"
+    },
+    {
+      "id": "2077446722683650525",
+      "handle": "OpenAI",
+      "url": "https://x.com/OpenAI/status/2077446722683650525",
+      "created_at": "2026-07-15T17:34:30.000Z",
+      "text": "Training against GPT\u2011Red makes GPT\u20115.6 substantially more resilient. To measure this, we replayed some of GPT\u2011Red\u2019s strongest attacks\u2014none of which our models had seen during training. GPT\u20115.6 Sol proved to be our most robust model against prompt injections to date, with 6\u00d7 fewer"
+    },
+    {
+      "id": "2024519612579422598",
+      "handle": "OriolVinyalsML",
+      "url": "https://x.com/OriolVinyalsML/status/2024519612579422598",
+      "created_at": "2026-02-19T16:21:04.000Z",
+      "text": "\"make it first person view (i want to see the rollercoaster in front of me)\" https://t.co/bDeCbpOWuL"
+    },
+    {
+      "id": "2066820208908796279",
+      "handle": "TheGregYang",
+      "url": "https://x.com/TheGregYang/status/2066820208908796279",
+      "created_at": "2026-06-16T09:48:32.000Z",
+      "text": "my left achilles is flaring up again and Lenin pulls up on my ice pack\n\nwhat mean???? https://t.co/XfAko5zciI"
+    },
+    {
+      "id": "1991218732526649359",
+      "handle": "Yuhu_ai_",
+      "url": "https://x.com/Yuhu_ai_/status/1991218732526649359",
+      "created_at": "2025-11-19T18:55:15.000Z",
+      "text": "We definitely a bit lowkey this time. No ads no hype, but clearly from our user metrics and feedbacks - ppl love it and growth is very strong. \n\n4.1 is a great model. https://t.co/H8Fd2paFd5"
+    },
+    {
+      "id": "2077137953470497272",
+      "handle": "_rockt",
+      "url": "https://x.com/_rockt/status/2077137953470497272",
+      "created_at": "2026-07-14T21:07:34.000Z",
+      "text": "Fantastic opportunities to shape @BOLD_Lab_AI https://t.co/beiH7pWVOa"
+    },
+    {
+      "id": "2067108097878061412",
+      "handle": "aidan_mclau",
+      "url": "https://x.com/aidan_mclau/status/2067108097878061412",
+      "created_at": "2026-06-17T04:52:30.000Z",
+      "text": "with asi, one can tradeoff their personhood to maximize their goals \n\nunlike teaming up with stockfish, there probably *is* some pareto-optimal point of you working with asi to maximize your goals and personhood that preserves human skill"
+    },
+    {
+      "id": "2077847582559359484",
+      "handle": "alexandr_wang",
+      "url": "https://x.com/alexandr_wang/status/2077847582559359484",
+      "created_at": "2026-07-16T20:07:22.000Z",
+      "text": "muse spark 1.1 on eyebench https://t.co/gNpyBgwru1"
+    },
+    {
+      "id": "1940781536112165315",
+      "handle": "arthurmensch",
+      "url": "https://x.com/arthurmensch/status/1940781536112165315",
+      "created_at": "2025-07-03T14:35:50.000Z",
+      "text": "Mistral is proud to provide the text LLM powering Unmute, the open-source voice AI from @kyutai_labs! https://t.co/q0O9W6j8IE"
+    },
+    {
+      "id": "1894104736506548602",
+      "handle": "catherineols",
+      "url": "https://x.com/catherineols/status/1894104736506548602",
+      "created_at": "2025-02-24T19:18:54.000Z",
+      "text": "Claude Code is very useful, but it can still get confused.\n\nA few quick tips from my experience coding with it at Anthropic \ud83d\udc49\n\n1) Work from a clean commit so it's easy to reset all the changes. Often I want to back up and explain it from scratch a different way. https://t.co/gw8mQWJ1Yw"
+    },
+    {
+      "id": "2028519710514708577",
+      "handle": "ch402",
+      "url": "https://x.com/ch402/status/2028519710514708577",
+      "created_at": "2026-03-02T17:16:01.000Z",
+      "text": "@CharlieBul58993 @JTillipman @bridgewriter New article from @ARozenshtein - https://t.co/q1oGgpoQGh"
+    },
+    {
+      "id": "2047516926432399791",
+      "handle": "deepseek_ai",
+      "url": "https://x.com/deepseek_ai/status/2047516926432399791",
+      "created_at": "2026-04-24T03:24:10.000Z",
+      "text": "DeepSeek-V4-Pro\n\n\ud83d\udd39 Enhanced Agentic Capabilities: Open-source SOTA in Agentic Coding benchmarks.\n\ud83d\udd39 Rich World Knowledge: Leads all current open models, trailing only Gemini-3.1-Pro.\n\ud83d\udd39 World-Class Reasoning: Beats all current open models in Math/STEM/Coding, rivaling top https://t.co/D04x5RjE3L"
+    },
+    {
+      "id": "2056904067406860545",
+      "handle": "demishassabis",
+      "url": "https://x.com/demishassabis/status/2056904067406860545",
+      "created_at": "2026-05-20T01:05:19.000Z",
+      "text": "Gemini 3.5 Flash is amazing!\n\n- Performs better than 3.1 Pro on coding &amp; agentic tasks\n- 4x faster than other frontier models\n- 12x faster in @antigravity - 800 tokens/sec!\n- Often at less than half the cost\n\nAnd Pro to come\u2026\n\nTry it in @antigravity, @GeminiApp &amp; more - enjoy! https://t.co/ujGtiDBfSL"
+    },
+    {
+      "id": "2081485024872796427",
+      "handle": "elonmusk",
+      "url": "https://x.com/elonmusk/status/2081485024872796427",
+      "created_at": "2026-07-26T21:01:16.000Z",
+      "text": "Grok 4.5 is a solid workhorse https://t.co/F1ZKL0p1BM"
+    },
+    {
+      "id": "2078922461660533120",
+      "handle": "gdb",
+      "url": "https://x.com/gdb/status/2078922461660533120",
+      "created_at": "2026-07-19T19:18:34.000Z",
+      "text": "one of the best features of ChatGPT Work is that it runs in the cloud, meaning that it works from mobile, with your laptop closed.\n\nkinda crazy how long the main way to get the magic of agents has been while leaving your laptop cracked open!"
+    },
+    {
+      "id": "2019072773818360270",
+      "handle": "huybery",
+      "url": "https://x.com/huybery/status/2019072773818360270",
+      "created_at": "2026-02-04T15:37:16.000Z",
+      "text": "How to scale training environments for coding agents? Let the agent build their own! \ud83d\ude4c\n\nWe introduce SWE-Universe \ud83e\ude90, a scalable framework that turns GitHub PRs into real-world, multilingual, verifiable SWE environments. The agent configures each environment like a human expert, https://t.co/dBKBX67tUO"
+    },
+    {
+      "id": "2025304388877910082",
+      "handle": "ibab",
+      "url": "https://x.com/ibab/status/2025304388877910082",
+      "created_at": "2026-02-21T20:19:29.000Z",
+      "text": "Building great AI products requires excellence in both creativity and technical execution. You need to create the right culture and enough space for good ideas to emerge and grow naturally, then fuel the best ideas with strong execution.\n\nThe reason you see most good products https://t.co/a3OwZFSIy4"
+    },
+    {
+      "id": "2080850618747699272",
+      "handle": "jackclarkSF",
+      "url": "https://x.com/jackclarkSF/status/2080850618747699272",
+      "created_at": "2026-07-25T03:00:22.000Z",
+      "text": "7pm: Thinking to myself after closing the door on my toddler who I've just tucked into bed: They are an angel. I am so blessed. I love them infinitely.\n\n8pm (after they've come out of their room 7 or 8 times): What if I bricked up their door at night?"
+    },
+    {
+      "id": "2038010544221737380",
+      "handle": "jaredkaplan",
+      "url": "https://x.com/jaredkaplan/status/2038010544221737380",
+      "created_at": "2026-03-28T21:49:12.000Z",
+      "text": "Only if Deuce Bigalow gets sent first https://t.co/dcBoGfTF5s"
+    },
+    {
+      "id": "2041864833214095484",
+      "handle": "jaseweston",
+      "url": "https://x.com/jaseweston/status/2041864833214095484",
+      "created_at": "2026-04-08T13:04:46.000Z",
+      "text": "\ud83c\udfcb\ufe0fThinking Mid-training: RL of Interleaved Reasoning\ud83c\udf97\ufe0f\n\nWe address the gap between pretraining (no explicit reasoning) and post-training (reasoning-heavy) with an intermediate SFT+RL mid-training phase to teach models how to think.\n\n- Annotate pretraining data with interleaved https://t.co/jU94uavhVt"
+    },
+    {
+      "id": "2065649717573505188",
+      "handle": "jeffdean",
+      "url": "https://x.com/jeffdean/status/2065649717573505188",
+      "created_at": "2026-06-13T04:17:25.000Z",
+      "text": "People replace their phones every ~4 yrs.  This means there are hundreds of millions of old phones discarded each year that are still perfectly usable as computing devices.  @Google in collabration with @UCSD is exploring how to turn these old phones into cloud-computing \u201cphone https://t.co/0DIUpxcQox"
+    },
+    {
+      "id": "1867289819950248442",
+      "handle": "jimmybajimmyba",
+      "url": "https://x.com/jimmybajimmyba/status/1867289819950248442",
+      "created_at": "2024-12-12T19:26:00.000Z",
+      "text": "throwback thurs to two yrs ago at neurips:\n\npounded warm beer in an epic flunkyball match with world champ, played jenga with homies training big models for fun, then it hit, yall know whats missing? another agi company!\n\npeak pre-agi vibes https://t.co/ih7k0Fslol"
+    },
+    {
+      "id": "2028876507679191392",
+      "handle": "koraykv",
+      "url": "https://x.com/koraykv/status/2028876507679191392",
+      "created_at": "2026-03-03T16:53:48.000Z",
+      "text": "You can input text, images, videos, audio and pdfs. Rather than writing pdf parsers, you can use 3.1 Flash-Lite! https://t.co/eIH8QPXF2d"
+    },
+    {
+      "id": "1945157403315724547",
+      "handle": "merettm",
+      "url": "https://x.com/merettm/status/1945157403315724547",
+      "created_at": "2025-07-15T16:23:58.000Z",
+      "text": "I am extremely excited about the potential of chain-of-thought faithfulness &amp; interpretability. It has significantly influenced the design of our reasoning models, starting with o1-preview.\n\nAs AI systems spend more compute working e.g. on long term research problems, it is https://t.co/7Dqy2gtZfy"
+    },
+    {
+      "id": "2054316924868370647",
+      "handle": "npew",
+      "url": "https://x.com/npew/status/2054316924868370647",
+      "created_at": "2026-05-12T21:44:56.000Z",
+      "text": "GPT 5.5 xhigh is a beast. Fun to see progress on this (very hard) benchmark. https://t.co/LBIsuxYbQ1"
+    },
+    {
+      "id": "2080683119959757243",
+      "handle": "sama",
+      "url": "https://x.com/sama/status/2080683119959757243",
+      "created_at": "2026-07-24T15:54:47.000Z",
+      "text": "let us know what you think of pro-ultra-superhard https://t.co/df2WxqXsIx"
+    },
+    {
+      "id": "2077462200781091121",
+      "handle": "sleepinyourhat",
+      "url": "https://x.com/sleepinyourhat/status/2077462200781091121",
+      "created_at": "2026-07-15T18:36:00.000Z",
+      "text": "subtler scenarios involving fraud and motivated sabotage, in test cases that are extreme and a bit stylized but that still do map onto situations we worry models may occasionally find themselves in."
+    },
+    {
+      "id": "233109590030548992",
+      "handle": "timlacroix",
+      "url": "https://x.com/timlacroix/status/233109590030548992",
+      "created_at": "2012-08-08T07:57:11.000Z",
+      "text": "#werken@Deli XL Geleen"
+    },
+    {
+      "id": "2059144701589234135",
+      "handle": "tydsh",
+      "url": "https://x.com/tydsh/status/2059144701589234135",
+      "created_at": "2026-05-26T05:28:48.000Z",
+      "text": "Great work @YujieZhao455906! In this work, we build \n\n1\ufe0f\u20e3 AMA-Bench that evaluates long-horizon memory in real-world tasks;\n2\ufe0f\u20e3 AMA-Agent that tracks causality and objective info across long trajectories to achieve better performance than existing agentic designs. \n\nThe paper has https://t.co/DJisASYgL9"
+    },
+    {
+      "id": "2015457668685799432",
+      "handle": "woj_zaremba",
+      "url": "https://x.com/woj_zaremba/status/2015457668685799432",
+      "created_at": "2026-01-25T16:12:08.000Z",
+      "text": "Looking for ambitious, concrete projects to prepare the world for advanced AI. \ud83e\udde0 \ud83d\ude80 https://t.co/PRy3DNSenS"
+    },
+    {
+      "id": "2080588168781336630",
+      "handle": "ylecun",
+      "url": "https://x.com/ylecun/status/2080588168781336630",
+      "created_at": "2026-07-24T09:37:29.000Z",
+      "text": "Tired of winning https://t.co/PIbhQ4mlDF"
+    },
+    {
+      "id": "2074587874448625869",
+      "handle": "AIatMeta",
+      "url": "https://x.com/AIatMeta/status/2074587874448625869",
+      "created_at": "2026-07-07T20:14:27.000Z",
+      "text": "Muse Image composes elements from many input reference images in the prompt, including people, objects, clothing, styles, and environments. It supports interleaving text and images inline in prompts for complex image compositions.\n\nExplore this thread: https://t.co/UbLzdW19za https://t.co/hUG5qk7UsP"
+    },
+    {
+      "id": "2079569154340995138",
+      "handle": "Alibaba_Qwen",
+      "url": "https://x.com/Alibaba_Qwen/status/2079569154340995138",
+      "created_at": "2026-07-21T14:08:17.000Z",
+      "text": "\ud83d\udd25\ud83d\udd25 https://t.co/5349vbRSyf"
+    },
+    {
+      "id": "2073786264059625897",
+      "handle": "AmandaAskell",
+      "url": "https://x.com/AmandaAskell/status/2073786264059625897",
+      "created_at": "2026-07-05T15:09:09.000Z",
+      "text": "Extracting a probability from a doctor is one of life's unnecessary boss battles. Even if you beg them for an interval-valued subjective probability, and at that point you're basically asking for their hunch. I don't know if they get sued for giving out information or something."
+    },
+    {
+      "id": "2074185390060110138",
+      "handle": "AnthropicAI",
+      "url": "https://x.com/AnthropicAI/status/2074185390060110138",
+      "created_at": "2026-07-06T17:35:08.000Z",
+      "text": "We also partnered with Neuronpedia to create an interactive demo of our methods on open-weights models.\n\nTry it here: https://t.co/hkmYl0IOn2"
+    },
+    {
+      "id": "2078624857223536824",
+      "handle": "ChrSzegedy",
+      "url": "https://x.com/ChrSzegedy/status/2078624857223536824",
+      "created_at": "2026-07-18T23:35:59.000Z",
+      "text": "The fields medal awarded next week will be the last one. https://t.co/qANy27jV3f"
+    },
+    {
+      "id": "1844830404064288934",
+      "handle": "DarioAmodei",
+      "url": "https://x.com/DarioAmodei/status/1844830404064288934",
+      "created_at": "2024-10-11T20:00:18.000Z",
+      "text": "Machines of Loving Grace: my essay on how AI could transform the world for the better\n\nhttps://t.co/CFGd4Sbq86"
+    },
+    {
+      "id": "2076686114631340046",
+      "handle": "GoogleDeepMind",
+      "url": "https://x.com/GoogleDeepMind/status/2076686114631340046",
+      "created_at": "2026-07-13T15:12:07.000Z",
+      "text": "Here\u2019s how we used the Predicting the Past Skill in Google @Antigravity to track down a Roman ring thief, map an ancient cult across Europe, and reconstruct the networks of people visiting a Greek oracle. \ud83e\uddf5 https://t.co/Qz8lXnxbkJ"
+    },
+    {
+      "id": "2011860370848088489",
+      "handle": "GuillaumeLample",
+      "url": "https://x.com/GuillaumeLample/status/2011860370848088489",
+      "created_at": "2026-01-15T17:57:45.000Z",
+      "text": "\ud83d\ude80 We are hiring Research Interns !\n\nWe are looking for Master's and PhD students (final year) with a strong background in AI / ML / NLP who want to work on cutting-edge AI systems alongside Mistral AI researchers.\n\n\ud83d\udccd Location: Paris, London, or Palo Alto\n\u23f3 Duration: 4-6 months"
+    },
+    {
+      "id": "2077601106356515071",
+      "handle": "JustinLin610",
+      "url": "https://x.com/JustinLin610/status/2077601106356515071",
+      "created_at": "2026-07-16T03:47:58.000Z",
+      "text": "one thought about possible misunderstanding: here we are discussing more about strategic use of models instead of technical methods. we did things like imagining moe really playing like experts or setting up a task router to save costs but found them hard to work well. here what"
+    },
+    {
+      "id": "2074856314132410755",
+      "handle": "MistralAI",
+      "url": "https://x.com/MistralAI/status/2074856314132410755",
+      "created_at": "2026-07-08T14:01:08.000Z",
+      "text": "Trained entirely in simulation: ~400,000 trajectories across 6,000 scenes. A prefix-caching recipe cuts training tokens by 22\u00d7, turning months-long runs into days. Online RL (CISPO) pushes success rates higher still."
+    },
+    {
+      "id": "2078243670265041038",
+      "handle": "OpenAI",
+      "url": "https://x.com/OpenAI/status/2078243670265041038",
+      "created_at": "2026-07-17T22:21:17.000Z",
+      "text": "Here's how to add the Codex Security plugin in Codex and get started:\n\nAdd the plugin in Codex. After installation is complete, the button changes to \u201cTry in chat.\u201d\n\nClick \u201cTry in chat\u201d to start a new Codex chat with a Codex Security scan prompt ready to run.\n\nChoose a folder https://t.co/oM1XKKlHco"
+    },
+    {
+      "id": "2024519605570720185",
+      "handle": "OriolVinyalsML",
+      "url": "https://x.com/OriolVinyalsML/status/2024519605570720185",
+      "created_at": "2026-02-19T16:21:02.000Z",
+      "text": "Gemini 3.1 Pro has landed! Amazing performance / capabilities across the board. \n\nBeyond SOTA, the best are all the things that evals can't measure. E.g. SVG has gotten so much better (see \ud83e\uddf5)\n\nhttps://t.co/JDhT0NRY5L https://t.co/P5Usa67bzQ"
+    },
+    {
+      "id": "2060453899560276349",
+      "handle": "TheGregYang",
+      "url": "https://x.com/TheGregYang/status/2060453899560276349",
+      "created_at": "2026-05-29T20:11:05.000Z",
+      "text": "curing yourself of a mentally debilitating disease is like the hardest continual learning benchmark"
+    },
+    {
+      "id": "1990537028950511707",
+      "handle": "Yuhu_ai_",
+      "url": "https://x.com/Yuhu_ai_/status/1990537028950511707",
+      "created_at": "2025-11-17T21:46:24.000Z",
+      "text": "Grok4.1 thinking and non thinking sitting at #1 and #2, 31 elo scores above others. https://t.co/mMyoivi427"
+    },
+    {
+      "id": "2080319438566334857",
+      "handle": "_rockt",
+      "url": "https://x.com/_rockt/status/2080319438566334857",
+      "created_at": "2026-07-23T15:49:39.000Z",
+      "text": "Insane ramp to build 10x more efficient inference. Congrats @robertwachen and @Etched team! https://t.co/s9W0vWT8EX"
+    },
+    {
+      "id": "2067108093193023963",
+      "handle": "aidan_mclau",
+      "url": "https://x.com/aidan_mclau/status/2067108093193023963",
+      "created_at": "2026-06-17T04:52:29.000Z",
+      "text": "basically, the vaguer the prompt you give a superintelligence, the better off you are\n\nthis is a different form of the bitter lesson"
+    },
+    {
+      "id": "2079707328287547723",
+      "handle": "alexandr_wang",
+      "url": "https://x.com/alexandr_wang/status/2079707328287547723",
+      "created_at": "2026-07-21T23:17:20.000Z",
+      "text": "muse spark 1.1 is SOTA model on video-to-code \ud83d\udd25 https://t.co/SIRFbnxnMW"
+    },
+    {
+      "id": "2066913353860018596",
+      "handle": "arthurmensch",
+      "url": "https://x.com/arthurmensch/status/2066913353860018596",
+      "created_at": "2026-06-16T15:58:39.000Z",
+      "text": "We somehow got put in the spotlight the last few days! First we'd like to thank the organizers of the AI show for that, we can't get enough of this stuff. I'll say a few things about where we are and what we do."
+    },
+    {
+      "id": "2053187610043154915",
+      "handle": "catherineols",
+      "url": "https://x.com/catherineols/status/2053187610043154915",
+      "created_at": "2026-05-09T18:57:27.000Z",
+      "text": "Wenders: Heeding Is All You Need https://t.co/9rPO3PWo7c"
+    },
+    {
+      "id": "2028216404282073346",
+      "handle": "ch402",
+      "url": "https://x.com/ch402/status/2028216404282073346",
+      "created_at": "2026-03-01T21:10:47.000Z",
+      "text": "@MarkZJia (georgetown law professor) has a few tweets eg. https://t.co/7KBBtjnpVn"
+    },
+    {
+      "id": "1995452658149405148",
+      "handle": "deepseek_ai",
+      "url": "https://x.com/deepseek_ai/status/1995452658149405148",
+      "created_at": "2025-12-01T11:19:22.000Z",
+      "text": "\ud83d\udee0 Open Source Release\n\n\ud83d\udce6 DeepSeek-V3.2 Model: https://t.co/Kh8HzHl3uX\n\ud83d\udce6 DeepSeek-V3.2-Speciale Model: https://t.co/ZKUg5IC0AJ\n\ud83d\udcc4 Tech report: https://t.co/hduS9hlMpX\n\n5/n"
+    },
+    {
+      "id": "2076957440109625718",
+      "handle": "demishassabis",
+      "url": "https://x.com/demishassabis/status/2076957440109625718",
+      "created_at": "2026-07-14T09:10:16.000Z",
+      "text": "https://t.co/PTeDiv1b6L"
+    },
+    {
+      "id": "2081782292591104077",
+      "handle": "elonmusk",
+      "url": "https://x.com/elonmusk/status/2081782292591104077",
+      "created_at": "2026-07-27T16:42:30.000Z",
+      "text": "True https://t.co/jZu84NbNDj"
+    },
+    {
+      "id": "2080351159638704615",
+      "handle": "gdb",
+      "url": "https://x.com/gdb/status/2080351159638704615",
+      "created_at": "2026-07-23T17:55:42.000Z",
+      "text": "Launching Health in ChatGPT to U.S. users.\n\n300 million people use ChatGPT each week for health queries (and my wife and I are among those!).\n\nYou can now securely connect supported medical records so ChatGPT can understand your personal context and be more helpful to you. https://t.co/kuKumYNMWK https://t.co/1wghTqflgp"
+    },
+    {
+      "id": "1989629098415841309",
+      "handle": "huybery",
+      "url": "https://x.com/huybery/status/1989629098415841309",
+      "created_at": "2025-11-15T09:38:37.000Z",
+      "text": "We\u2019ve spent a lot of bandwidth fixing the bugs our users are running into. Please keep the feedback coming. We\u2019re not in a rush to add new features. For now, we just want to make Qwen Code stable and pleasant to use. https://t.co/EmceiWowtP"
+    },
+    {
+      "id": "2023167888140746965",
+      "handle": "ibab",
+      "url": "https://x.com/ibab/status/2023167888140746965",
+      "created_at": "2026-02-15T22:49:47.000Z",
+      "text": "What\u2019s the best open alternative to OpenClaw right now? Doesn\u2019t make sense to put all your data into it if it\u2019s owned by OpenAI. https://t.co/OGd2tGHZ83"
+    },
+    {
+      "id": "2062533084424319128",
+      "handle": "jackclarkSF",
+      "url": "https://x.com/jackclarkSF/status/2062533084424319128",
+      "created_at": "2026-06-04T13:53:01.000Z",
+      "text": "Niche tweet: If you have an excitable toddler, get sick of listening to Bluey and Raffi, and need the occasional bit of non-brainslop kid TV to let you do basic tasks like unload the dishwasher, you might like this fan-made video for the Geese song Cobra. https://t.co/no6zaZAxjb"
+    },
+    {
+      "id": "2032892762056515937",
+      "handle": "jaredkaplan",
+      "url": "https://x.com/jaredkaplan/status/2032892762056515937",
+      "created_at": "2026-03-14T18:52:58.000Z",
+      "text": "I haven\u2019t seen The Secret Agent or Hamnet yet but this is how I\u2019d rank the rest if I was an Oscar voter:\n\n1. One Battle After Another\n2. Sinners\n3. Marty Supreme\n4. Train Dreams\n5. F1\n6. Bugonia\n7. Sentimental Value\n8. Frankenstein"
+    },
+    {
+      "id": "2049522126093213880",
+      "handle": "jaseweston",
+      "url": "https://x.com/jaseweston/status/2049522126093213880",
+      "created_at": "2026-04-29T16:12:07.000Z",
+      "text": "The new DeepSeek-V4, like DeepSeek-V3, uses concepts from our 2024 paper on Self-Rewarding LMs -- see screenshots of their tech reports! (Congrats!)  \n\nClassical :) Self-Rewarding LMs from Jan 2024: https://t.co/YZRuFphh0H https://t.co/KFfSNgbOLk"
+    },
+    {
+      "id": "2072098401022517513",
+      "handle": "jeffdean",
+      "url": "https://x.com/jeffdean/status/2072098401022517513",
+      "created_at": "2026-06-30T23:22:11.000Z",
+      "text": "The video from the commencement speech I gave a couple of weeks ago at @uwcse is now up.  Congratulations again to all the graduates, and thanks for having me, @MBalazinska!\n\nhttps://t.co/7ZKr8RVyG4 (video is of whole ceremony: my part starts around the 3 minute mark) https://t.co/lfLT2Y1U5u"
+    },
+    {
+      "id": "1961171327907442710",
+      "handle": "jimmybajimmyba",
+      "url": "https://x.com/jimmybajimmyba/status/1961171327907442710",
+      "created_at": "2025-08-28T20:57:36.000Z",
+      "text": "Try it out. First of many yet to come. Let us know how we can improve. https://t.co/173tpbABAH"
+    }
+  ]
+}
