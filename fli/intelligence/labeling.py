@@ -118,6 +118,40 @@ def _disagreement_queue(conn, labeler: str, n: int) -> list[tuple]:
                 (suffix, suffix, labeler, n))]
 
 
+def _near_tie_queue(conn, labeler: str, n: int) -> list[tuple]:
+    """Pairs whose Dawid-Skene posterior sits closest to 0.5 — the label
+    model's least confident calls — that this human has not judged yet.
+
+    The disagreement queue empties fast (two families disagree on a fixed
+    corpus only so often); this is the refill. A pair can be uncertain
+    without an opposite-winner split: one judge abstained with a tie, or a
+    low-reliability labeler is the only vote. Ranking by |posterior - 0.5|
+    surfaces exactly those. Blind, like --disagreements: verdicts withheld.
+    """
+    import numpy as np
+
+    from fli.intelligence.weak_supervision import dawid_skene
+    suffix = labeler.split("/", 1)[1] if "/" in labeler else ""
+    rows = conn.execute(
+        "SELECT event_a, event_b, winner, labeler FROM pairwise_labels"
+        " WHERE winner != 'tie' AND labeler LIKE '%/' || ?", (suffix,)).fetchall()
+    if not rows:
+        return []
+    labelers = sorted({r["labeler"] for r in rows})
+    items = sorted({(r["event_a"], r["event_b"]) for r in rows})
+    ii = {p: i for i, p in enumerate(items)}
+    jj = {l: j for j, l in enumerate(labelers)}
+    votes = np.zeros((len(items), len(labelers)))
+    for r in rows:
+        votes[ii[(r["event_a"], r["event_b"])], jj[r["labeler"]]] = \
+            1 if r["winner"] == "a" else -1
+    post, _acc = dawid_skene(votes)
+    done = {(r["event_a"], r["event_b"]) for r in conn.execute(
+        "SELECT event_a, event_b FROM pairwise_labels WHERE labeler=?", (labeler,))}
+    ranked = sorted((abs(post[i] - 0.5), p) for p, i in ii.items() if p not in done)
+    return [(a, b, None, None, None) for _, (a, b) in ranked[:n]]
+
+
 def _audit_queue(conn, labeler: str, n: int) -> list[tuple]:
     """Pairs an LLM has already judged and this human has not — the audit
     sample. Deterministic order, so the pass is resumable."""
@@ -132,7 +166,7 @@ def _audit_queue(conn, labeler: str, n: int) -> list[tuple]:
 
 
 def run_cli(conn, n: int, labeler: str, audit: bool = False,
-            disagreements: bool = False) -> None:
+            disagreements: bool = False, near_ties: bool = False) -> None:
     if audit:
         queue = _audit_queue(conn, labeler, n)
         print(f"AUDIT pass as {labeler} — {len(queue)} pair(s) to review.\n"
@@ -144,6 +178,11 @@ def run_cli(conn, n: int, labeler: str, audit: bool = False,
         print(f"DISAGREEMENT pass as {labeler} — {len(queue)} pair(s) where the\n"
               f"LLM labelers split. Their verdicts are hidden so your call stays\n"
               f"independent; each label here settles a model-family coin flip.\n")
+    elif near_ties:
+        queue = _near_tie_queue(conn, labeler, n)
+        print(f"NEAR-TIE pass as {labeler} — {len(queue)} pair(s) where the\n"
+              f"label model is least confident (Dawid-Skene posterior nearest\n"
+              f"0.5). Verdicts hidden; each label here moves the posterior most.\n")
     else:
         done = {(r["event_a"], r["event_b"]) for r in conn.execute(
             "SELECT event_a, event_b FROM pairwise_labels WHERE labeler=?", (labeler,))}
@@ -191,6 +230,10 @@ def main() -> None:
     ap.add_argument("--disagreements", action="store_true",
                     help="label only pairs where the LLM labelers disagree "
                          "(verdicts hidden) — the highest-information labels")
+    ap.add_argument("--near-ties", action="store_true",
+                    help="label pairs where the label model is least confident "
+                         "(Dawid-Skene posterior nearest 0.5; verdicts hidden) "
+                         "— the refill once the disagreement queue is empty")
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
@@ -206,7 +249,7 @@ def main() -> None:
         labeler = f"human:{args.by}/{load_rubric(rubric_name).label_suffix}"
     print(f"labeler id: {labeler}\n")
     run_cli(conn, args.n, labeler, audit=args.audit,
-            disagreements=args.disagreements)
+            disagreements=args.disagreements, near_ties=args.near_ties)
 
 
 if __name__ == "__main__":
