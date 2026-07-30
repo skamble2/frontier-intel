@@ -57,6 +57,7 @@ MODEL_FOR_TASK = {
     "persona": "claude-sonnet-5",             # UNUSED: no caller routes to it
     "judge": "claude-sonnet-5",               # pairwise preference, audited
     "channel": "claude-haiku-4-5-20251001",   # 5-way choice over every event
+    "verify": "claude-haiku-4-5-20251001",    # claim<->quote entailment, 3-way
 }
 
 # USD per 1M tokens (input, output). Verify against live pricing before

@@ -299,6 +299,21 @@ CREATE TABLE IF NOT EXISTS alerts (
     UNIQUE (event_id, persona, rule)
 );
 
+-- Faithfulness: does the claim follow from the verified quote ALONE? The quote
+-- is already byte-verified against the source (C2); this table records the
+-- remaining gap — whether the extracted claim is licensed by that quote. One
+-- verdict per (insight, model), so a second judge model lands as new rows
+-- rather than overwriting the first.
+CREATE TABLE IF NOT EXISTS claim_checks (
+    id         INTEGER PRIMARY KEY,
+    insight_id INTEGER NOT NULL REFERENCES insights(id),
+    model      TEXT NOT NULL,
+    verdict    TEXT NOT NULL CHECK (verdict IN ('entailed','partial','not_entailed')),
+    reason     TEXT,                        -- one line naming the unsupported part
+    created_at TIMESTAMP NOT NULL,
+    UNIQUE (insight_id, model)
+);
+
 -- Indexes last, so every table they reference exists. Only where a hot path
 -- needs one, each named with the query it serves.
 --   latest_documents runs a correlated subquery on url for every row, and the

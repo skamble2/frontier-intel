@@ -31,6 +31,7 @@ COMMANDS = {
     "score": "fli.intelligence.scoring",
     # validation + orchestration
     "evaluate": "fli.validation.evaluation",       # figures + report
+    "verify": "fli.validation.entailment",         # claim faithfulness (SPENDS)
     "checks": "fli.validation.checks",
     "xbench": "fli.validation.x_benchmark",
     "pipeline": "fli.orchestration.pipeline",
