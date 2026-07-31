@@ -4,7 +4,7 @@
 #############################################################
 
 --- G1 · resolve_lab hyphen fix: pct_inferred should collapse for DeepSeek ---
-    (was: DeepSeek 87.1% source_inferred because "DeepSeek-AI"/"DeepSeek-V4"
+    (was: DeepSeek 87.1% source_inferred because "DeepSeek-AI"/"DeepSeek-V4
      tokenised as one hyphenated token and never matched "DeepSeek")
 ┌─────────────────┬──────────┬────────────────┬─────────────────┬──────────────┐
 │ lab             │ insights │ model_asserted │ source_inferred │ pct_inferred │
@@ -430,6 +430,19 @@
 │ b      │ 763 │
 │ tie    │ 29  │
 └────────┴─────┘
+
+================ F1 · INGESTION FRESHNESS (publish -> retrieve lag, days) ================
+    The corpus was BACKFILLED once (historical archives ingested in one
+    sitting), so the all-time median is an archaeology number, not a
+    freshness number. The steady-state row — documents retrieved within
+    14 days of publication, i.e. those the scheduler caught live — is
+    the one that answers "how fresh is the intelligence".
+┌───────────────────────────┬──────┬──────────┬────────────┐
+│ cohort                    │ docs │ mean_lag │ median_lag │
+├───────────────────────────┼──────┼──────────┼────────────┤
+│ all documents             │ 1189 │ 122.7    │ 38.3       │
+│ steady state (lag <= 14d) │ 425  │ 6.0      │ 4.7        │
+└───────────────────────────┴──────┴──────────┴────────────┘
 
     NOTE: held-out pairwise accuracy, precision@10 / NDCG@20 per model,
     logistic coefficients, GBM importances, the ablation, and per-lab

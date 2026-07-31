@@ -350,6 +350,50 @@ LEFT JOIN labs l ON l.id=t.attributed_lab_id GROUP BY 1 ORDER BY in_top30 DESC;
 SELECT winner, count(*) AS n FROM pairwise_labels GROUP BY 1;
 
 .print ''
+.print '================ F1 · INGESTION FRESHNESS (publish -> retrieve lag, days) ================'
+.print '    The corpus was BACKFILLED once (historical archives ingested in one'
+.print '    sitting), so the all-time median is an archaeology number, not a'
+.print '    freshness number. The steady-state row — documents retrieved within'
+.print '    14 days of publication, i.e. those the scheduler caught live — is'
+.print '    the one that answers "how fresh is the intelligence".'
+SELECT 'all documents' AS cohort, count(*) AS docs,
+       ROUND(AVG(lag_d), 1) AS mean_lag,
+       (SELECT ROUND(lag_d, 1) FROM
+          (SELECT julianday(retrieved_at) - julianday(published_at) AS lag_d
+           FROM raw_documents
+           WHERE published_at IS NOT NULL
+             AND julianday(retrieved_at) >= julianday(published_at)
+           ORDER BY lag_d LIMIT 1
+           OFFSET (SELECT count(*) / 2 FROM raw_documents
+                   WHERE published_at IS NOT NULL
+                     AND julianday(retrieved_at) >= julianday(published_at)))
+       ) AS median_lag
+FROM (SELECT julianday(retrieved_at) - julianday(published_at) AS lag_d
+      FROM raw_documents
+      WHERE published_at IS NOT NULL
+        AND julianday(retrieved_at) >= julianday(published_at))
+UNION ALL
+SELECT 'steady state (lag <= 14d)', count(*),
+       ROUND(AVG(lag_d), 1),
+       (SELECT ROUND(lag_d, 1) FROM
+          (SELECT julianday(retrieved_at) - julianday(published_at) AS lag_d
+           FROM raw_documents
+           WHERE published_at IS NOT NULL
+             AND julianday(retrieved_at) >= julianday(published_at)
+             AND julianday(retrieved_at) - julianday(published_at) <= 14
+           ORDER BY lag_d LIMIT 1
+           OFFSET (SELECT count(*) / 2 FROM raw_documents
+                   WHERE published_at IS NOT NULL
+                     AND julianday(retrieved_at) >= julianday(published_at)
+                     AND julianday(retrieved_at) - julianday(published_at) <= 14))
+       ) AS median_lag
+FROM (SELECT julianday(retrieved_at) - julianday(published_at) AS lag_d
+      FROM raw_documents
+      WHERE published_at IS NOT NULL
+        AND julianday(retrieved_at) >= julianday(published_at)
+        AND julianday(retrieved_at) - julianday(published_at) <= 14);
+
+.print ''
 .print '    NOTE: held-out pairwise accuracy, precision@10 / NDCG@20 per model,'
 .print '    logistic coefficients, GBM importances, the ablation, and per-lab'
 .print '    precision@10 are computed in fli/score.py (printed at --bakeoff) —'
