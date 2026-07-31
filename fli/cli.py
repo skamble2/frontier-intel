@@ -41,6 +41,7 @@ COMMANDS = {
     "digest": "fli.delivery.digest",
     "alerts": "fli.delivery.alerts",
     "skeleton": "fli.orchestration.skeleton",
+    "web": "fli.web.app",                     # read-only browse UI
 }
 
 USAGE = "usage: python -m fli.cli {" + "|".join(COMMANDS) + "} [options]"

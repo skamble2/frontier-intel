@@ -291,6 +291,7 @@ python3 -m fli.cli personas --k 10           # SPENDS ~$0.12; idempotent
 python3 -m fli.cli digest --all --days 7     # docs/digests/<date>-<persona>.{md,pdf}
 python3 -m fli.cli alerts --days 7 --dry-run # what would be pushed, recording nothing
 python3 -m fli.cli alerts --days 7           # push + record, once per event
+python3 -m fli.cli web                       # read-only browse UI at http://127.0.0.1:5000
 ```
 
 - **The digest and the persona layer select from the same slate.** Both call
