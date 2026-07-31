@@ -366,7 +366,12 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
         f"Reliability is inferred from disagreement between families, so the "
         f"figure is not produced from a single family — and labelers working to "
         f"a DIFFERENT rubric are excluded, since they are estimating a "
-        f"different truth and would be scored as unreliable for disagreeing.")
+        f"different truth and would be scored as unreliable for disagreeing. "
+        f"The human's estimate is depressed by adverse selection, not skill: "
+        f"human votes come from the audit, disagreement and near-tie queues — "
+        f"deliberately the hardest pairs — while the LLM labelers vote on the "
+        f"whole random sample, so the two numbers are not on the same "
+        f"difficulty scale.")
 
 
 # --------------------------------------------------------------------------
@@ -398,8 +403,10 @@ def fig_bakeoff(conn) -> tuple[str, str]:
     ax.set_title(f"Bake-off — winner: {res['winner']}")
     ax.tick_params(axis="x", rotation=25)
     return _save(plt, fig, "f7_bakeoff", JUDGED), (
-        f"{res['n_labels']} labels, {res['n_test']} held-out pairs; "
-        f"winner {res['winner']}.")
+        f"{res['n_labels']} labels, {res['n_test']} held-out pairs; winner "
+        f"{res['winner']} at {res['report'][res['winner']]['heldout_acc']:.3f} "
+        f"held-out accuracy (chance is 0.5; every model must beat the "
+        f"baselines shown grey to earn its complexity).")
 
 
 def fig_ablation(conn) -> tuple[str, str]:
@@ -907,7 +914,11 @@ def fig_slate_precision(conn) -> tuple[str, str]:
         "(`digest --review`), which is precision@k for the system's central "
         "question. " + "; ".join(parts) + ". A cut item names the noise the "
         "slate rules let through; the review is per persona because the two "
-        "audiences call different things noise.")
+        "audiences call different things noise. The investment cuts are the "
+        "failure class f9 diagnosed — vendor case studies and official-channel "
+        "engineering posts whose feature shape (official source, high "
+        "specificity) the score rewards but the reader rejects — so the two "
+        "figures corroborate each other from independent human reads.")
 
 
 FIGURES = [
