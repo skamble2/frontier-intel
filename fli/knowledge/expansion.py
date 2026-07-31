@@ -32,14 +32,12 @@ ARXIV_API = "https://export.arxiv.org/api/query"
 ATOM = "{http://www.w3.org/2005/Atom}"
 
 # Collective author strings labs publish under; presence on a paper is
-# structural evidence that it is a lab paper.
-LAB_COLLECTIVE_AUTHORS = {
-    "DeepSeek-AI": "DeepSeek",
-    "Qwen Team": "Qwen",
-    "Gemini Team": "Google DeepMind",
-    "Llama Team": "Meta AI",
-    "Mistral AI": "Mistral",
-}
+# structural evidence that it is a lab paper. Config, not code: the mapping
+# lives in config/register_seeds.yml (collective_authors) so tracking a new
+# lab's collective never requires a code change.
+from fli.knowledge.register.seeding import load_seeds
+
+LAB_COLLECTIVE_AUTHORS = dict(load_seeds().get("collective_authors") or {})
 
 
 def _author_query(name: str) -> str:

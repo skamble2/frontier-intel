@@ -61,6 +61,18 @@ labs:
       - {url: "https://x.ai/about", channel: official}
       - {url: "https://en.wikipedia.org/wiki/XAI_(company)", channel: third_party}
 
+# Collective author strings labs publish under on arXiv; presence on a paper
+# is structural evidence that it is a lab paper (used by co-author expansion
+# and stage-1 filtering). A new lab's collective is a config line, not code.
+# OpenAI, Anthropic and xAI publish under individual names only — their
+# absence here is a fact about arXiv, not a gap.
+collective_authors:
+  "DeepSeek-AI": DeepSeek
+  "Qwen Team": Qwen
+  "Gemini Team": Google DeepMind
+  "Llama Team": Meta AI
+  "Mistral AI": Mistral
+
 seed_people:
   - {lab: OpenAI,          name: Sam Altman,        role: CEO,             tier: founder}
   - {lab: OpenAI,          name: Greg Brockman,     role: President,       tier: founder}
