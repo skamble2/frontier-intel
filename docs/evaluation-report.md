@@ -150,7 +150,7 @@ most over-represented: DeepSeek at 2.8x its corpus share (5% of events, 14% of t
 
 *JUDGED — against an unaudited LLM reference; treat as provisional*
 
-Every quote is byte-verified against its source (check C2), so this measures the remaining hallucination surface: whether the extracted claim is supported by the quote ALONE. claude-haiku-4-5-20251001: 382/734 entailed (52.0%), 341 partial, 11 not entailed. `partial` names a load-bearing fact (a number, a date, an actor) the quote does not carry — the actionable failure mode for an extraction prompt revision. Verification tier ledger: 734/734 insight quotes are exact-tier (byte-verbatim under the shared normalization; C19 enforces this stays 100%). The corpus's 1255 structural rows carry no claims — they are the register's author-name spans in structured documents, where structural IS the designed tier.
+Every quote is byte-verified against its source (check C2), so this measures the remaining hallucination surface: whether the extracted claim is supported by the quote ALONE. claude-haiku-4-5-20251001: 382/734 entailed (52.0%), 341 partial, 11 not entailed. `partial` names a load-bearing fact (a number, a date, an actor) the quote does not carry — the actionable failure mode for an extraction prompt revision. Verification tier ledger: 734/734 insight quotes are exact-tier (byte-verbatim under the shared normalization; C19 enforces this stays 100%). The corpus's 1255 structural rows carry no claims — they are the register's author-name spans in structured documents, where structural IS the designed tier. Of the 43 quotes the verifier REJECTED (never shown to a reader): 20 are >=80%-contiguous near-misses — the verifier being stricter than the normalization, not model failures; 21 are paraphrases; only 2 are fabrications with no anchor in the source. The floor metric is really a characterized rejection ledger.
 
 ### Digest slate precision@k
 
@@ -159,3 +159,11 @@ Every quote is byte-verified against its source (check C2), so this measures the
 *vs HUMAN REFERENCE — agreement, not accuracy*
 
 Each delivered digest item was marked keep or cut by a human reader (`digest --review`), which is precision@k for the system's central question. ai_team: 12/14 kept (86%); investment: 3/14 kept (21%). A cut item names the noise the slate rules let through; the review is per persona because the two audiences call different things noise. The investment cuts are the failure class f9 diagnosed — vendor case studies and official-channel engineering posts whose feature shape (official source, high specificity) the score rewards but the reader rejects — so the two figures corroborate each other from independent human reads.
+
+### Planted-policy recovery
+
+![Planted-policy recovery](f17_synthetic_recovery.png)
+
+*SYNTHETIC — ground truth known by construction*
+
+Four known weight vectors of increasing difficulty are planted over the real standardized feature matrix (real, so recovery must survive the actual feature correlations), 400 pairwise labels are generated from each with 10% of verdicts flipped — the same order of unreliability f6 measured in the real judge — and the bake-off's own training path (antisymmetric pair differences, intercept-free logistic) is asked for the planted ranking back. single_feature: AUC 0.98, F1 0.89; hand_shape: AUC 0.98, F1 0.92; dense_mixed: AUC 0.96, F1 0.85; anti_prior: AUC 0.96, F1 0.88. `anti_prior` puts a NEGATIVE weight on recency, so no baseline shape recovers it by luck; its recovery shows the machinery follows the labels, not the priors. This validates the machinery, not the product: it says that IF reader preferences are near-linear in these features, the pipeline finds them through judge-level noise — whether the judge's preferences are the READER's is what f6 and f16 measure.

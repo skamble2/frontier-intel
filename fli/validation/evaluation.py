@@ -868,13 +868,46 @@ def fig_faithfulness(conn) -> tuple[str, str]:
               f"{other.get('structural', 0)} structural rows carry no claims \u2014 "
               "they are the register's author-name spans in structured "
               "documents, where structural IS the designed tier.")
+    # The REJECTED quotes, characterized rather than just counted. Each
+    # quote_unverified row is re-diffed against its source: a >=80% contiguous
+    # match is the verifier being stricter than the normalization (truncation,
+    # markup seams), a high word-overlap is a paraphrase, and anything else is
+    # a fabrication — the only class that is actually a hallucinated quote.
+    import difflib
+    from fli.core.text import html_to_text, norm
+    rej = {"near_miss": 0, "paraphrase": 0, "fabrication": 0}
+    for r in conn.execute(
+            "SELECT r.detail, d.raw_content FROM rejections r"
+            " JOIN raw_documents d ON d.id = r.document_id"
+            " WHERE r.reason = 'quote_unverified'"):
+        quote, text = norm(r["detail"]), norm(html_to_text(r["raw_content"]))
+        if not quote:
+            continue
+        sm = difflib.SequenceMatcher(None, quote, text, autojunk=False)
+        m = sm.find_longest_match(0, len(quote), 0, len(text))
+        words = [w for w in quote.split() if len(w) > 3]
+        present = sum(1 for w in words if w in text) / max(len(words), 1)
+        if m.size / len(quote) >= 0.8:
+            rej["near_miss"] += 1
+        elif present >= 0.6:
+            rej["paraphrase"] += 1
+        else:
+            rej["fabrication"] += 1
+    n_rej = sum(rej.values())
+    rejected = (f" Of the {n_rej} quotes the verifier REJECTED (never shown "
+                f"to a reader): {rej['near_miss']} are >=80%-contiguous "
+                "near-misses \u2014 the verifier being stricter than the "
+                f"normalization, not model failures; {rej['paraphrase']} are "
+                f"paraphrases; only {rej['fabrication']} are fabrications with "
+                "no anchor in the source. The floor metric is really a "
+                "characterized rejection ledger.")
     return _save(plt, fig, "f15_faithfulness", JUDGED), (
         "Every quote is byte-verified against its source (check C2), so this "
         "measures the remaining hallucination surface: whether the extracted "
         "claim is supported by the quote ALONE. " + "; ".join(parts) +
         ". `partial` names a load-bearing fact (a number, a date, an actor) "
         "the quote does not carry \u2014 the actionable failure mode for an "
-        "extraction prompt revision. " + ledger)
+        "extraction prompt revision. " + ledger + rejected)
 
 
 def fig_slate_precision(conn) -> tuple[str, str]:
@@ -921,6 +954,63 @@ def fig_slate_precision(conn) -> tuple[str, str]:
         "figures corroborate each other from independent human reads.")
 
 
+def fig_synthetic_recovery(conn) -> tuple[str, str]:
+    """Recovery of four planted policies — the one figure where F1 is honest.
+
+    Everything else in this report is capped at agreement, because no gold
+    standard for event importance exists. Here relevance is known by
+    construction: a known weight vector is planted over the REAL feature
+    matrix, noisy pairwise labels are generated from it the way the judge
+    produces them, and the bake-off's own training path is asked for the
+    ranking back.
+    """
+    from fli.validation.synthetic import NOISE, N_PAIRS, run_synthetic
+    plt, _ = _style()
+    results = run_synthetic(conn)
+    if not results:
+        raise Skipped("python3 -m fli.cli extract && python3 -m fli.cli features")
+
+    policies = list(results)
+    metrics = ["roc_auc", "f1", "precision", "recall"]
+    colors = {"roc_auc": "#1d4ed8", "f1": "#16a34a",
+              "precision": "#9333ea", "recall": "#ea580c"}
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+    x = range(len(policies))
+    width = 0.2
+    for j, m in enumerate(metrics):
+        vals = [results[p][m] for p in policies]
+        pos = [i + (j - 1.5) * width for i in x]
+        ax.bar(pos, vals, width=width, color=colors[m], label=m)
+    for i, p in enumerate(policies):
+        ax.text(i - 1.5 * width, results[p]["roc_auc"],
+                f"{results[p]['roc_auc']:.2f}", ha="center", va="bottom",
+                fontsize=9)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(policies, fontsize=10)
+    ax.set_ylim(0, 1.12)
+    ax.axhline(0.5, color="grey", ls="--", lw=1)
+    ax.text(len(policies) - 0.55, 0.51, "chance", fontsize=9, color="grey")
+    ax.legend(fontsize=9, ncol=4, loc="lower right")
+    ax.set_title("Planted-policy recovery \u2014 F1/AUC honest by construction")
+    parts = [f"{p}: AUC {results[p]['roc_auc']:.2f}, F1 {results[p]['f1']:.2f}"
+             for p in policies]
+    return _save(plt, fig, "f17_synthetic_recovery", SYNTHETIC), (
+        "Four known weight vectors of increasing difficulty are planted over "
+        "the real standardized feature matrix (real, so recovery must survive "
+        f"the actual feature correlations), {N_PAIRS} pairwise labels are "
+        f"generated from each with {NOISE:.0%} of verdicts flipped \u2014 the "
+        "same order of unreliability f6 measured in the real judge \u2014 and "
+        "the bake-off's own training path (antisymmetric pair differences, "
+        "intercept-free logistic) is asked for the planted ranking back. "
+        + "; ".join(parts) + ". `anti_prior` puts a NEGATIVE weight on "
+        "recency, so no baseline shape recovers it by luck; its recovery "
+        "shows the machinery follows the labels, not the priors. This "
+        "validates the machinery, not the product: it says that IF reader "
+        "preferences are near-linear in these features, the pipeline finds "
+        "them through judge-level noise \u2014 whether the judge's preferences "
+        "are the READER's is what f6 and f16 measure.")
+
+
 FIGURES = [
     ("Signal-vs-noise funnel", fig_funnel, "f1_funnel"),
     ("Feature correlation", fig_feature_correlation, "f2_feature_correlation"),
@@ -938,6 +1028,7 @@ FIGURES = [
     ("Talent mobility mechanism", fig_mobility, "f14_mobility"),
     ("Claim faithfulness (entailment)", fig_faithfulness, "f15_faithfulness"),
     ("Digest slate precision@k", fig_slate_precision, "f16_slate_precision"),
+    ("Planted-policy recovery", fig_synthetic_recovery, "f17_synthetic_recovery"),
 ]
 
 
