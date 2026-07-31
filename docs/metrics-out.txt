@@ -426,9 +426,9 @@
 ┌────────┬─────┐
 │ winner │ n   │
 ├────────┼─────┤
-│ a      │ 802 │
-│ b      │ 724 │
-│ tie    │ 18  │
+│ a      │ 856 │
+│ b      │ 763 │
+│ tie    │ 29  │
 └────────┴─────┘
 
     NOTE: held-out pairwise accuracy, precision@10 / NDCG@20 per model,

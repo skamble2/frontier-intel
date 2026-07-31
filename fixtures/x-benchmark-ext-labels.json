@@ -5,8 +5,8 @@
     "url": "https://x.com/AIatMeta/status/2077804869826613422",
     "text": "We heard you and are happy to announce that Muse Spark 1.1 is now available on @OpenRouter for US-based developers. \n\nWe look forward to seeing what the community builds. https://t.co/rFGgdWU5Ws",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
-    "channel": "none",
+    "audited": true,
+    "channel": "competitive_displacement",
     "is_signal": false,
     "reason": "Product availability announcement with no quantified resource commitment, compute allocation, energy contract, talent movement, or market displacement affecting portfolio holdings."
   },
@@ -16,7 +16,7 @@
     "url": "https://x.com/Alibaba_Qwen/status/2079906355440472284",
     "text": "Authentic Details and Deep Knowledge are also major upgrades in this release. Together, they enable Qwen-Image-3.0 to make real breakthroughs in high-value productivity scenarios \u2014 newspaper PDFs, short-drama storyboards, complex UI, and more. As image generation keeps advancing, https://t.co/gq8RagDZvt",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product feature announcement (image generation quality improvements) with no disclosed compute, energy, talent, data economics, or competitive displacement quantities."
@@ -27,7 +27,7 @@
     "url": "https://x.com/AmandaAskell/status/2069925173999083974",
     "text": "update 2: nooo",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Exclamation with no substantive content; no quantity or commitment disclosed."
@@ -38,7 +38,7 @@
     "url": "https://x.com/AnthropicAI/status/2074185363401167261",
     "text": "Similar to how humans can think about one thing while doing another, Claude can activate concepts and computations in its J-space that are unrelated to its outputs. https://t.co/J3V73DQ6UY",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Tweet describes internal architecture/capability claim; no resource quantity, market shift, or externally-priced commitment changes hands."
@@ -49,7 +49,7 @@
     "url": "https://x.com/ChrSzegedy/status/2079668875986399693",
     "text": "Generally, I am very excited about the prospects of fully automating strong mathematical reasoning.\n\nSo far, mathematics could not live up to its full potential: becoming the true infrastructure for all of sciences and engineering.\n\nSoon, it will.",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Aspirational statement about research direction with no quantified commitment, resource allocation, or market-moving event."
@@ -60,7 +60,7 @@
     "url": "https://x.com/DarioAmodei/status/1977010693460443151",
     "text": "Today I met with PM @narendramodi to discuss Anthropic's expansion to India\u2014where Claude Code use is up 5\u00d7 since June. How India deploys AI across critical sectors like education, healthcare, and agriculture for over a billion people will be essential in shaping the future of AI. https://t.co/rt0baeqEeC",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Usage growth metric (5\u00d7) is internal to Anthropic's product adoption; no quantity commitment or market shift that requires portfolio response."
@@ -71,7 +71,7 @@
     "url": "https://x.com/GoogleDeepMind/status/2075620281515929716",
     "text": "A model\u2019s chain of thought acts like a scratch pad, offering a window into its reasoning. \ud83d\udcdd\n\nOn the latest episode of our podcast, host @fryrsquared sits down with @NeelNanda5 to explore interpretability \u2013 the science of reverse engineering how neural networks learn and think. https://t.co/JWHFnzzrOD",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Podcast episode on interpretability research methodology; no change to compute capacity, energy contracts, market share, data economics, or hiring announcements affecting portfolio companies."
@@ -82,7 +82,7 @@
     "url": "https://x.com/GuillaumeLample/status/2011860372349747416",
     "text": "Master: https://t.co/r5ftstyHpI\nPhD:  https://t.co/Y1NbcqAQ62",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "unparseable"
@@ -93,7 +93,7 @@
     "url": "https://x.com/JustinLin610/status/2064623877192606111",
     "text": "exactement https://t.co/7fSpnLrw0N",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "unparseable"
@@ -104,7 +104,7 @@
     "url": "https://x.com/MistralAI/status/2073163455910330528",
     "text": "Customers are not an abstraction for us: we exist to help enterprises, public institutions, and industries build their own intelligence, so the value created from their data, workflows, feedback, and models accrues to them rather than to model providers. https://t.co/0IYVIrVjF1",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Mission statement about business philosophy and value distribution; no quantity moved, no resource commitment, no market displacement metric disclosed."
@@ -115,7 +115,7 @@
     "url": "https://x.com/OpenAI/status/2077446722683650525",
     "text": "Training against GPT\u2011Red makes GPT\u20115.6 substantially more resilient. To measure this, we replayed some of GPT\u2011Red\u2019s strongest attacks\u2014none of which our models had seen during training. GPT\u20115.6 Sol proved to be our most robust model against prompt injections to date, with 6\u00d7 fewer",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "This describes internal model robustness improvements from adversarial training\u2014a research result with no external quantity commitment, market shift, or resource requirement that fund portfolio companies must respond to."
@@ -126,7 +126,7 @@
     "url": "https://x.com/OriolVinyalsML/status/2024519612579422598",
     "text": "\"make it first person view (i want to see the rollercoaster in front of me)\" https://t.co/bDeCbpOWuL",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "User request for video perspective change; no quantity movement affecting external parties or fund portfolio."
@@ -137,7 +137,7 @@
     "url": "https://x.com/TheGregYang/status/2066820208908796279",
     "text": "my left achilles is flaring up again and Lenin pulls up on my ice pack\n\nwhat mean???? https://t.co/XfAko5zciI",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Personal health anecdote unrelated to frontier AI labs, compute, energy, data economics, competitive markets, or talent movement."
@@ -148,7 +148,7 @@
     "url": "https://x.com/Yuhu_ai_/status/1991218732526649359",
     "text": "We definitely a bit lowkey this time. No ads no hype, but clearly from our user metrics and feedbacks - ppl love it and growth is very strong. \n\n4.1 is a great model. https://t.co/H8Fd2paFd5",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product release announcement with qualitative user sentiment; no specific quantity, commitment, or market-moving number disclosed."
@@ -159,8 +159,8 @@
     "url": "https://x.com/_rockt/status/2077137953470497272",
     "text": "Fantastic opportunities to shape @BOLD_Lab_AI https://t.co/beiH7pWVOa",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
-    "channel": "none",
+    "audited": true,
+    "channel": "talent_movement",
     "is_signal": false,
     "reason": "Generic recruitment announcement with no specific headcount, salary commitment, or talent movement data disclosed."
   },
@@ -170,7 +170,7 @@
     "url": "https://x.com/aidan_mclau/status/2067108097878061412",
     "text": "with asi, one can tradeoff their personhood to maximize their goals \n\nunlike teaming up with stockfish, there probably *is* some pareto-optimal point of you working with asi to maximize your goals and personhood that preserves human skill",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Philosophical argument about human-AI collaboration tradeoffs; no quantity moved in any portfolio transmission channel."
@@ -181,7 +181,7 @@
     "url": "https://x.com/alexandr_wang/status/2077847582559359484",
     "text": "muse spark 1.1 on eyebench https://t.co/gNpyBgwru1",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product release announcement with benchmark result; no quantity commitment or market-moving change outside the lab"
@@ -192,7 +192,7 @@
     "url": "https://x.com/arthurmensch/status/1940781536112165315",
     "text": "Mistral is proud to provide the text LLM powering Unmute, the open-source voice AI from @kyutai_labs! https://t.co/q0O9W6j8IE",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product integration announcement with no quantified resource commitment, compute allocation, energy contract, market displacement, or talent movement."
@@ -203,7 +203,7 @@
     "url": "https://x.com/catherineols/status/1894104736506548602",
     "text": "Claude Code is very useful, but it can still get confused.\n\nA few quick tips from my experience coding with it at Anthropic \ud83d\udc49\n\n1) Work from a clean commit so it's easy to reset all the changes. Often I want to back up and explain it from scratch a different way. https://t.co/gw8mQWJ1Yw",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product usage tips and internal experience sharing; no quantity commitment, market displacement, or resource allocation affecting external parties."
@@ -214,7 +214,7 @@
     "url": "https://x.com/ch402/status/2028519710514708577",
     "text": "@CharlieBul58993 @JTillipman @bridgewriter New article from @ARozenshtein - https://t.co/q1oGgpoQGh",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Tweet announces publication of an article; no specific quantity, commitment, or market-moving event is disclosed."
@@ -225,8 +225,8 @@
     "url": "https://x.com/deepseek_ai/status/2047516926432399791",
     "text": "DeepSeek-V4-Pro\n\n\ud83d\udd39 Enhanced Agentic Capabilities: Open-source SOTA in Agentic Coding benchmarks.\n\ud83d\udd39 Rich World Knowledge: Leads all current open models, trailing only Gemini-3.1-Pro.\n\ud83d\udd39 World-Class Reasoning: Beats all current open models in Math/STEM/Coding, rivaling top https://t.co/D04x5RjE3L",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
-    "channel": "none",
+    "audited": true,
+    "channel": "competitive_displacement",
     "is_signal": false,
     "reason": "Benchmark claims and model capability statements have no direct portfolio transmission mechanism; no compute, energy, data economics, or talent quantities moved."
   },
@@ -236,8 +236,8 @@
     "url": "https://x.com/demishassabis/status/2056904067406860545",
     "text": "Gemini 3.5 Flash is amazing!\n\n- Performs better than 3.1 Pro on coding &amp; agentic tasks\n- 4x faster than other frontier models\n- 12x faster in @antigravity - 800 tokens/sec!\n- Often at less than half the cost\n\nAnd Pro to come\u2026\n\nTry it in @antigravity, @GeminiApp &amp; more - enjoy! https://t.co/ujGtiDBfSL",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
-    "channel": "none",
+    "audited": true,
+    "channel": "competitive_displacement",
     "is_signal": false,
     "reason": "Product performance claims and speed metrics are marketing announcements with no quantity commitment that affects external parties' resource allocation or market position."
   },
@@ -247,7 +247,7 @@
     "url": "https://x.com/elonmusk/status/2081485024872796427",
     "text": "Grok 4.5 is a solid workhorse https://t.co/F1ZKL0p1BM",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product quality assessment with no quantified resource commitment, market shift, or talent movement affecting external parties."
@@ -258,7 +258,7 @@
     "url": "https://x.com/gdb/status/2078922461660533120",
     "text": "one of the best features of ChatGPT Work is that it runs in the cloud, meaning that it works from mobile, with your laptop closed.\n\nkinda crazy how long the main way to get the magic of agents has been while leaving your laptop cracked open!",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product feature announcement (cloud deployment) with no quantified commitment, capacity change, or market displacement signal."
@@ -269,7 +269,7 @@
     "url": "https://x.com/huybery/status/2019072773818360270",
     "text": "How to scale training environments for coding agents? Let the agent build their own! \ud83d\ude4c\n\nWe introduce SWE-Universe \ud83e\ude90, a scalable framework that turns GitHub PRs into real-world, multilingual, verifiable SWE environments. The agent configures each environment like a human expert, https://t.co/dBKBX67tUO",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Framework/methodology for agent training environments; no external quantity commitment, compute procurement, or market displacement signal."
@@ -280,7 +280,7 @@
     "url": "https://x.com/ibab/status/2025304388877910082",
     "text": "Building great AI products requires excellence in both creativity and technical execution. You need to create the right culture and enough space for good ideas to emerge and grow naturally, then fuel the best ideas with strong execution.\n\nThe reason you see most good products https://t.co/a3OwZFSIy4",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Generic product philosophy statement with no quantified commitment, resource allocation, or market-moving event."
@@ -291,7 +291,7 @@
     "url": "https://x.com/jackclarkSF/status/2080850618747699272",
     "text": "7pm: Thinking to myself after closing the door on my toddler who I've just tucked into bed: They are an angel. I am so blessed. I love them infinitely.\n\n8pm (after they've come out of their room 7 or 8 times): What if I bricked up their door at night?",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Personal parenting reflection with no bearing on frontier-AI-lab events, technology fund portfolios, or any market quantity."
@@ -302,7 +302,7 @@
     "url": "https://x.com/jaredkaplan/status/2038010544221737380",
     "text": "Only if Deuce Bigalow gets sent first https://t.co/dcBoGfTF5s",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Social media commentary/meme with no quantifiable commitment or market-moving event"
@@ -313,7 +313,7 @@
     "url": "https://x.com/jaseweston/status/2041864833214095484",
     "text": "\ud83c\udfcb\ufe0fThinking Mid-training: RL of Interleaved Reasoning\ud83c\udf97\ufe0f\n\nWe address the gap between pretraining (no explicit reasoning) and post-training (reasoning-heavy) with an intermediate SFT+RL mid-training phase to teach models how to think.\n\n- Annotate pretraining data with interleaved https://t.co/jU94uavhVt",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "This describes a training methodology improvement (SFT+RL interleaving) with no impact on compute resources, energy contracts, market displacement, data economics, or talent movement outside the lab."
@@ -324,7 +324,7 @@
     "url": "https://x.com/jeffdean/status/2065649717573505188",
     "text": "People replace their phones every ~4 yrs.  This means there are hundreds of millions of old phones discarded each year that are still perfectly usable as computing devices.  @Google in collabration with @UCSD is exploring how to turn these old phones into cloud-computing \u201cphone https://t.co/0DIUpxcQox",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "compute_memory",
     "is_signal": true,
     "reason": "Repurposing discarded phones as compute infrastructure changes available compute capacity outside the lab, but the quantity is speculative and deployment timeline unclear."
@@ -335,7 +335,7 @@
     "url": "https://x.com/jimmybajimmyba/status/1867289819950248442",
     "text": "throwback thurs to two yrs ago at neurips:\n\npounded warm beer in an epic flunkyball match with world champ, played jenga with homies training big models for fun, then it hit, yall know whats missing? another agi company!\n\npeak pre-agi vibes https://t.co/ih7k0Fslol",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Nostalgic social media post about a conference experience; no quantity moved, no market commitment, no resource allocation disclosed."
@@ -346,7 +346,7 @@
     "url": "https://x.com/koraykv/status/2028876507679191392",
     "text": "You can input text, images, videos, audio and pdfs. Rather than writing pdf parsers, you can use 3.1 Flash-Lite! https://t.co/eIH8QPXF2d",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product capability announcement (multimodal input support) with no quantity commitment, market displacement, talent movement, or resource allocation affecting external parties."
@@ -357,7 +357,7 @@
     "url": "https://x.com/merettm/status/1945157403315724547",
     "text": "I am extremely excited about the potential of chain-of-thought faithfulness &amp; interpretability. It has significantly influenced the design of our reasoning models, starting with o1-preview.\n\nAs AI systems spend more compute working e.g. on long term research problems, it is https://t.co/7Dqy2gtZfy",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Statement about research direction and model design philosophy; no quantity commitment, resource allocation, or market-moving event disclosed."
@@ -368,7 +368,7 @@
     "url": "https://x.com/npew/status/2054316924868370647",
     "text": "GPT 5.5 xhigh is a beast. Fun to see progress on this (very hard) benchmark. https://t.co/LBIsuxYbQ1",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Benchmark performance improvement is research progress with no direct portfolio impact\u2014no compute, energy, market displacement, talent movement, or supply-chain quantity changed."
@@ -379,7 +379,7 @@
     "url": "https://x.com/sama/status/2080683119959757243",
     "text": "let us know what you think of pro-ultra-superhard https://t.co/df2WxqXsIx",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Link text is opaque; without access to the URL content, cannot assess whether any quantity or commitment affecting fund portfolio exposure has moved."
@@ -390,7 +390,7 @@
     "url": "https://x.com/sleepinyourhat/status/2077462200781091121",
     "text": "subtler scenarios involving fraud and motivated sabotage, in test cases that are extreme and a bit stylized but that still do map onto situations we worry models may occasionally find themselves in.",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "This describes research methodology (test case design for model behavior), not a quantity change affecting external parties or fund portfolio holdings."
@@ -401,7 +401,7 @@
     "url": "https://x.com/timlacroix/status/233109590030548992",
     "text": "#werken@Deli XL Geleen",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Hashtag reference to a location/facility with no quantified commitment, resource allocation, or market-moving event described."
@@ -412,7 +412,7 @@
     "url": "https://x.com/tydsh/status/2059144701589234135",
     "text": "Great work @YujieZhao455906! In this work, we build \n\n1\ufe0f\u20e3 AMA-Bench that evaluates long-horizon memory in real-world tasks;\n2\ufe0f\u20e3 AMA-Agent that tracks causality and objective info across long trajectories to achieve better performance than existing agentic designs. \n\nThe paper has https://t.co/DJisASYgL9",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Benchmark and agent architecture announcement with no disclosed compute, energy, talent movement, data economics shift, or market displacement impact."
@@ -423,7 +423,7 @@
     "url": "https://x.com/woj_zaremba/status/2015457668685799432",
     "text": "Looking for ambitious, concrete projects to prepare the world for advanced AI. \ud83e\udde0 \ud83d\ude80 https://t.co/PRy3DNSenS",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Aspirational call for projects with no concrete commitment, quantity, or market-moving event disclosed."
@@ -434,7 +434,7 @@
     "url": "https://x.com/ylecun/status/2080588168781336630",
     "text": "Tired of winning https://t.co/PIbhQ4mlDF",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Celebratory/marketing statement with no quantifiable commitment, resource allocation, or market-moving event."
@@ -445,7 +445,7 @@
     "url": "https://x.com/AIatMeta/status/2074587874448625869",
     "text": "Muse Image composes elements from many input reference images in the prompt, including people, objects, clothing, styles, and environments. It supports interleaving text and images inline in prompts for complex image compositions.\n\nExplore this thread: https://t.co/UbLzdW19za https://t.co/hUG5qk7UsP",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product capability announcement (image composition features) with no quantified market, resource, or competitive shift that affects fund portfolio."
@@ -456,7 +456,7 @@
     "url": "https://x.com/Alibaba_Qwen/status/2079569154340995138",
     "text": "\ud83d\udd25\ud83d\udd25 https://t.co/5349vbRSyf",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "unparseable"
@@ -467,7 +467,7 @@
     "url": "https://x.com/AmandaAskell/status/2073786264059625897",
     "text": "Extracting a probability from a doctor is one of life's unnecessary boss battles. Even if you beg them for an interval-valued subjective probability, and at that point you're basically asking for their hunch. I don't know if they get sued for giving out information or something.",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Observational commentary on medical communication practices; no quantity moved in any portfolio-relevant market or resource constraint."
@@ -478,7 +478,7 @@
     "url": "https://x.com/AnthropicAI/status/2074185390060110138",
     "text": "We also partnered with Neuronpedia to create an interactive demo of our methods on open-weights models.\n\nTry it here: https://t.co/hkmYl0IOn2",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Partnership announcement for a demo tool; no quantity change in compute, energy, data economics, displacement, or talent movement outside the lab."
@@ -489,7 +489,7 @@
     "url": "https://x.com/ChrSzegedy/status/2078624857223536824",
     "text": "The fields medal awarded next week will be the last one. https://t.co/qANy27jV3f",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Award announcement with no impact on compute, energy, data economics, competitive displacement, or talent movement in frontier AI labs."
@@ -500,7 +500,7 @@
     "url": "https://x.com/DarioAmodei/status/1844830404064288934",
     "text": "Machines of Loving Grace: my essay on how AI could transform the world for the better\n\nhttps://t.co/CFGd4Sbq86",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Essay on AI's potential societal benefits is speculative commentary with no quantified commitment, resource allocation, or market-moving event."
@@ -511,7 +511,7 @@
     "url": "https://x.com/GoogleDeepMind/status/2076686114631340046",
     "text": "Here\u2019s how we used the Predicting the Past Skill in Google @Antigravity to track down a Roman ring thief, map an ancient cult across Europe, and reconstruct the networks of people visiting a Greek oracle. \ud83e\uddf5 https://t.co/Qz8lXnxbkJ",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Application of existing AI capability to historical/archaeological analysis; no change in compute, energy, talent, data economics, or competitive market quantities."
@@ -522,7 +522,7 @@
     "url": "https://x.com/GuillaumeLample/status/2011860370848088489",
     "text": "\ud83d\ude80 We are hiring Research Interns !\n\nWe are looking for Master's and PhD students (final year) with a strong background in AI / ML / NLP who want to work on cutting-edge AI systems alongside Mistral AI researchers.\n\n\ud83d\udccd Location: Paris, London, or Palo Alto\n\u23f3 Duration: 4-6 months",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "talent_movement",
     "is_signal": true,
     "reason": "Hiring announcement signals talent acquisition pipeline, but no specific headcount or commitment disclosed\u2014only a job posting."
@@ -533,7 +533,7 @@
     "url": "https://x.com/JustinLin610/status/2077601106356515071",
     "text": "one thought about possible misunderstanding: here we are discussing more about strategic use of models instead of technical methods. we did things like imagining moe really playing like experts or setting up a task router to save costs but found them hard to work well. here what",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Internal R&D discussion of model architecture strategies (MoE, routing); no external quantity commitment or market impact."
@@ -544,7 +544,7 @@
     "url": "https://x.com/MistralAI/status/2074856314132410755",
     "text": "Trained entirely in simulation: ~400,000 trajectories across 6,000 scenes. A prefix-caching recipe cuts training tokens by 22\u00d7, turning months-long runs into days. Online RL (CISPO) pushes success rates higher still.",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "compute_memory",
     "is_signal": true,
     "reason": "Demonstrable efficiency gain (22\u00d7 token savings) reduces compute cost per trained model, but impact on fund portfolio depends on whether this methodology spreads to commercial labs' production runs or remains a research technique."
@@ -555,7 +555,7 @@
     "url": "https://x.com/OpenAI/status/2078243670265041038",
     "text": "Here's how to add the Codex Security plugin in Codex and get started:\n\nAdd the plugin in Codex. After installation is complete, the button changes to \u201cTry in chat.\u201d\n\nClick \u201cTry in chat\u201d to start a new Codex chat with a Codex Security scan prompt ready to run.\n\nChoose a folder https://t.co/oM1XKKlHco",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "This is a product feature/UX instruction for a security plugin; no quantity, market, talent, or resource commitment moves outside the lab."
@@ -566,8 +566,8 @@
     "url": "https://x.com/OriolVinyalsML/status/2024519605570720185",
     "text": "Gemini 3.1 Pro has landed! Amazing performance / capabilities across the board. \n\nBeyond SOTA, the best are all the things that evals can't measure. E.g. SVG has gotten so much better (see \ud83e\uddf5)\n\nhttps://t.co/JDhT0NRY5L https://t.co/P5Usa67bzQ",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
-    "channel": "none",
+    "audited": true,
+    "channel": "competitive_displacement",
     "is_signal": false,
     "reason": "Product capability announcement with no quantified resource commitment, market displacement, or talent movement affecting external parties."
   },
@@ -577,7 +577,7 @@
     "url": "https://x.com/TheGregYang/status/2060453899560276349",
     "text": "curing yourself of a mentally debilitating disease is like the hardest continual learning benchmark",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Metaphorical comparison between disease recovery and ML benchmarks; no quantity moved, no market/resource commitment, no portfolio transmission mechanism."
@@ -588,7 +588,7 @@
     "url": "https://x.com/Yuhu_ai_/status/1990537028950511707",
     "text": "Grok4.1 thinking and non thinking sitting at #1 and #2, 31 elo scores above others. https://t.co/mMyoivi427",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Benchmark ranking is a performance claim with no direct quantity impact on fund portfolio companies' costs, revenues, or talent availability."
@@ -599,7 +599,7 @@
     "url": "https://x.com/_rockt/status/2080319438566334857",
     "text": "Insane ramp to build 10x more efficient inference. Congrats @robertwachen and @Etched team! https://t.co/s9W0vWT8EX",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Efficiency improvement claim with no external quantity commitment; internal R&D milestone with no portfolio-facing resource or market impact."
@@ -610,7 +610,7 @@
     "url": "https://x.com/aidan_mclau/status/2067108093193023963",
     "text": "basically, the vaguer the prompt you give a superintelligence, the better off you are\n\nthis is a different form of the bitter lesson",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Philosophical claim about AI alignment strategy with no portfolio-relevant quantity or commitment."
@@ -621,7 +621,7 @@
     "url": "https://x.com/alexandr_wang/status/2079707328287547723",
     "text": "muse spark 1.1 is SOTA model on video-to-code \ud83d\udd25 https://t.co/SIRFbnxnMW",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Benchmark achievement announcement with no quantity commitment, resource allocation, or market impact outside the lab."
@@ -632,7 +632,7 @@
     "url": "https://x.com/arthurmensch/status/2066913353860018596",
     "text": "We somehow got put in the spotlight the last few days! First we'd like to thank the organizers of the AI show for that, we can't get enough of this stuff. I'll say a few things about where we are and what we do.",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Generic gratitude and self-promotion with no quantified commitments, resource movements, or market-facing changes."
@@ -643,7 +643,7 @@
     "url": "https://x.com/catherineols/status/2053187610043154915",
     "text": "Wenders: Heeding Is All You Need https://t.co/9rPO3PWo7c",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Title is a research concept play ('Attention Is All You Need'); no quantity commitment, resource allocation, or market-moving event disclosed."
@@ -654,7 +654,7 @@
     "url": "https://x.com/ch402/status/2028216404282073346",
     "text": "@MarkZJia (georgetown law professor) has a few tweets eg. https://t.co/7KBBtjnpVn",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "unparseable"
@@ -665,8 +665,8 @@
     "url": "https://x.com/deepseek_ai/status/1995452658149405148",
     "text": "\ud83d\udee0 Open Source Release\n\n\ud83d\udce6 DeepSeek-V3.2 Model: https://t.co/Kh8HzHl3uX\n\ud83d\udce6 DeepSeek-V3.2-Speciale Model: https://t.co/ZKUg5IC0AJ\n\ud83d\udcc4 Tech report: https://t.co/hduS9hlMpX\n\n5/n",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
-    "channel": "none",
+    "audited": true,
+    "channel": "competitive_displacement",
     "is_signal": false,
     "reason": "Open source release announcement with no quantified resource commitment, compute allocation, energy contract, talent movement, or market displacement\u2014purely a product availability statement."
   },
@@ -676,7 +676,7 @@
     "url": "https://x.com/demishassabis/status/2076957440109625718",
     "text": "https://t.co/PTeDiv1b6L",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "unparseable"
@@ -687,7 +687,7 @@
     "url": "https://x.com/elonmusk/status/2081782292591104077",
     "text": "True https://t.co/jZu84NbNDj",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "unparseable"
@@ -698,7 +698,7 @@
     "url": "https://x.com/gdb/status/2080351159638704615",
     "text": "Launching Health in ChatGPT to U.S. users.\n\n300 million people use ChatGPT each week for health queries (and my wife and I are among those!).\n\nYou can now securely connect supported medical records so ChatGPT can understand your personal context and be more helpful to you. https://t.co/kuKumYNMWK https://t.co/1wghTqflgp",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "competitive_displacement",
     "is_signal": true,
     "reason": "Health feature launch with 300M weekly users quantifies market displacement in healthcare/wellness sector away from traditional providers and toward AI."
@@ -709,7 +709,7 @@
     "url": "https://x.com/huybery/status/1989629098415841309",
     "text": "We\u2019ve spent a lot of bandwidth fixing the bugs our users are running into. Please keep the feedback coming. We\u2019re not in a rush to add new features. For now, we just want to make Qwen Code stable and pleasant to use. https://t.co/EmceiWowtP",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Product stabilization and UX polish are internal engineering priorities with no external quantity commitment or market impact."
@@ -720,7 +720,7 @@
     "url": "https://x.com/ibab/status/2023167888140746965",
     "text": "What\u2019s the best open alternative to OpenClaw right now? Doesn\u2019t make sense to put all your data into it if it\u2019s owned by OpenAI. https://t.co/OGd2tGHZ83",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "This is a social media discussion about tool selection and vendor lock-in concerns; no quantity commitment, resource allocation, or market movement is described."
@@ -731,7 +731,7 @@
     "url": "https://x.com/jackclarkSF/status/2062533084424319128",
     "text": "Niche tweet: If you have an excitable toddler, get sick of listening to Bluey and Raffi, and need the occasional bit of non-brainslop kid TV to let you do basic tasks like unload the dishwasher, you might like this fan-made video for the Geese song Cobra. https://t.co/no6zaZAxjb",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Personal parenting recommendation about children's entertainment; no quantity movement affecting fund portfolio."
@@ -742,7 +742,7 @@
     "url": "https://x.com/jaredkaplan/status/2032892762056515937",
     "text": "I haven\u2019t seen The Secret Agent or Hamnet yet but this is how I\u2019d rank the rest if I was an Oscar voter:\n\n1. One Battle After Another\n2. Sinners\n3. Marty Supreme\n4. Train Dreams\n5. F1\n6. Bugonia\n7. Sentimental Value\n8. Frankenstein",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Personal movie rankings have no bearing on frontier-AI-lab events or technology fund portfolio mechanics."
@@ -753,7 +753,7 @@
     "url": "https://x.com/jaseweston/status/2049522126093213880",
     "text": "The new DeepSeek-V4, like DeepSeek-V3, uses concepts from our 2024 paper on Self-Rewarding LMs -- see screenshots of their tech reports! (Congrats!)  \n\nClassical :) Self-Rewarding LMs from Jan 2024: https://t.co/YZRuFphh0H https://t.co/KFfSNgbOLk",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Academic citation/validation of prior research; no quantity commitment, resource allocation, or market displacement triggered by this acknowledgment."
@@ -764,7 +764,7 @@
     "url": "https://x.com/jeffdean/status/2072098401022517513",
     "text": "The video from the commencement speech I gave a couple of weeks ago at @uwcse is now up.  Congratulations again to all the graduates, and thanks for having me, @MBalazinska!\n\nhttps://t.co/7ZKr8RVyG4 (video is of whole ceremony: my part starts around the 3 minute mark) https://t.co/lfLT2Y1U5u",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Commencement speech is a public appearance/speaking engagement with no quantifiable market impact on compute, energy, data economics, competitive displacement, or talent movement."
@@ -775,7 +775,7 @@
     "url": "https://x.com/jimmybajimmyba/status/1961171327907442710",
     "text": "Try it out. First of many yet to come. Let us know how we can improve. https://t.co/173tpbABAH",
     "labeler": "llm:claude-haiku-4-5-20251001",
-    "audited": false,
+    "audited": true,
     "channel": "none",
     "is_signal": false,
     "reason": "Generic launch announcement with no quantified commitment, resource allocation, or market-moving event disclosed."
