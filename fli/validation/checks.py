@@ -27,6 +27,11 @@ C19 insights quote at exact tier   every insight's evidence is verification='exa
                                    (structural is the register's tier for author-name
                                    spans in structured documents; a claim shown to a
                                    reader must rest on a byte-verbatim quote)
+C20 one name, one person           person_candidates.name is UNIQUE, so two same-named
+                                   researchers would silently merge. The collision
+                                   signature: one name seeded from 3+ labs' co-authors,
+                                   or a person "observed" at 3+ labs inside 90 days —
+                                   more likely two people than one polymath
 
 Run:  python -m fli.cli checks [--db PATH]
 """
@@ -252,6 +257,28 @@ def run(conn: sqlite3.Connection) -> int:
                " JOIN evidence e ON e.id = i.evidence_id"
                " WHERE e.verification != 'exact'")]
     check("C19 insights quote at exact tier", bad, all_failures)
+
+    # C20 — the UNIQUE(name) merge is accepted at this scale (schema.sql says
+    # so), which makes it a liability the checks must watch, not a fact to
+    # forget. A genuine collision shows up as impossible breadth: one arXiv
+    # name co-authoring with seeds at 3+ labs, or one promoted person with
+    # affiliation evidence at 3+ labs inside a quarter.
+    import json as _json
+    bad = []
+    for r in conn.execute("SELECT name, seed_lab_ids FROM person_candidates"):
+        labs_n = len(set(_json.loads(r["seed_lab_ids"] or "[]")))
+        if labs_n > 2:
+            bad.append(f"candidate {r['name']!r} seeded from {labs_n} labs —"
+                       f" likely {labs_n} people merged under one name")
+    for r in conn.execute(
+            "SELECT p.canonical_name, count(DISTINCT a.lab_id) labs_n"
+            " FROM affiliations a JOIN people p ON p.id = a.person_id"
+            " WHERE a.lab_id IS NOT NULL"
+            "   AND julianday(a.observed_at) >= julianday('now') - 90"
+            " GROUP BY a.person_id HAVING labs_n > 2"):
+        bad.append(f"person {r['canonical_name']!r} observed at {r['labs_n']}"
+                   f" labs inside 90 days — homonym merge, not mobility")
+    check("C20 one name, one person", bad, all_failures)
 
     if policy is not None:
         print(f"\n{describe(policy)}")
