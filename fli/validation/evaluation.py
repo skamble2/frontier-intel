@@ -469,6 +469,12 @@ def fig_per_lab_fairness(conn) -> tuple[str, str]:
     w = detail[worst]
     miss = ", ".join(f"{k} x{v}" for k, v in
                      sorted(w["miss_types"].items(), key=lambda kv: -kv[1]))
+    # Lift is bounded above by 1-base: a lab whose corpus is already half
+    # relevant leaves the ranking half as much room to add. Normalizing by
+    # that ceiling is what separates "the ranking works less well here" from
+    # "there was less work available".
+    ceil = {l: lifts[l] / (1 - detail[l]["base"]) if detail[l]["base"] < 1
+            else float("nan") for l in labs}
     spread = max(per_lab.values()) - min(per_lab.values())
     return _save(plt, fig, "f9_per_lab_fairness", JUDGED), (
         f"raw p@10 spread {spread:.3f}, but raw p@10 tracks each lab's base "
@@ -479,7 +485,9 @@ def fig_per_lab_fairness(conn) -> tuple[str, str]:
         f"{miss or 'none'}: events whose feature shape (official-channel "
         f"engineering posts, high specificity) the score rewards but the "
         f"judges call irrelevant. A feature-shape gap, not lab-identity bias "
-        f"(lab is never a feature).")
+        f"(lab is never a feature). Lift is also CEILINGED at 1-base, so the "
+        f"fair per-lab comparison is lift/ceiling: "
+        + ", ".join(f"{l} {ceil[l]:.0%}" for l in labs) + ".")
 
 
 def fig_overfitting(conn) -> tuple[str, str]:
@@ -625,7 +633,7 @@ def fig_rank_skew(conn) -> tuple[str, str]:
     ax.set_ylabel("share"); ax.set_xlabel("")
     ax.set_title("Rank skew — top-50 share vs corpus share")
     ax.tick_params(axis="x", rotation=25); ax.legend(fontsize=9)
-    # A ratio needs a denominator worth dividing by. xAI has 2 events of 556, so
+    # A ratio needs a denominator worth dividing by. xAI has 2 events of 734, so
     # one top-50 placement reads as "11.1x over-represented" next to labs with
     # 150 events — a number produced by n=2, not by skew. Small-n labs are
     # counted and named, never given a multiplier.
@@ -789,6 +797,22 @@ def fig_mobility(conn) -> tuple[str, str]:
 
     detectable = q("SELECT count(DISTINCT person_id) FROM affiliations"
                    " WHERE basis='page_verbatim'")
+    # A synthesized move needs the same person observed at a NEW lab in a
+    # later run, and profile re-observation runs on a 7-day cadence. The date
+    # arithmetic below makes the zero explainable: until the cadence has
+    # lapped the latest observation a live move CANNOT fire, so a zero is
+    # the cadence talking, not a broken mechanism.
+    last_obs = q("SELECT max(date(observed_at)) FROM affiliations")
+    earliest = ""
+    if last_obs:
+        from datetime import date, timedelta
+        d = date.fromisoformat(last_obs) + timedelta(days=7)
+        earliest = (
+            f" Profile re-observation runs on a 7-day cadence and the most "
+            f"recent observation landed {last_obs}, so the earliest date a "
+            f"cadence-gated move can be witnessed live is {d.isoformat()} — "
+            f"the zero here is arithmetic, not omission."
+        )
     return _save(plt, fig, "f14_mobility", MECHANICAL), (
         f"{extracted} personnel event(s) came from document extraction; "
         f"{synthesized} were synthesized from affiliation history "
@@ -799,7 +823,7 @@ def fig_mobility(conn) -> tuple[str, str]:
         f"validated end-to-end in the test suite (tests/knowledge/"
         f"test_mobility.py plants a move and shows the resulting event reach "
         f"the digest slate, dated by its arrival) — the live corpus simply "
-        f"has not yet witnessed a move."
+        f"has not yet witnessed a move." + earliest
         if synthesized == 0 else
         f"{synthesized} move(s) synthesized from affiliation history against "
         f"{extracted} extracted personnel event(s); {detectable} of {tracked} "
@@ -907,7 +931,11 @@ def fig_faithfulness(conn) -> tuple[str, str]:
         "claim is supported by the quote ALONE. " + "; ".join(parts) +
         ". `partial` names a load-bearing fact (a number, a date, an actor) "
         "the quote does not carry \u2014 the actionable failure mode for an "
-        "extraction prompt revision. " + ledger + rejected)
+        "extraction prompt revision. That revision has since been made and "
+        "measured (see docs/prompts.md): a quote-first instruction block cut "
+        "the partial rate on the 30 hardest documents from 65.6% to 47.9% in "
+        "a seeded A/B re-extraction; it applies to new extractions, so the "
+        "corpus numbers above are the pre-revision audit. " + ledger + rejected)
 
 
 def fig_slate_precision(conn) -> tuple[str, str]:

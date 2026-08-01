@@ -49,9 +49,9 @@ research/raw/
 # NOTE: a .gitignore pattern cannot carry a trailing comment — the whole line
 # becomes the pattern, which silently matches nothing.
 pipeline.log
-# Digests are regenerable build output (python3 -m fli.cli digest). One dated
-# sample set is committed as evidence the delivery layer works, force-added past
-# this rule:  git add -f docs/digests/2026-07-30-*
+# Digests are regenerable build output (python3 -m fli.cli digest). Dated
+# sample sets are committed as evidence the delivery layer works, force-added
+# past this rule:  git add -f docs/digests/2026-08-01-*
 docs/digests/*
 
 # --- OS / editor ---------------------------------------------------------

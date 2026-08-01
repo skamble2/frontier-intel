@@ -54,6 +54,12 @@ Return ONLY JSON:
    "attributed_lab": "<lab name or null>",
    "attributed_person": "<person name or null>"}
 ]}
+PICK THE QUOTE FIRST, THEN WRITE THE CLAIM FROM IT. Every load-bearing fact in
+the claim — each number, date, price, model name, version, actor — must appear
+INSIDE the quote you chose. If the decisive number sits in a different sentence
+than the story, quote the sentence with the number. A modest claim its quote
+fully carries beats a rich claim the quote only half-supports: facts you
+remember from elsewhere in the document do not belong in the claim.
 Return one object per DISTINCT event, most decision-relevant first, at most %d.
 Do NOT split one event into several claims, do NOT invent events the text does
 not support, and do NOT pad the list to the maximum — return FEWER when the
@@ -270,6 +276,75 @@ def report_measurements(conn: sqlite3.Connection) -> None:
         print(f"  stage2 rejected {r['reason']}: {r['c']}")
 
 
+def backfill_arxiv_authors(conn: sqlite3.Connection) -> dict:
+    """Deterministic person attribution from arXiv author lines. Free.
+
+    The extractor names a person only when the TEXT is about one, so research
+    events almost never carry person attribution (14 of 734) even though every
+    arXiv document arrives with a machine-readable `authors:` line and the
+    register already tracks many of those authors. This closes that gap
+    without an LLM: match each listed author against `people` under the same
+    order-insensitive name_key the register resolves with, and record the hit
+    as an event_entities row with role='author'.
+
+    Distinctions that keep the row honest:
+      role   'author', never 'subject' — being on the paper is not the same
+             as the event being about you, so attributed_person_id stays NULL.
+      basis  'source_inferred' — the link comes from the publisher's metadata,
+             not a model assertion (C12 holds: arXiv sources are official).
+      cite   a NEW evidence row quoting the `authors:` line verbatim, one per
+             document, shared by that document's author entities — the quote
+             an auditor re-verifies is the line that actually names the person
+             (C11), not the insight's unrelated claim quote.
+
+    Idempotent: existing (event, person) entities are skipped, the evidence
+    row is reused on re-run."""
+    docs = conn.execute(
+        "SELECT DISTINCT d.id, d.raw_content FROM insights i"
+        " JOIN evidence e ON e.id = i.evidence_id"
+        " JOIN raw_documents d ON d.id = e.document_id"
+        " WHERE d.source_type = 'arxiv'").fetchall()
+    people = {name_key(r["canonical_name"]): r["id"] for r in
+              conn.execute("SELECT id, canonical_name FROM people")}
+    stats = {"docs": 0, "entities": 0, "events_gained": 0}
+    for doc in docs:
+        line = next((ln for ln in doc["raw_content"].split("\n")
+                     if ln.startswith("authors: ")), None)
+        if line is None:
+            continue
+        matched = [(a.strip(), people[name_key(a.strip())])
+                   for a in line[len("authors: "):].split(";")
+                   if a.strip() and name_key(a.strip()) in people]
+        if not matched:
+            continue
+        stats["docs"] += 1
+        ev = conn.execute(
+            "SELECT id FROM evidence WHERE document_id = ?"
+            " AND verbatim_content = ?", (doc["id"], line)).fetchone()
+        evidence_id = ev["id"] if ev else storage.insert_evidence(
+            conn, doc["id"], json.dumps({"line": "authors"}), line, "exact", 1.0)
+        for event in conn.execute(
+                "SELECT i.id FROM insights i JOIN evidence e ON e.id = i.evidence_id"
+                " WHERE e.document_id = ?", (doc["id"],)).fetchall():
+            had = conn.execute(
+                "SELECT 1 FROM event_entities WHERE event_id = ?"
+                " AND entity_kind = 'person'", (event["id"],)).fetchone()
+            for _name, pid in matched:
+                if conn.execute(
+                        "SELECT 1 FROM event_entities WHERE event_id = ?"
+                        " AND entity_kind = 'person' AND person_id = ?",
+                        (event["id"], pid)).fetchone():
+                    continue
+                storage.insert_event_entity(conn, event["id"], "person", pid,
+                                            "author", evidence_id,
+                                            "source_inferred", commit=False)
+                stats["entities"] += 1
+            if not had:
+                stats["events_gained"] += 1
+    conn.commit()
+    return stats
+
+
 def main() -> None:
     """Stage 2 on its own, without re-running ingestion."""
     import argparse
@@ -279,11 +354,20 @@ def main() -> None:
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
     ap.add_argument("--max", type=int, default=60,
                     help="cost cap: documents to extract this run")
+    ap.add_argument("--backfill-authors", action="store_true",
+                    help="deterministic person attribution from arXiv author"
+                         " lines; free, no API key, idempotent")
     args = ap.parse_args()
-    if not have_api_key():
-        raise SystemExit("ANTHROPIC_API_KEY not set (put it in .env).")
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
+    if args.backfill_authors:
+        s = backfill_arxiv_authors(conn)
+        print(f"arxiv author backfill — {s['entities']} author entit(ies) on"
+              f" insights from {s['docs']} document(s);"
+              f" {s['events_gained']} event(s) newly person-linked")
+        return
+    if not have_api_key():
+        raise SystemExit("ANTHROPIC_API_KEY not set (put it in .env).")
     print(extract_all(conn, LLM(conn), max_docs=args.max))
     report_measurements(conn)
 

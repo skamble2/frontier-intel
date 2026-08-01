@@ -146,6 +146,51 @@ class TestEventEntities(DBTestCase):
             self.assertEqual(0, storage.backfill_event_entities(self.conn))
 
 
+class TestArxivAuthorBackfill(DBTestCase):
+    """Deterministic person attribution: an arXiv insight whose author line
+    names a tracked person gains an 'author' entity citing that line — never
+    a 'subject', because being on the paper is not what the event is about."""
+
+    def setUp(self):
+        super().setUp()
+        self.conn.execute("INSERT INTO people (id, canonical_name)"
+                          " VALUES (5, 'Jané Doe')")
+        sid = storage.upsert_source(self.conn, "arxiv", "arXiv q", "http://a",
+                                    channel="official")
+        self.doc, _ = storage.store_document(
+            self.conn, sid, "arxiv",
+            "http://arxiv.org/abs/1",
+            "A Paper\nhttp://arxiv.org/abs/1\n2026-01-01\n"
+            "authors: Doe Jane; Unknown Author\n\nWe show a result.", None)
+        ev = storage.insert_evidence(self.conn, self.doc, "{}",
+                                     "We show a result.", "exact", 1.0)
+        self.eid = storage.insert_insight(self.conn, ev, "research", "c")
+
+    def test_matches_via_name_key_and_stays_author_not_subject(self):
+        from fli.knowledge.extraction import backfill_arxiv_authors
+        stats = backfill_arxiv_authors(self.conn)
+        self.assertEqual(1, stats["entities"])       # order+accent-insensitive
+        self.assertEqual(1, stats["events_gained"])  # 'Unknown Author' skipped
+        (row,) = self.conn.execute(
+            "SELECT ee.*, e.verbatim_content FROM event_entities ee"
+            " JOIN evidence e ON e.id = ee.evidence_id"
+            " WHERE ee.event_id=?", (self.eid,)).fetchall()
+        self.assertEqual(("person", 5, "author", "source_inferred"),
+                         (row["entity_kind"], row["person_id"], row["role"],
+                          row["basis"]))
+        # C11: the cited evidence is the line that actually names the person
+        self.assertIn("Doe Jane", row["verbatim_content"])
+        # the subject cache stays empty — an author is not the event's subject
+        self.assertIsNone(self.conn.execute(
+            "SELECT attributed_person_id FROM insights WHERE id=?",
+            (self.eid,)).fetchone()[0])
+
+    def test_idempotent(self):
+        from fli.knowledge.extraction import backfill_arxiv_authors
+        backfill_arxiv_authors(self.conn)
+        self.assertEqual(0, backfill_arxiv_authors(self.conn)["entities"])
+
+
 class _FakeLLM:
     """Canned classify/extract JSON, so stage 2 is testable with no API key."""
 

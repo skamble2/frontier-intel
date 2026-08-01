@@ -35,19 +35,26 @@ Over the whole corpus these rules fire 3 times. That is the intended order of
 magnitude: rare enough to be read.
 
 DELIVERY IS PLUGGABLE AND STDOUT IS A REAL SINK. `SINKS` maps a name to a
-function; a Slack webhook or an email relay is a few lines each. None is
-written because a delivery target that nobody receives is not evidence the
-path works — the recorded row and the printed line are.
+function. The Slack sink posts to the incoming-webhook URL in
+`SLACK_WEBHOOK_URL` and refuses to run without it — a silently dropped alert
+is worse than a crash, because the `alerts` row would claim delivery that
+never happened. An email relay would be the same shape.
 
-Free and deterministic: no LLM call, no network.
+Free and deterministic: no LLM call; network only when the slack sink is
+selected.
 
 Run:  python3 -m fli.cli alerts --days 7 --dry-run
       python3 -m fli.cli alerts --days 7
+      SLACK_WEBHOOK_URL=https://hooks.slack.com/... \
+          python3 -m fli.cli alerts --days 7 --sink slack
 """
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sqlite3
+import urllib.request
 from pathlib import Path
 
 from fli import storage
@@ -70,7 +77,30 @@ def _sink_null(alert: dict) -> None:
     """For tests and dry runs: the alert is formed and recorded, not shown."""
 
 
-SINKS = {"stdout": _sink_stdout, "null": _sink_null}
+def _sink_slack(alert: dict) -> None:
+    """Post one alert to a Slack incoming webhook.
+
+    The URL comes from the environment, not config: a webhook is a secret,
+    and the config files in this repo are committed. Raises if the variable
+    is missing or Slack answers anything but 200 — the caller records the
+    alert as delivered only after this returns, so failing loudly is what
+    keeps the `alerts` table honest.
+    """
+    url = os.environ.get("SLACK_WEBHOOK_URL")
+    if not url:
+        raise RuntimeError("sink 'slack' needs SLACK_WEBHOOK_URL set")
+    text = (f":rotating_light: *[{alert['rule']}]* {alert['persona']} — "
+            f"event {alert['event_id']}\n{alert['reason']}\n"
+            f"> {alert['claim'][:300]}\n{alert['url']}")
+    req = urllib.request.Request(
+        url, data=json.dumps({"text": text}).encode("utf-8"),
+        headers={"Content-Type": "application/json"}, method="POST")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        if resp.status != 200:
+            raise RuntimeError(f"slack webhook returned {resp.status}")
+
+
+SINKS = {"stdout": _sink_stdout, "null": _sink_null, "slack": _sink_slack}
 
 
 def candidates(conn, days: int = 7) -> list[dict]:

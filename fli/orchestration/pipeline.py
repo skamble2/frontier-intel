@@ -111,6 +111,15 @@ def main() -> None:
         except Exception as e:  # API/network failure must not kill the run
             print(f"extraction unavailable: {e} (deterministic stages unaffected)")
 
+    # Deterministic and free, so it runs whether or not stage 2 did: any
+    # arXiv insight whose author list names a tracked person gets an
+    # 'author' entity — the extractor only names people the TEXT is about,
+    # which leaves research events person-blind without this.
+    print("\n=== arXiv author attribution (deterministic) ===")
+    ba = extraction.backfill_arxiv_authors(conn)
+    print(f"author entities: +{ba['entities']}"
+          f"  events newly person-linked: +{ba['events_gained']}")
+
     print("\n=== re-observe affiliations ===")
     register.observe(conn)
 

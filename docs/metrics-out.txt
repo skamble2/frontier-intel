@@ -4,7 +4,7 @@
 #############################################################
 
 --- G1 · resolve_lab hyphen fix: pct_inferred should collapse for DeepSeek ---
-    (was: DeepSeek 87.1% source_inferred because "DeepSeek-AI"/"DeepSeek-V4
+    (was: DeepSeek 87.1% source_inferred because "DeepSeek-AI"/"DeepSeek-V4"
      tokenised as one hyphenated token and never matched "DeepSeek")
 ┌─────────────────┬──────────┬────────────────┬─────────────────┬──────────────┐
 │ lab             │ insights │ model_asserted │ source_inferred │ pct_inferred │
@@ -34,7 +34,7 @@
 ┌──────────────────┬───────────────────┬────────────────┬──────────┐
 │ insight_evidence │ register_evidence │ total_evidence │ insights │
 ├──────────────────┼───────────────────┼────────────────┼──────────┤
-│ 734              │ 1540              │ 2274           │ 734      │
+│ 734              │ 1560              │ 2294           │ 734      │
 └──────────────────┴───────────────────┴────────────────┴──────────┘
 
 --- G4 · cap binding: is n=5 concentrated in LONG docs (legit) or SHORT (splitting)? ---
@@ -141,7 +141,7 @@
 │ population           │ verification │ n    │
 ├──────────────────────┼──────────────┼──────┤
 │ insight (extraction) │ exact        │ 734  │
-│ register (entity)    │ exact        │ 285  │
+│ register (entity)    │ exact        │ 305  │
 │ register (entity)    │ structural   │ 1255 │
 └──────────────────────┴──────────────┴──────┘
 
@@ -256,46 +256,47 @@
 │ entity_kind │ role    │ basis           │ n   │
 ├─────────────┼─────────┼─────────────────┼─────┤
 │ lab         │ subject │ model_asserted  │ 703 │
+│ person      │ author  │ source_inferred │ 346 │
 │ lab         │ subject │ source_inferred │ 31  │
 │ person      │ subject │ model_asserted  │ 14  │
 └─────────────┴─────────┴─────────────────┴─────┘
 
 ================ M5a · TOKENOMICS BY TASK ================
-┌──────────┬───────────────────────────┬───────┬─────────┬─────────┬─────────┬──────────────┐
-│ task     │ model                     │ calls │ tok_in  │ tok_out │ usd     │ usd_per_call │
-├──────────┼───────────────────────────┼───────┼─────────┼─────────┼─────────┼──────────────┤
-│ judge    │ claude-sonnet-5           │ 2495  │ 2722298 │ 255819  │ 12.0042 │ 0.00481      │
-│ extract  │ claude-sonnet-5           │ 320   │ 664174  │ 157752  │ 4.3588  │ 0.01362      │
-│ label    │ claude-sonnet-5           │ 385   │ 369625  │ 44768   │ 1.7804  │ 0.00462      │
-│ judge    │ gpt-5.2                   │ 600   │ 451948  │ 36253   │ 1.2985  │ 0.00216      │
-│ channel  │ claude-haiku-4-5-20251001 │ 1002  │ 451423  │ 67503   │ 0.7889  │ 0.00079      │
-│ verify   │ claude-haiku-4-5-20251001 │ 807   │ 281354  │ 52239   │ 0.5425  │ 0.00067      │
-│ persona  │ claude-sonnet-5           │ 68    │ 65825   │ 20759   │ 0.5089  │ 0.00748      │
-│ classify │ claude-haiku-4-5-20251001 │ 433   │ 328715  │ 29045   │ 0.4739  │ 0.00109      │
-└──────────┴───────────────────────────┴───────┴─────────┴─────────┴─────────┴──────────────┘
+┌──────────┬───────────────────────────┬───────┬─────────┬─────────┬────────┬──────────────┐
+│ task     │ model                     │ calls │ tok_in  │ tok_out │ usd    │ usd_per_call │
+├──────────┼───────────────────────────┼───────┼─────────┼─────────┼────────┼──────────────┤
+│ judge    │ claude-sonnet-5           │ 2665  │ 2917605 │ 271614  │ 12.827 │ 0.00481      │
+│ extract  │ claude-sonnet-5           │ 350   │ 760384  │ 178246  │ 4.9548 │ 0.01416      │
+│ label    │ claude-sonnet-5           │ 385   │ 369625  │ 44768   │ 1.7804 │ 0.00462      │
+│ judge    │ gpt-5.2                   │ 762   │ 574996  │ 46537   │ 1.6578 │ 0.00218      │
+│ channel  │ claude-haiku-4-5-20251001 │ 1016  │ 457612  │ 68495   │ 0.8001 │ 0.00079      │
+│ persona  │ claude-sonnet-5           │ 86    │ 80689   │ 24987   │ 0.6169 │ 0.00717      │
+│ verify   │ claude-haiku-4-5-20251001 │ 903   │ 314833  │ 58269   │ 0.6062 │ 0.00067      │
+│ classify │ claude-haiku-4-5-20251001 │ 433   │ 328715  │ 29045   │ 0.4739 │ 0.00109      │
+└──────────┴───────────────────────────┴───────┴─────────┴─────────┴────────┴──────────────┘
 
 ================ M5a2 · REASONING TOKENS (billed as output) ================
 ┌───────────────────────────┬───────┬─────────┬───────────────┬──────────────────────────────┬─────────┐
 │ model                     │ calls │ tok_out │ tok_reasoning │ pct_output_that_was_thinking │ usd     │
 ├───────────────────────────┼───────┼─────────┼───────────────┼──────────────────────────────┼─────────┤
-│ claude-sonnet-5           │ 3268  │ 479098  │ 0             │ 0.0                          │ 18.6522 │
-│ claude-haiku-4-5-20251001 │ 2242  │ 148787  │ 0             │ 0.0                          │ 1.8054  │
-│ gpt-5.2                   │ 600   │ 36253   │ 0             │ 0.0                          │ 1.2985  │
+│ claude-sonnet-5           │ 3486  │ 519615  │ 0             │ 0.0                          │ 20.1791 │
+│ claude-haiku-4-5-20251001 │ 2352  │ 155809  │ 0             │ 0.0                          │ 1.8802  │
+│ gpt-5.2                   │ 762   │ 46537   │ 0             │ 0.0                          │ 1.6578  │
 └───────────────────────────┴───────┴─────────┴───────────────┴──────────────────────────────┴─────────┘
 
 ================ M5a3 · JUDGE COST PER USABLE LABEL, BY MODEL ================
 ┌─────────────────┬────────┬────────┬──────────────┐
 │ judge_model     │ judged │ usable │ pct_low_conf │
 ├─────────────────┼────────┼────────┼──────────────┤
-│ claude-sonnet-5 │ 808    │ 624    │ 22.8         │
-│ gpt-5.2         │ 600    │ 475    │ 20.8         │
+│ claude-sonnet-5 │ 970    │ 707    │ 27.1         │
+│ gpt-5.2         │ 762    │ 594    │ 22.0         │
 └─────────────────┴────────┴────────┴──────────────┘
 
 ================ M5b · COST PER INSIGHT + HAIKU-GATE SAVING ================
 ┌───────────┬──────────┬─────────────────┬──────────────────────┬─────────────────────┐
 │ total_usd │ insights │ usd_per_insight │ killed_by_haiku_gate │ pct_cost_in_extract │
 ├───────────┼──────────┼─────────────────┼──────────────────────┼─────────────────────┤
-│ 21.7561   │ 734      │ 0.02964         │ 102                  │ 20.0                │
+│ 23.7171   │ 734      │ 0.03231         │ 102                  │ 20.9                │
 └───────────┴──────────┴─────────────────┴──────────────────────┴─────────────────────┘
 
 ================ M6a · FETCH STATUS ================
@@ -373,63 +374,63 @@
 #############################################################
 
 ================ S1 · MODELS IN THE BAKE-OFF (identical coverage = C16) ================
-┌───────────────────────────────────┬────────┬────────┬───────┐
-│ model                             │ events │ min_s  │ max_s │
-├───────────────────────────────────┼────────┼────────┼───────┤
-│ baseline_corroboration            │ 734    │ 1.0    │ 6.0   │
-│ baseline_recency                  │ 734    │ 0.0    │ 0.967 │
-│ gbm_sklearn                       │ 734    │ 0.014  │ 0.972 │
-│ hand_weights                      │ 734    │ -3.918 │ 4.355 │
-│ investment:baseline_corroboration │ 734    │ 1.0    │ 6.0   │
-│ investment:baseline_recency       │ 734    │ 0.0    │ 0.967 │
-│ investment:gbm_sklearn            │ 734    │ 0.052  │ 0.984 │
-│ investment:hand_weights           │ 734    │ -3.918 │ 4.355 │
-│ investment:logistic               │ 734    │ -2.5   │ 3.784 │
-│ logistic                          │ 734    │ -1.91  │ 3.091 │
-│ technical:baseline_corroboration  │ 734    │ 1.0    │ 6.0   │
-│ technical:baseline_recency        │ 734    │ 0.0    │ 0.967 │
-│ technical:gbm_sklearn             │ 734    │ 0.001  │ 0.997 │
-│ technical:hand_weights            │ 734    │ -3.918 │ 4.355 │
-│ technical:logistic                │ 734    │ -9.422 │ 6.047 │
-└───────────────────────────────────┴────────┴────────┴───────┘
+┌───────────────────────────────────┬────────┬─────────┬───────┐
+│ model                             │ events │ min_s   │ max_s │
+├───────────────────────────────────┼────────┼─────────┼───────┤
+│ baseline_corroboration            │ 734    │ 1.0     │ 6.0   │
+│ baseline_recency                  │ 734    │ 0.0     │ 0.967 │
+│ gbm_sklearn                       │ 734    │ 0.014   │ 0.972 │
+│ hand_weights                      │ 734    │ -3.918  │ 4.355 │
+│ investment:baseline_corroboration │ 734    │ 1.0     │ 6.0   │
+│ investment:baseline_recency       │ 734    │ 0.0     │ 0.936 │
+│ investment:gbm_sklearn            │ 734    │ 0.004   │ 0.998 │
+│ investment:hand_weights           │ 734    │ -3.919  │ 4.353 │
+│ investment:logistic               │ 734    │ -2.948  │ 5.754 │
+│ logistic                          │ 734    │ -1.91   │ 3.091 │
+│ technical:baseline_corroboration  │ 734    │ 1.0     │ 6.0   │
+│ technical:baseline_recency        │ 734    │ 0.0     │ 0.936 │
+│ technical:gbm_sklearn             │ 734    │ 0.003   │ 0.987 │
+│ technical:hand_weights            │ 734    │ -3.919  │ 4.353 │
+│ technical:logistic                │ 734    │ -10.363 │ 3.597 │
+└───────────────────────────────────┴────────┴─────────┴───────┘
 
 ================ S2 · TOP-10 EVENTS (winning model, from insights.score) ================
-┌───────┬───────────┬─────────────┬────────────────────────────────────────────────────────────────────┐
-│ score │ lab       │ event_type  │ claim                                                              │
-├───────┼───────────┼─────────────┼────────────────────────────────────────────────────────────────────┤
-│ 3.784 │ Anthropic │ commercial  │ Claude Opus 4.8 is priced the same as Opus 4.7 for regular usage a │
-│ 3.454 │ Qwen      │ open_source │ Qwen open-weighted two MoE models and six dense models (up to 32B) │
-│ 3.416 │ Qwen      │ commercial  │ Qwen2.5-Turbo maintains a price of ¥0.3 per 1M tokens while proces │
-│ 3.128 │ Qwen      │ open_source │ Alibaba's Qwen team open-sourced Qwen-AgentWorld-35B-A3B, a mixtur │
-│ 2.948 │ Qwen      │ release     │ Alibaba's Qwen team released the Qwen2.5-Coder series, comprising  │
-│ 2.864 │ Anthropic │ commercial  │ Claude Opus 4.7 is priced the same as its predecessor at $5 per mi │
-│ 2.864 │ Anthropic │ commercial  │ Claude Opus 4.7 is priced the same as its predecessor Opus 4.6, at │
-│ 2.795 │ DeepSeek  │ release     │ DeepSeek-AI released a preview of the DeepSeek-V4 series, comprisi │
-│ 2.778 │ Qwen      │ open_source │ Qwen3 expands multilingual support from 29 to 119 languages and di │
-│ 2.641 │ xAI       │ personnel   │ Jimmy Ba, a cofounder of xAI, announced his departure from the com │
-└───────┴───────────┴─────────────┴────────────────────────────────────────────────────────────────────┘
+┌───────┬─────────────────┬────────────────┬────────────────────────────────────────────────────────────────────┐
+│ score │ lab             │ event_type     │ claim                                                              │
+├───────┼─────────────────┼────────────────┼────────────────────────────────────────────────────────────────────┤
+│ 5.754 │ Google DeepMind │ commercial     │ Google will provide Gemini for Government seats and tokens for one │
+│ 5.431 │ Meta AI         │ infrastructure │ Meta deployed a custom sched_ext-based Linux kernel scheduler poli │
+│ 5.179 │ Google DeepMind │ commercial     │ Google is committing $40 million in AI tokens and cloud credits to │
+│ 5.179 │ Google DeepMind │ commercial     │ Google is committing $40 million in AI tokens and cloud credits fo │
+│ 5.179 │ Google DeepMind │ commercial     │ Google committed $40 million in AI tokens and cloud credits to sup │
+│ 5.123 │ DeepSeek        │ release        │ DeepSeek-AI released DeepSeek-V2, a 236B-parameter Mixture-of-Expe │
+│ 5.029 │ OpenAI          │ infrastructure │ Deutsche Telekom uses AI with various partners to optimize mobile  │
+│ 4.965 │ Google DeepMind │ commercial     │ AlphaEvolve is now driving commercial business results, including  │
+│ 4.936 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B total parameters dur │
+│ 4.936 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B parameters during in │
+└───────┴─────────────────┴────────────────┴────────────────────────────────────────────────────────────────────┘
 
 ================ S3 · PER-LAB SHARE OF TOP-30 (ranked-output fairness view) ================
 ┌─────────────────┬──────────┐
 │ lab             │ in_top30 │
 ├─────────────────┼──────────┤
-│ Google DeepMind │ 9        │
-│ Anthropic       │ 6        │
-│ Qwen            │ 5        │
-│ DeepSeek        │ 5        │
-│ xAI             │ 2        │
-│ OpenAI          │ 2        │
-│ Meta AI         │ 1        │
+│ Google DeepMind │ 13       │
+│ OpenAI          │ 9        │
+│ DeepSeek        │ 3        │
+│ Meta AI         │ 2        │
+│ Qwen            │ 1        │
+│ Mistral         │ 1        │
+│ Anthropic       │ 1        │
 └─────────────────┴──────────┘
 
 ================ S4 · PAIRWISE LABELS (ground truth) ================
-┌────────┬─────┐
-│ winner │ n   │
-├────────┼─────┤
-│ a      │ 856 │
-│ b      │ 763 │
-│ tie    │ 29  │
-└────────┴─────┘
+┌────────┬──────┐
+│ winner │ n    │
+├────────┼──────┤
+│ a      │ 1141 │
+│ b      │ 967  │
+│ tie    │ 51   │
+└────────┴──────┘
 
 ================ F1 · INGESTION FRESHNESS (publish -> retrieve lag, days) ================
     The corpus was BACKFILLED once (historical archives ingested in one

@@ -15,9 +15,9 @@ Measured here: three variants of one model agreed 92-100%, and DS duly rated
 all three ~0.99. That number was an artifact of asking one model three times.
 
 The figure that consumes this therefore requires at least two independent MODEL
-FAMILIES judging the same rubric, and refuses to render otherwise. With Claude
-and GPT on the identical 300 pairs it reports 0.885 and 0.855 — an estimate
-with something real behind it.
+FAMILIES judging the same rubric, and refuses to render otherwise. With Claude,
+GPT and a human auditor on the identical pairs it reports 0.876, 0.864 and
+0.842 — an estimate with something real behind it.
 
 No new dependency: about 40 lines of numpy.
 """

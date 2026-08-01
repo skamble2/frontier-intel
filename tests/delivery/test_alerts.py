@@ -132,5 +132,53 @@ class TestWhatFires(unittest.TestCase):
         self.assertEqual(vias, {"null"})
 
 
+class TestSlackSink(unittest.TestCase):
+    def test_refuses_to_run_without_a_webhook_url(self):
+        """A silently dropped alert is worse than a crash: the row would say
+        delivered when nothing was."""
+        import os
+        old = os.environ.pop("SLACK_WEBHOOK_URL", None)
+        try:
+            with self.assertRaises(RuntimeError):
+                alerts._sink_slack({"rule": "signed_reading",
+                                    "persona": "investment", "event_id": 1,
+                                    "reason": "r", "claim": "c", "url": "u"})
+        finally:
+            if old is not None:
+                os.environ["SLACK_WEBHOOK_URL"] = old
+
+    def test_posts_the_alert_as_a_json_text_payload(self):
+        """Assert on the request actually built — URL, method, body — without
+        touching the network."""
+        import json
+        import os
+        from unittest import mock
+        seen = {}
+
+        class _Resp:
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+
+        def fake_urlopen(req, timeout=None):
+            seen["url"] = req.full_url
+            seen["method"] = req.get_method()
+            seen["body"] = json.loads(req.data.decode("utf-8"))
+            return _Resp()
+
+        with mock.patch.dict(os.environ,
+                             {"SLACK_WEBHOOK_URL": "https://hooks.example/x"}):
+            with mock.patch("urllib.request.urlopen", fake_urlopen):
+                alerts._sink_slack({"rule": "signed_position",
+                                    "persona": "investment", "event_id": 408,
+                                    "reason": "HNGE threat via product_overlap",
+                                    "claim": "OpenAI launches Health",
+                                    "url": "https://openai.com/health"})
+        self.assertEqual(seen["url"], "https://hooks.example/x")
+        self.assertEqual(seen["method"], "POST")
+        self.assertIn("HNGE threat", seen["body"]["text"])
+        self.assertIn("event 408", seen["body"]["text"])
+
+
 if __name__ == "__main__":
     unittest.main()

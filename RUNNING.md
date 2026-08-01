@@ -12,7 +12,7 @@ fli/ingestion/      LAYER 1  raw sources
 fli/knowledge/      LAYER 2  filtering, extraction, register
 fli/intelligence/   LAYER 3  clustering, features, labels, scoring
 fli/ops/            LLM client, tracing (cross-cutting)
-fli/validation/     C1-C17 invariant battery (reads every layer)
+fli/validation/     C1-C20 invariant battery (reads every layer)
 fli/delivery/       LAYER 4  positions, personas, digest, alerts (nothing imports it)
 fli/orchestration/  pipeline, skeleton (composition only)
 ```
@@ -104,7 +104,7 @@ single-user project, one database).
 
 ## Ingestion pipeline
 
-One command runs the whole daily cycle (ingest 141 sources across 5 types →
+One command runs the whole daily cycle (ingest 370 sources across 5 types →
 stage-1 filter → stage-2 extraction → re-observe affiliations → clustering →
 features → per-rubric scoring → evaluation report → validation battery;
 exit 0 = green):

@@ -64,6 +64,23 @@ def compute_features(conn: sqlite3.Connection) -> dict:
         " AND p.discovered_via IN ('coauthor_expansion','auto_approved')"
         " GROUP BY a.lab_id")}
 
+    # mechanism_channel: 1.0 if the mechanism classifier assigned the quote a
+    # transmission channel, 0.0 otherwise (including quotes it has never seen
+    # — an unclassified quote has not demonstrated a mechanism). This is the
+    # investment rubric's rule 1 ("channel over no channel") given a column to
+    # land in: the f16 slate review showed the score rewarding official-channel
+    # engineering posts and vendor case studies the reader cuts, because the
+    # judges encode the rule in labels but no feature could express it. Read
+    # from the committed verdict cache only — the feature builder stays free,
+    # offline and deterministic; `python -m fli.cli channels` is the paid step
+    # that fills the cache.
+    from fli.knowledge.channels import cached_verdicts
+    all_quotes = [r[0] for r in conn.execute(
+        "SELECT ev.verbatim_content FROM insights i"
+        " JOIN evidence ev ON ev.id = i.evidence_id")]
+    mech = {t: v for t, v in cached_verdicts(all_quotes).items()
+            if v["channel"] != "none"}
+
     # basis via a scalar subquery, not a LEFT JOIN: event_entities is 0..N per
     # event, so a join fans one insight into several feature-row inserts the
     # moment an event carries two lab entities. First entity row (lowest id)
@@ -95,6 +112,7 @@ def compute_features(conn: sqlite3.Connection) -> dict:
             "specificity": _specificity(quote),
             "quote_len_words": float(len(quote.split())),
             "contributor_lab_depth": float(lab_depth.get(r["attributed_lab_id"], 0)),
+            "mechanism_channel": 1.0 if quote in mech else 0.0,
         }
         for st in SOURCE_TYPES:
             feats[f"source_type_{st}"] = 1.0 if r["source_type"] == st else 0.0

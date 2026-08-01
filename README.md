@@ -6,7 +6,7 @@
 cited, ranked intelligence — and refuses to store anything it cannot prove.**
 
 ![Python](https://img.shields.io/badge/python-3.x-blue)
-![Tests](https://img.shields.io/badge/tests-95%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-205%20passing-brightgreen)
 ![Storage](https://img.shields.io/badge/storage-SQLite-lightgrey)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%2B%20GPT-orange)
 
@@ -44,7 +44,7 @@ check battery says so.
 
 ```mermaid
 flowchart LR
-    A["141 sources<br/>blogs · newsrooms · arXiv · GitHub · X"] --> B["fetch & store<br/>immutable, hash-deduped"]
+    A["370 sources<br/>blogs · newsrooms · arXiv · GitHub · X"] --> B["fetch & store<br/>immutable, hash-deduped"]
     B --> C["stage 1<br/>deterministic filter (free)"]
     C --> D["stage 2<br/>classify (Haiku) → extract (Sonnet)"]
     D --> E{"quote verification<br/>— the gate —"}
@@ -53,10 +53,10 @@ flowchart LR
     F --> H["two rankings<br/>investment · technical"]
 ```
 
-Current corpus: **556 events** from 1,142 documents, 1,764 evidence rows, across
+Current corpus: **734 events** from 1,541 documents, 2,294 evidence rows, across
 **8 tracked labs** (OpenAI, Anthropic, Google DeepMind, Meta AI, Mistral,
-DeepSeek, Qwen, xAI) and 63 tracked people resolved across arXiv, X and lab
-pages.
+DeepSeek, Qwen, xAI) and 285 tracked people resolved across arXiv, X, GitHub
+and lab pages.
 
 ## Highlights
 
@@ -64,11 +64,11 @@ pages.
 |---|---|
 | **Evidence-gated extraction** | Every LLM-extracted claim must carry a verbatim 10–60-word quote that re-matches the stored bytes. Unverified quotes are discarded *and counted* — the hallucination-control number is printed on every run. |
 | **A register, not a list** | Labs are first-class entities; people are discovered by arXiv co-author expansion, corroborated across platforms (`identities` with confidence tiers), and re-observed daily. Approvals are versioned; manual overrides survive DB rebuilds. |
-| **Two audiences, two rankings** | The investment reader asks "what does this mean for our positions?"; the AI team asks "what should we adopt?". Both definitions of *important* live in [config/rubrics/](config/rubrics/), and each trains its own model. Measured, the two rankings share **1 of their top 10** and correlate at **Kendall τ = +0.12** — near zero, so one ranking demonstrably cannot serve both. |
+| **Two audiences, two rankings** | The investment reader asks "what does this mean for our positions?"; the AI team asks "what should we adopt?". Both definitions of *important* live in [config/rubrics/](config/rubrics/), and each trains its own model. Measured, the two rankings share **2 of their top 10** and correlate at **Kendall τ = +0.016** — near zero, so one ranking demonstrably cannot serve both. |
 | **Scoring that earns its weights** | No arbitrary weighted sum: a 5-model bake-off (recency & corroboration baselines, hand-weights, logistic, GBM) on held-out pairwise labels. Lab identity is **never** a feature; per-lab precision@10 is the fairness check, and labs with too few events are excluded rather than given a meaningless score. |
-| **Reliability without ground truth** | Two independent model families (Claude and GPT) judge the identical pairs; Dawid–Skene estimates each one's accuracy from their disagreement alone — 0.885 and 0.855. The figure refuses to render from a single family, because one model agreeing with itself measures nothing. |
+| **Reliability without ground truth** | Two independent model families (Claude and GPT) plus a human auditor judge the identical pairs; Dawid–Skene estimates each labeler's accuracy from their disagreement alone — 0.874, 0.864 and 0.778. The human's *lower* score is itself a finding: human sittings deliberately target the pairs where the models disagree, and a disagreement-based estimator reads that as inaccuracy — which is why the human agreement is reported alongside, never replaced by, the model estimate. The figure refuses to render from a single family, because one model agreeing with itself measures nothing. |
 | **Cost-controlled by design** | A cheap Haiku gate kills non-substantive documents before Sonnet sees them. Every call is logged to `llm_calls` (model, tokens, $). `--max-extract` caps spend per run. |
-| **A validation battery, not vibes** | C1–C17 invariant checks run after every pipeline; the exit code *is* the verdict. `tests/test_architecture.py` fails the build if a lower layer imports a higher one. |
+| **A validation battery, not vibes** | C1–C20 invariant checks run after every pipeline; the exit code *is* the verdict. `tests/test_architecture.py` fails the build if a lower layer imports a higher one. |
 
 ## Quick start
 
@@ -107,7 +107,13 @@ One entry point, one command per layer — every layer also runs alone.
 | `score` | L3 | Bake-off and ranking (`--all-rubrics`, `--top K --rubric NAME`) |
 | `xbench` | — | The frozen X reference set used by the evaluation figures ($0) |
 | `evaluate` | — | Figures + evaluation report |
-| `checks` | — | C1–C17 invariant battery |
+| `checks` | — | C1–C20 invariant battery |
+| `verify` | — | Claim↔quote entailment check over all insights |
+| `positions` | L4 | Map events to holdings (ticker + mechanism edges) |
+| `personas` | L4 | Per-audience readings (threat/tailwind · adopt/investigate) |
+| `digest` | L4 | Periodic digest, Markdown + PDF (`--review` for keep/cut) |
+| `alerts` | L4 | Push material events to a sink (fires on signed direction) |
+| `web` | — | Read-only web UI over the DB |
 | `pipeline` | — | The full daily cycle |
 | `skeleton` | — | One doc → one insight, end to end |
 
@@ -127,7 +133,7 @@ fli/ingestion/      LAYER 1  raw sources
 fli/knowledge/      LAYER 2  filtering, extraction, register
 fli/intelligence/   LAYER 3  clustering, features, labels, scoring
 fli/ops/            LLM client, tracing (cross-cutting)
-fli/validation/     C1–C17 invariant battery
+fli/validation/     C1–C20 invariant battery
 fli/orchestration/  pipeline, skeleton — composition only
 ```
 
@@ -157,16 +163,22 @@ never pooled, because two audiences disagreeing is the product, not noise.
 Kept here rather than buried, because a system that hides its boundaries is not
 an intelligence system.
 
-- **Person attribution resolves on 11 of 556 events.** The register, expansion
-  and approval machinery works, but official channels rarely name individuals.
-- **`personnel` events are 7 of 556 (1.3%).** Rare, but they include two xAI
+- **Person linkage reaches 58 of 734 events** — 14 attributed to a person as the
+  event's subject, plus 44 linked deterministically to tracked arXiv authors
+  (`extract --backfill-authors`, role `author`, never inflated into subject
+  attribution). The register, expansion and approval machinery works, but
+  official channels rarely name individuals outside paper bylines.
+- **`personnel` events are 8 of 734 (1.1%).** Rare, but they include two xAI
   co-founder departures and a 30-person acquihire into Mistral — the signals the
   fund most wants, found only after researcher X accounts were added.
-- **No GitHub identities yet.** People are resolved across arXiv, X and lab
-  pages; the third platform is scoped, not done.
-- **Roughly 45% of pairwise verdicts come back low-confidence** and are excluded
-  from training. That is the judge reporting when a pair is genuinely
-  inseparable, not a defect — but it halves the usable label yield.
+- **Live mobility synthesis has not fired yet.** The mechanism is test-verified
+  end to end (a planted move reaches the digest slate), but re-observation runs
+  on a 7-day cadence and the first observation landed Jul 30 — the earliest a
+  real move can be witnessed is Aug 6.
+- **Roughly a fifth of pairwise verdicts come back low-confidence** (22.8%
+  Claude, 20.8% GPT) and are excluded from training. That is the judge reporting
+  when a pair is genuinely inseparable, not a defect — but it cuts usable label
+  yield.
 - **Some launches are behind JavaScript.** Those pages are captured manually and
   stored under the same immutability rules, rather than weakening the evidence
   invariant to accommodate them.

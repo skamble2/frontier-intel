@@ -129,6 +129,25 @@ def channel_for(text: str, conn=None) -> str | None:
     return None if v["channel"] == "none" else v["channel"]
 
 
+def cached_verdicts(texts: list[str]) -> dict[str, dict]:
+    """Cache-only lookup: {text -> verdict} for texts already classified,
+    silently omitting the rest. Never calls the API, so callers that must
+    stay free and deterministic (the feature builder) can consume classifier
+    verdicts without inheriting its cost or its network dependency. The cache
+    is committed to the repo, so "cached" is reproducible, not machine-local.
+    """
+    policy = load_policy()
+    from fli.ops.llm import MODEL_FOR_TASK
+    model = MODEL_FOR_TASK["channel"]
+    cache = _load_cache()
+    out = {}
+    for t in dict.fromkeys(texts):
+        v = cache.get(_key(t, policy.version, model))
+        if v is not None:
+            out[t] = v
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="LLM channel classifier.")
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))

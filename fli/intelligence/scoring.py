@@ -282,6 +282,17 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
     # functions of the training features (lf:specificity <-> specificity, and so
     # on) — accuracy against those is partly a model recovering its own inputs.
     te_llm = [p for p in te if p[3].startswith("llm:")] if te and len(te[0]) > 3 else []
+    # The human audit sample is excluded from training entirely (see
+    # load_pairs), which makes it the one label set that is out-of-sample for
+    # EVERY model — including the judges themselves. Accuracy against it is the
+    # number that answers "does the ranking agree with a person", not "does the
+    # ranking agree with the LLM that trained it".
+    human_pairs = [(r["event_a"], r["event_b"], r["winner"], r["labeler"])
+                   for r in conn.execute(
+                       "SELECT event_a, event_b, winner, labeler"
+                       " FROM pairwise_labels WHERE labeler LIKE ?"
+                       " AND winner != 'tie'",
+                       (f"human:%/{rubric}/%" if rubric else "human:%",))]
     ts = storage.now_utc()
     pol = load_policy()   # stamped on every row (check C17)
     # `model` carries the rubric as a prefix: "investment:gbm_sklearn". A prefix
@@ -297,6 +308,7 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
         report[model] = {
             "heldout_acc": _pairwise_accuracy(te, scores, row),
             "heldout_acc_llm": _pairwise_accuracy(te_llm, scores, row),
+            "human_acc": _pairwise_accuracy(human_pairs, scores, row),
             "p@10": _precision_at_k(scores, row, gold, 10),
             "ndcg@20": _ndcg_at_k(scores, row, gold, 20)}
     winner = max(report, key=lambda m: (report[m]["heldout_acc"]
@@ -378,6 +390,7 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
     n_relevant = sum(1 for v in gold.values() if v > 0)
     return {"n_labels": len(pairs), "n_test": len(te), "winner": winner,
             "ablation_model": ablation_model,
+            "n_human": len(human_pairs),
             "n_gold_events": len(gold), "n_relevant": n_relevant,
             "report": report, "ablation": ablation, "per_lab_p10": per_lab,
             "per_lab_p10_small_n": per_lab_small,
@@ -619,6 +632,11 @@ def print_report(res: dict) -> None:
     for m, d in sorted(res["report"].items(), key=lambda kv: -(kv[1]['heldout_acc'] or 0)):
         print(f"{m:<24}{d['heldout_acc']:>12.3f}{d['p@10']:>8.3f}{d['ndcg@20']:>9.3f}")
     print(f"\nwinner: {res['winner']}  (GBM contender: {res['gbm']})")
+    if res["n_human"]:
+        h = res["report"][res["winner"]]["human_acc"]
+        print(f"  human audit: winner agrees with {h:.3f} of {res['n_human']} "
+              f"decided human pairs — fully out-of-sample (humans never train "
+              f"the model; heldout_acc above is measured against the JUDGES).")
     print(f"  p@10 base rate: {res['n_relevant']} of {res['n_gold_events']} labelled "
           f"events have net_wins>0 ({res['n_relevant']/max(res['n_gold_events'],1):.0%}); "
           f"a high p@10 over so few positives is weak evidence.")

@@ -6304,5 +6304,89 @@
   "quantity": null,
   "confidence": "high",
   "reason": "Generic launch announcement with no quantified commitment, resource allocation, or market-moving event disclosed."
+ },
+ "937ec4da09688489:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product tier assignment change with no impact on compute, energy, data economics, competitive displacement, or talent movement outside Anthropic."
+ },
+ "2a86087899389150:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Pricing announcement affects Anthropic's revenue model but does not change quantities that technology fund portfolio companies must respond to operationally."
+ },
+ "535b5b4efda19bff:v3:claude-haiku-4-5-20251001": {
+  "channel": "energy_datacenter",
+  "quantity": "3.28 megawatts",
+  "confidence": "high",
+  "reason": "Meta's infrastructure optimization freed up measurable power capacity (3.28 MW), reducing datacenter energy demand—a quantity external suppliers and energy markets must respond to."
+ },
+ "7c0df555719a5f50:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Battery capacity and runtime improvements in consumer hardware are product engineering details with no direct impact on frontier-AI-lab resource demands or market displacement outside Meta's own consumer segment."
+ },
+ "7eb18a5864a2abf6:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product release announcement with no disclosed compute, energy, talent, data economics, or market displacement quantities."
+ },
+ "a3e3be8e0c537d40:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Model release announcement with no disclosed compute contracts, energy commitments, talent moves, or market displacement metrics that would affect fund portfolio companies."
+ },
+ "7fbc441640780bdf:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Open-source model release with no compute procurement, energy commitment, market displacement, or talent movement affecting external parties."
+ },
+ "28ae144f23006b33:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a client success story about internal process improvement (contract review speed/accuracy); no quantity that affects fund portfolio holdings or market dynamics is disclosed."
+ },
+ "df080b229dca3d46:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Statistical observation about occupational task overlap; no quantity commitment or market response required from fund portfolio companies."
+ },
+ "4acfdbb9a11c02a7:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Internal enterprise software deployment by a customer; no quantity change in compute, energy, data economics, competitive displacement, or talent movement affecting the fund's portfolio."
+ },
+ "1e8f9d46dc01e3b1:v3:claude-haiku-4-5-20251001": {
+  "channel": "energy_datacenter",
+  "quantity": null,
+  "confidence": "medium",
+  "reason": "Dynamic resource adjustment in mobile networks reduces compute/energy consumption, but no specific capacity or power commitment is quantified in the text."
+ },
+ "3a8eb0804a9d0e78:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product pricing and efficiency improvements are internal to Google/Gemini; no external quantity (compute procurement, energy contracts, talent movement, or market displacement) that a tech fund's portfolio companies must respond to is specified."
+ },
+ "933ba2f05a246a1b:v3:claude-haiku-4-5-20251001": {
+  "channel": "competitive_displacement",
+  "quantity": null,
+  "confidence": "medium",
+  "reason": "Health feature expands ChatGPT's addressable market into medical/wellness services, displacing potential demand from specialized health apps and providers, but no specific user/revenue quantity disclosed."
+ },
+ "ee7a9c0c06dccc0f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a product licensing/deployment announcement with no quantified compute, energy, data economics, competitive displacement in external markets, or research talent movement that affects the fund's portfolio."
  }
 }

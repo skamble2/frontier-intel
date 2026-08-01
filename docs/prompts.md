@@ -56,11 +56,30 @@ Return ONLY JSON:
    "attributed_lab": "<lab name or null>",
    "attributed_person": "<person name or null>"}
 ]}
+PICK THE QUOTE FIRST, THEN WRITE THE CLAIM FROM IT. Every load-bearing fact in
+the claim — each number, date, price, model name, version, actor — must appear
+INSIDE the quote you chose. If the decisive number sits in a different sentence
+than the story, quote the sentence with the number. A modest claim its quote
+fully carries beats a rich claim the quote only half-supports: facts you
+remember from elsewhere in the document do not belong in the claim.
 Return one object per DISTINCT event, most decision-relevant first, at most <N>.
 Do NOT split one event into several claims, do NOT invent events the text does
 not support, and do NOT pad the list to the maximum — return FEWER when the
 document supports fewer. Each quote must be copied character-for-character.
 ```
+
+**"PICK THE QUOTE FIRST" is a measured revision, not a flourish.** The
+entailment audit (f15) judged 46% of the corpus's claim–quote pairs only
+*partially* entailed, and the failure reasons had one shape: claims carrying a
+model name, version or number that lives in a *different* sentence than the
+quoted one — true facts, wrong provenance. The block inverts the model's
+writing order (quote → claim) and names the failure explicitly ("facts you
+remember from elsewhere in the document do not belong in the claim"). Measured
+A/B on the 30 hardest documents (sampled with seed 7 from docs that already had
+≥1 partial verdict, same entailment judge): partial rate **65.6% → 47.9%**,
+entailed 34.4% → 52.1%, zero not-entailed, and quote verification still held
+(96 of 102 fresh extractions verified verbatim). The revision applies to new
+extractions; already-persisted insights keep their original audited verdicts.
 
 **The quote is the load-bearing field.** The whole evidence-first invariant
 rests on it. The `claim` is the model's paraphrase and is allowed to be smooth;
@@ -127,8 +146,9 @@ Reply with ONLY:
 
 **Why an LLM and not the keyword lexicon.** A keyword list is genuinely good at
 *exposure* (does this text mention memory, datacenters, licensing?) and genuinely
-bad at *mechanism*. Measured on the reference set, the lexicon scores F1 0.33
-against the classifier's 0.57, and its errors are the dangerous kind: it returned
+bad at *mechanism*. Measured on the 100-label human-audited reference set, the
+lexicon scores F1 0.267 against the classifier's 0.444, and its errors are the
+dangerous kind: it returned
 a phone codec that "increased power usage by 14%" as a datacenter signal because
 "power" is an ambient word in an AI corpus. So the lexicon is kept for exposure
 and the classifier decides mechanism.
