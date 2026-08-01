@@ -100,6 +100,43 @@ class TestNameKeyAccentFold(unittest.TestCase):
                                            "Timothee Lacroix"))
 
 
+class TestHomonymGuard(DBTestCase):
+    """Two tracked people sharing a folded name key. A name-only lookup that
+    returned whichever row came first would attach a live profile — and every
+    later observation made through it — to the wrong person, which no check
+    could catch afterwards. Both platform lookups must abstain instead."""
+
+    def _add_person(self, name):
+        return self.conn.execute(
+            "INSERT INTO people (canonical_name, discovered_via, first_seen_at)"
+            " VALUES (?, 'manual', '2026-01-01T00:00:00Z')", (name,)).lastrowid
+
+    def test_unique_name_still_resolves(self):
+        pid = self._add_person("Liang Wenfeng")
+        self.assertEqual(X._person_by_name(self.conn, "Wenfeng Liang"), pid)
+
+    def test_two_people_one_key_abstains_on_both_platforms(self):
+        from fli.knowledge.register import gh_identities as GH
+        self._add_person("J. Smith")
+        self._add_person("Smith J.")          # same name_key, different person
+        self.assertIsNone(X._person_by_name(self.conn, "J. Smith"))
+        self.assertIsNone(GH._person_by_name(self.conn, "Smith J."))
+
+    def test_abstention_downgrades_admission_not_identity(self):
+        """With the register ambiguous, a silent bio must now REJECT (there is
+        no name_match_only to fall back on) while a bio naming the lab still
+        admits as self_link — the profile's own words are not ambiguous."""
+        self._add_person("J. Smith")
+        self._add_person("Smith J.")
+        pid = X._person_by_name(self.conn, "J. Smith")
+        self.assertEqual(classify({"name": "J. Smith", "description": ""},
+                                  "Anthropic", pid)[0], "reject")
+        self.assertEqual(classify({"name": "J. Smith",
+                                   "description": "Research scientist @AnthropicAI"},
+                                  "Anthropic", pid),
+                         ("accept", "verbatim", "self_link"))
+
+
 class _FakeClient:
     """Stands in for XClient. The four profiles below are the four things the
     live API actually does: answer, answer about someone else, 404, and 429."""

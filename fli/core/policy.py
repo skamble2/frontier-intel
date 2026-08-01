@@ -57,7 +57,8 @@ _KEYS = {"version", "owner", "effective_from", "source", "channels",
 # reads old config, so the code can ship before the policy is swapped.
 _OPTIONAL_KEYS = {"positions", "window_days", "show_undated",
                   "max_per_lab", "story_rare_df", "story_days",
-                  "primary_rubric", "mobility_window_days"}
+                  "primary_rubric", "mobility_window_days",
+                  "require_mechanism"}
 _POSITION_KEYS = {"ticker", "name", "weight_pct", "thesis", "exposure_terms"}
 
 
@@ -101,6 +102,11 @@ class Policy:
     max_per_lab: int = 0            # 0 = no cap
     story_rare_df: float = 0.0      # 0 = same-story suppression off
     story_days: int = 7
+    # Rubrics whose slates require a transmission mechanism: an event whose
+    # quote the channel classifier could not assign a channel is dropped at
+    # render time. The investment rubric's rule 1 ("channel over no channel")
+    # applied as an editorial boundary, not a scoring change.
+    require_mechanism: tuple[str, ...] = ()
     positions: tuple[Position, ...] = ()
     positions_as_of: str | None = None
     positions_source: str | None = None
@@ -181,6 +187,10 @@ def parse_policy(raw: dict) -> Policy:
     if not isinstance(primary_rubric, str) or not primary_rubric.strip():
         raise PolicyError("policy.yml: `primary_rubric` must be the name of a "
                           "rubric file (config/rubrics/<name>.yml)")
+    req_mech = raw.get("require_mechanism") or []
+    if not isinstance(req_mech, list) or not all(isinstance(r, str) for r in req_mech):
+        raise PolicyError("policy.yml: `require_mechanism` must be a list of "
+                          "rubric names, e.g. [investment]")
 
     channels = {}
     for name, terms in (raw["channels"] or {}).items():
@@ -240,6 +250,7 @@ def parse_policy(raw: dict) -> Policy:
         max_per_lab=int(raw.get("max_per_lab", 0)),
         story_rare_df=float(raw.get("story_rare_df", 0.0)),
         story_days=int(raw.get("story_days", 7)),
+        require_mechanism=tuple(r.strip() for r in req_mech),
         positions=tuple(positions),
         positions_as_of=pos_block.get("as_of"),
         positions_source=pos_block.get("source"),

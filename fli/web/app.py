@@ -1,12 +1,17 @@
-"""Read-only web surface over the existing database.
+"""Web surface over the existing database.
 
-Browse the register, see scored insights and why they were flagged, read past
-digests, and view the tracked-universe config. Deliberately thin: every list
-it renders comes from the same calls the CLI uses (`scoring.top_events` for
-the slate), so the web view can never disagree with the digest.
+Browse the register, see scored insights and why they were flagged (including
+each claim's entailment verdict), read past digests, and view the tracked-
+universe config. Deliberately thin: every list it renders comes from the same
+calls the CLI uses (`scoring.top_events` for the slate), so the web view can
+never disagree with the digest.
 
-No writes. Configuration changes stay YAML edits (config/register_seeds.yml),
-which is the intended workflow — the page links to the file it mirrors.
+Writes are limited to the one human decision the system already models:
+approving or rejecting a discovered person candidate. The buttons call the
+same `approval.review` the CLI calls, so a web approve lands in
+register_overrides.yml and survives DB rebuilds exactly like a CLI approve.
+Everything else stays read-only; universe changes remain YAML edits
+(config/register_seeds.yml), which the config page mirrors.
 
 Run:  python -m fli.cli web            # http://127.0.0.1:5000
 """
@@ -33,6 +38,12 @@ th { background: #f5f7fa; }
 .score { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tag { background: #eef3f8; border-radius: 3px; padding: 0.05rem 0.4rem;
        font-size: 0.8rem; white-space: nowrap; }
+.v-entailed { background: #e6f4e6; color: #1a6b1a; }
+.v-partial { background: #fdf3dc; color: #8a6100; }
+.v-not_entailed { background: #fbe4e4; color: #9c1f1f; }
+.actions form { display: inline; }
+.actions button { font-size: 0.8rem; padding: 0.1rem 0.5rem; margin-right: 0.3rem;
+                  cursor: pointer; }
 .quote { color: #555; font-size: 0.85rem; font-style: italic; }
 .comp { font-size: 0.8rem; color: #666; }
 pre.report { background: #fafafa; border: 1px solid #e3e3e3; padding: 1rem;
@@ -47,7 +58,8 @@ def _page(title: str, body: str) -> str:
             f"<title>{html.escape(title)} — Frontier Lab Intelligence</title>"
             f"<style>{_STYLE}</style></head><body>"
             f"<nav><a href='/'>Overview</a><a href='/register'>Register</a>"
-            f"<a href='/insights'>Insights</a><a href='/reports'>Reports</a>"
+            f"<a href='/insights'>Insights</a><a href='/contributors'>Contributors</a>"
+            f"<a href='/reports'>Reports</a>"
             f"<a href='/config'>Tracked universe</a></nav>"
             f"<h1>{html.escape(title)}</h1>{body}</body></html>")
 
@@ -80,8 +92,14 @@ def _components(raw: str | None) -> str:
     return " · ".join(parts)
 
 
+def _verdict_tag(verdict: str | None) -> str:
+    if not verdict:
+        return ""
+    return f"<span class='tag v-{_e(verdict)}'>{_e(verdict)}</span>"
+
+
 def create_app():
-    from flask import Flask, abort
+    from flask import Flask, abort, redirect
 
     app = Flask(__name__)
 
@@ -139,30 +157,79 @@ def create_app():
             f"<td>{_e(r['discovered_via'])}</td>"
             f"<td class='muted'>{_e(r['idents'])}</td></tr>" for r in people)
 
-        pending = conn.execute(
-            "SELECT count(*) FROM person_candidates WHERE status='pending'"
-        ).fetchone()[0]
+        pending = [dict(row) for row in conn.execute(
+            "SELECT * FROM person_candidates WHERE status='pending'")]
+
+        # Same review slate the CLI shows (top-K per lab by paper_count,
+        # valid name) — the web buttons and `register review` are two doors
+        # to the identical decision, so neither can see a different queue.
+        from fli.knowledge.register.approval import _candidate_lab_ids, _slate
+        slate_ids = _slate(conn, pending)
+        lab_by_id = {r["id"]: r["name"] for r in labs}
+        cand_rows = ""
+        for c in sorted((c for c in pending if c["id"] in slate_ids),
+                        key=lambda c: (-c["paper_count"], c["id"])):
+            cand_labs = ", ".join(lab_by_id.get(i, "?")
+                                  for i in _candidate_lab_ids(conn, c)) or "-"
+            cand_rows += (
+                f"<tr><td>{_e(c['name'])}</td><td>{_e(cand_labs)}</td>"
+                f"<td class='score'>{c['paper_count']}</td>"
+                f"<td>{_e(c['discovered_via'])}</td><td class='actions'>"
+                f"<form method='post' action='/register/candidates/{c['id']}/approve'>"
+                f"<button>approve</button></form>"
+                f"<form method='post' action='/register/candidates/{c['id']}/reject'>"
+                f"<button>reject</button></form></td></tr>")
         conn.close()
         return _page("Register",
             f"<h2>Labs ({len(labs)})</h2><table><tr><th>Lab</th><th>Ticker</th>"
             f"<th>People</th><th>Observations</th></tr>{lab_rows}</table>"
             f"<h2>People ({len(people)})</h2><table><tr><th>Name</th><th>Lab</th>"
             f"<th>Tier</th><th>Via</th><th>Identities</th></tr>{ppl_rows}</table>"
-            f"<p class='muted'>{pending} discovered candidates pending review "
-            f"(<code>python -m fli.cli register review</code>).</p>")
+            f"<h2>Review queue ({len(slate_ids)} of {len(pending)} pending)</h2>"
+            f"<p class='muted'>Discovered co-authors, top slate per lab — the "
+            f"same queue as <code>python -m fli.cli register review</code>. "
+            f"Approve writes the name to register_overrides.yml, so the "
+            f"decision survives database rebuilds.</p>"
+            f"<table><tr><th>Name</th><th>Labs</th><th>Papers</th><th>Via</th>"
+            f"<th></th></tr>{cand_rows or '<tr><td colspan=5>queue empty</td></tr>'}"
+            f"</table>")
+
+    @app.post("/register/candidates/<int:cid>/<decision>")
+    def review_candidate(cid: int, decision: str):
+        # The one write this surface performs. It goes through the same
+        # approval.review as the CLI: overrides file first, then promotion,
+        # name-hygiene gate enforced on approve.
+        from fli.knowledge.register.approval import review
+        verdict = {"approve": "approved", "reject": "rejected"}.get(decision)
+        if verdict is None:
+            abort(404)
+        conn = db()
+        try:
+            review(conn, [cid], verdict)
+        finally:
+            conn.close()
+        return redirect("/register")
 
     @app.get("/insights")
     def insights():
         from fli.intelligence.scoring import primary_rubric, top_events
+        from fli.ops.llm import MODEL_FOR_TASK
         conn = db()
         items, dropped = top_events(conn, k=25, rubric=primary_rubric())
+        # one verdict per claim from the standing entailment check (f15);
+        # the slate filter already drops not_entailed, so this shows
+        # entailed vs partial — i.e. how much of the claim the quote carries
+        verdicts = dict(conn.execute(
+            "SELECT insight_id, verdict FROM claim_checks WHERE model=?",
+            (MODEL_FOR_TASK["verify"],)).fetchall())
         conn.close()
         rows = "".join(
             f"<tr><td class='score'>{r['score']:.3f}</td>"
             f"<td><a href='/insights/{r['id']}'>{_e(r['claim'])}</a>"
             f"<div class='quote'>&ldquo;{_e((r['quote'] or '')[:220])}&rdquo;</div>"
             f"<div class='comp'>{_components(r['score_components'])}</div></td>"
-            f"<td><span class='tag'>{_e(r['event_type'])}</span></td>"
+            f"<td><span class='tag'>{_e(r['event_type'])}</span><br>"
+            f"{_verdict_tag(verdicts.get(r['id']))}</td>"
             f"<td>{_e(r['lab'])}</td>"
             f"<td class='muted'>{_e((r['published_at'] or 'undated')[:10])}<br>"
             f"<a href='{_e(r['url'])}'>source</a></td></tr>" for r in items)
@@ -190,6 +257,9 @@ def create_app():
             abort(404)
         hyps = conn.execute("SELECT * FROM hypotheses WHERE insight_id = ?",
                             (event_id,)).fetchall()
+        checks = conn.execute(
+            "SELECT model, verdict, reason FROM claim_checks WHERE insight_id = ?"
+            " ORDER BY model", (event_id,)).fetchall()
         pos = conn.execute(
             "SELECT ticker, direction, channel, rationale FROM event_positions"
             " WHERE event_id = ? ORDER BY ticker", (event_id,)).fetchall()
@@ -208,6 +278,17 @@ def create_app():
         pos_html = (f"<h2>Position exposure</h2><table><tr><th>Ticker</th>"
                     f"<th>Direction</th><th>Channel</th><th>Rationale</th></tr>"
                     f"{pos_rows}</table>") if pos_rows else ""
+        check_html = "".join(
+            f"<p>{_verdict_tag(c['verdict'])} "
+            f"<span class='muted'>({_e(c['model'])})</span>"
+            f"{' — ' + _e(c['reason']) if c['reason'] else ''}</p>" for c in checks)
+        check_html = (f"<h2>Claim↔quote entailment</h2>"
+                      f"<p class='muted'>Does the verbatim quote alone support "
+                      f"every load-bearing fact in the claim? Judged verdict, "
+                      f"not ground truth (f15). <code>partial</code> names the "
+                      f"unsupported fact; <code>python -m fli.cli verify "
+                      f"--repair</code> rewrites such claims down to what the "
+                      f"quote carries.</p>{check_html}") if check_html else ""
         return _page(f"Insight #{event_id}",
             f"<p><strong>{_e(r['claim'])}</strong></p>"
             f"<p><span class='tag'>{_e(r['event_type'])}</span> · {_e(r['lab'])} · "
@@ -217,7 +298,48 @@ def create_app():
             f"<blockquote class='quote'>{_e(r['quote'])}</blockquote>"
             f"<p class='comp'>score {r['score'] if r['score'] is not None else '—'}"
             f" · {_components(r['score_components'])}</p>"
-            f"{hyp_html}{pos_html}")
+            f"{check_html}{hyp_html}{pos_html}")
+
+    @app.get("/contributors")
+    def contributors():
+        from fli.intelligence.contributors import tier_mix, top
+        from fli.intelligence.scoring import primary_rubric
+        conn = db()
+        rubric = primary_rubric()
+        rows = top(conn, rubric, k=30)
+        details = []
+        for r in rows:
+            evs = json.loads(r["components"])["top_events"][:3]
+            claims = []
+            for e in evs:
+                c = conn.execute("SELECT claim FROM insights WHERE id=?",
+                                 (e["event_id"],)).fetchone()
+                claims.append(
+                    f"<div class='comp'>{e['contribution']:.2f} · "
+                    f"<a href='/insights/{e['event_id']}'>"
+                    f"{_e((c['claim'] if c else '?')[:120])}</a></div>")
+            details.append("".join(claims))
+        conn.close()
+        body_rows = "".join(
+            f"<tr><td class='score'>{r['score']:.2f}</td>"
+            f"<td>{_e(r['canonical_name'])}{d}</td>"
+            f"<td>{_e(r['lab'])}</td>"
+            f"<td><span class='tag'>{_e(r['seniority_tier'] or '-')}</span></td>"
+            f"<td class='score'>{r['n_events']}</td></tr>"
+            for r, d in zip(rows, details))
+        empty = ("<p class='muted'>none computed yet — run "
+                 "<code>python -m fli.cli contributors</code>.</p>")
+        mix = (f"<p class='muted'>tier mix of this slice — {_e(tier_mix(rows))}"
+               f"</p>" if rows else "")
+        return _page("Contributors",
+            f"<p class='muted'>Rubric <b>{_e(rubric)}</b>. A person's score is "
+            f"the sum of their linked events' validated score-percentiles, "
+            f"recency-decayed — aggregation of bake-off output, not a new "
+            f"formula, so it adds no tunable weights. Each row decomposes into "
+            f"the events behind it.</p>"
+            + (f"<table><tr><th>Score</th><th>Person / top events</th><th>Lab</th>"
+               f"<th>Tier</th><th>Events</th></tr>{body_rows}</table>{mix}"
+               if body_rows else empty))
 
     @app.get("/reports")
     def reports():
@@ -249,7 +371,8 @@ def create_app():
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="read-only web UI")
+    ap = argparse.ArgumentParser(
+        description="web UI: browse + candidate approve/reject")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=5000)
     args = ap.parse_args()

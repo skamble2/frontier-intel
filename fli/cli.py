@@ -29,6 +29,7 @@ COMMANDS = {
     "judge": "fli.intelligence.judge",             # LLM pairwise judge (SPENDS)
     "channels": "fli.knowledge.channels",          # LLM channel classifier
     "score": "fli.intelligence.scoring",
+    "contributors": "fli.intelligence.contributors",  # people ranked by their events
     # validation + orchestration
     "evaluate": "fli.validation.evaluation",       # figures + report
     "verify": "fli.validation.entailment",         # claim faithfulness (SPENDS)
@@ -41,7 +42,7 @@ COMMANDS = {
     "digest": "fli.delivery.digest",
     "alerts": "fli.delivery.alerts",
     "skeleton": "fli.orchestration.skeleton",
-    "web": "fli.web.app",                     # read-only browse UI
+    "web": "fli.web.app",                     # browse UI + candidate review
 }
 
 USAGE = "usage: python -m fli.cli {" + "|".join(COMMANDS) + "} [options]"

@@ -329,6 +329,36 @@ CREATE TABLE IF NOT EXISTS slate_reviews (
     UNIQUE (event_id, persona, reviewer)
 );
 
+-- Contributor scoring: a person's standing is the sum of the validated scores
+-- of the events they are linked to (recency-decayed percentiles), NOT a new
+-- hand-weighted formula. The event scores already won a bake-off against
+-- labels; this table only aggregates them along the person axis, so it adds
+-- zero free parameters. Recomputed in full each run (scores change when the
+-- bake-off reruns), hence INSERT OR REPLACE on the (person, rubric) key.
+CREATE TABLE IF NOT EXISTS contributor_scores (
+    id         INTEGER PRIMARY KEY,
+    person_id  INTEGER NOT NULL REFERENCES people(id),
+    rubric     TEXT NOT NULL CHECK (rubric IN ('investment','ai_team')),
+    score      REAL NOT NULL,
+    n_events   INTEGER NOT NULL,
+    components TEXT,                -- JSON decomposition, never a bare number
+    created_at TIMESTAMP NOT NULL,
+    UNIQUE (person_id, rubric)
+);
+
+-- Human keep/cut over the contributor ranking — the same audit slate_reviews
+-- gives the digest, asked of people instead of events: "is this someone whose
+-- next move you'd want to know about?".
+CREATE TABLE IF NOT EXISTS contributor_reviews (
+    id          INTEGER PRIMARY KEY,
+    person_id   INTEGER NOT NULL REFERENCES people(id),
+    rubric      TEXT NOT NULL CHECK (rubric IN ('investment','ai_team')),
+    reviewer    TEXT NOT NULL,
+    verdict     TEXT NOT NULL CHECK (verdict IN ('keep','cut')),
+    reviewed_at TIMESTAMP NOT NULL,
+    UNIQUE (person_id, rubric, reviewer)
+);
+
 -- Indexes last, so every table they reference exists. Only where a hot path
 -- needs one, each named with the query it serves.
 --   latest_documents runs a correlated subquery on url for every row, and the

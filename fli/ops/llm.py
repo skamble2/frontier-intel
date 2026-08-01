@@ -54,6 +54,7 @@ def have_api_key(model: str | None = None) -> bool:
 MODEL_FOR_TASK = {
     "classify": "claude-haiku-4-5-20251001",  # high volume, structured output
     "extract": "claude-sonnet-5",             # faithful quoting + schema adherence
+    "repair": "claude-sonnet-5",              # claim tightening: same faithfulness bar as extract
     "persona": "claude-sonnet-5",             # UNUSED: no caller routes to it
     "judge": "claude-sonnet-5",               # pairwise preference, audited
     "channel": "claude-haiku-4-5-20251001",   # 5-way choice over every event

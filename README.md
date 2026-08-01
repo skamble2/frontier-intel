@@ -6,7 +6,7 @@
 cited, ranked intelligence — and refuses to store anything it cannot prove.**
 
 ![Python](https://img.shields.io/badge/python-3.x-blue)
-![Tests](https://img.shields.io/badge/tests-205%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-232%20passing-brightgreen)
 ![Storage](https://img.shields.io/badge/storage-SQLite-lightgrey)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%2B%20GPT-orange)
 
@@ -105,15 +105,16 @@ One entry point, one command per layer — every layer also runs alone.
 | `judge` | L3 | LLM pairwise judge (**spends**; `--dry-run` previews). `--rubric` picks the audience, `--model` a second provider, `--agreement` reports Cohen's κ ($0) |
 | `channels` | L3 | LLM channel classifier over the corpus |
 | `score` | L3 | Bake-off and ranking (`--all-rubrics`, `--top K --rubric NAME`) |
+| `contributors` | L3 | Rank tracked people by their linked events' validated scores (`--review` for keep/cut) |
 | `xbench` | — | The frozen X reference set used by the evaluation figures ($0) |
 | `evaluate` | — | Figures + evaluation report |
 | `checks` | — | C1–C20 invariant battery |
-| `verify` | — | Claim↔quote entailment check over all insights |
+| `verify` | — | Claim↔quote entailment check over all insights (`--repair` rewrites `partial` claims to what their quote supports) |
 | `positions` | L4 | Map events to holdings (ticker + mechanism edges) |
 | `personas` | L4 | Per-audience readings (threat/tailwind · adopt/investigate) |
 | `digest` | L4 | Periodic digest, Markdown + PDF (`--review` for keep/cut) |
 | `alerts` | L4 | Push material events to a sink (fires on signed direction) |
-| `web` | — | Read-only web UI over the DB |
+| `web` | — | Web UI over the DB (browse + candidate approve/reject) |
 | `pipeline` | — | The full daily cycle |
 | `skeleton` | — | One doc → one insight, end to end |
 

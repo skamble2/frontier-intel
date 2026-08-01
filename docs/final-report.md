@@ -18,7 +18,8 @@ reader, once for an engineering reader — from 2,159 pairwise labels (1,732 fro
 two model-judge families, 427 from a human). It then
 connects lab events to public-equity holdings, writes a per-audience reading of
 each, and delivers a cited digest and an alert path. Total LLM spend to date is
-under $24.
+about $25 — including a $1.05 claim-repair pass that lifted claim↔quote
+entailment from 52% to 95.2% (699/734 entailed).
 
 ## The headline finding: one ranking cannot serve two readers
 

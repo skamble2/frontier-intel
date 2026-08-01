@@ -250,10 +250,15 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
             + " — run `python3 -m fli.cli judge --n 300"
             + (f" --rubric {rubric}" if rubric else "") + "` first")
     tr, te = _split(pairs)
-    # IN-SAMPLE by construction: relevance comes from ALL labels, train and
-    # test alike, so p@10 and NDCG are not held out. Only `heldout_acc` is.
-    # Building gold from test labels only would leave too few positives to rank.
+    # Two golds. `gold` uses ALL labels (train + test) and is IN-SAMPLE by
+    # construction — kept because per-lab fairness needs its coverage, and
+    # test labels alone leave most labs with no positives at all. `gold_te`
+    # is built from the held-out pairs ONLY, so its p@10 / ndcg are honest
+    # ranking metrics on the same footing as heldout_acc: the model never
+    # trained on any judgement that produced them. Both are reported, and
+    # each is labeled with what it is.
     gold = _gold_net_wins(pairs)
+    gold_te = _gold_net_wins(te)
 
     model_scores: dict[str, np.ndarray] = {}
     extras: dict[str, dict] = {}
@@ -310,7 +315,9 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
             "heldout_acc_llm": _pairwise_accuracy(te_llm, scores, row),
             "human_acc": _pairwise_accuracy(human_pairs, scores, row),
             "p@10": _precision_at_k(scores, row, gold, 10),
-            "ndcg@20": _ndcg_at_k(scores, row, gold, 20)}
+            "ndcg@20": _ndcg_at_k(scores, row, gold, 20),
+            "p@10_heldout": _precision_at_k(scores, row, gold_te, 10),
+            "ndcg@20_heldout": _ndcg_at_k(scores, row, gold_te, 20)}
     winner = max(report, key=lambda m: (report[m]["heldout_acc"]
                                         if not math.isnan(report[m]["heldout_acc"]) else -1))
 
@@ -388,10 +395,13 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
     # p@10's base rate: with many ties, few events have net_wins > 0, so a high
     # p@10 can be an artifact of a tiny relevant set rather than good ranking.
     n_relevant = sum(1 for v in gold.values() if v > 0)
+    n_relevant_te = sum(1 for v in gold_te.values() if v > 0)
     return {"n_labels": len(pairs), "n_test": len(te), "winner": winner,
             "ablation_model": ablation_model,
             "n_human": len(human_pairs),
             "n_gold_events": len(gold), "n_relevant": n_relevant,
+            "n_gold_events_heldout": len(gold_te),
+            "n_relevant_heldout": n_relevant_te,
             "report": report, "ablation": ablation, "per_lab_p10": per_lab,
             "per_lab_p10_small_n": per_lab_small,
             "per_lab_detail": per_lab_detail,
@@ -440,10 +450,23 @@ class SlateFilter:
     config/policy.yml and re-printing — no re-train required.
     """
 
-    def __init__(self, policy, corpus_claims: list[str]):
+    def __init__(self, policy, corpus_claims: list[str],
+                 no_mech_quotes: set[str] | None = None,
+                 not_entailed: set[int] | None = None):
         self.pol = policy
         self.cutoff = (datetime.now(timezone.utc)
                        - timedelta(days=policy.window_days)).isoformat()
+        # None = gate off. A set = quotes the channel classifier POSITIVELY
+        # verdicted 'none' (no transmission mechanism); those are dropped.
+        # A quote the classifier has never seen passes — absence of a cache
+        # entry is an infrastructure fact about this run, not evidence about
+        # the event, and a gate must only act on evidence.
+        self.no_mech_quotes = no_mech_quotes
+        # Insights whose claim the faithfulness check (f15) called
+        # not_entailed: the claim asserts something its own verified quote
+        # does not say. A slate that cites the quote as support for the claim
+        # would be lying, so these never render — for ANY persona.
+        self.not_entailed = not_entailed or set()
         self.rare_cut = policy.story_rare_df * max(len(corpus_claims), 1)
         df: Counter = Counter()
         for c in corpus_claims:
@@ -486,6 +509,12 @@ class SlateFilter:
         """Apply every rule in order, counting the reason for each rejection.
         Counts are printed with the slate: a filter that silently discards is
         indistinguishable from a bug."""
+        if row["id"] in self.not_entailed:
+            self.dropped["not_entailed"] += 1
+            return False
+        if self.no_mech_quotes is not None and (row["quote"] or "") in self.no_mech_quotes:
+            self.dropped["no_mechanism"] += 1
+            return False
         if not row["published_at"]:
             if not self.pol.show_undated:
                 self.dropped["undated"] += 1
@@ -586,13 +615,41 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
     all_claims = [r[0] for r in conn.execute(
         "SELECT claim FROM insights WHERE claim IS NOT NULL")]
 
+    # Mechanism gate — the investment rubric's rule 1 ("channel over no
+    # channel") applied at render time for the rubrics policy.yml names in
+    # `require_mechanism`. The f16 review measured the failure class this
+    # closes: vendor case studies and official-channel engineering posts whose
+    # feature shape the score rewards but the investment reader cuts. The gate
+    # reads the committed classifier cache only (free, offline) and drops a
+    # quote only on a POSITIVE 'none' verdict; an unclassified quote passes,
+    # because a missing cache entry says nothing about the event.
+    no_mech: set | None = None
+    if rubric and rubric in pol.require_mechanism:
+        from fli.knowledge.channels import cached_verdicts
+        quotes = [r["quote"] or "" for r in rows]
+        no_mech = {t for t, v in cached_verdicts(quotes).items()
+                   if v["channel"] == "none"}
+
+    # Faithfulness gate — insights whose claim the entailment check called
+    # not_entailed (claim asserts what its own quote does not say). Applies to
+    # every persona and also under dedupe=False: it is a correctness bound,
+    # not a composition rule, and a "raw ordering" baseline that includes
+    # unfaithful claims would flatter every model measured against it.
+    bad = {r[0] for r in conn.execute(
+        "SELECT DISTINCT insight_id FROM claim_checks"
+        " WHERE verdict='not_entailed'")}
+
     # `dedupe=False` turns off all three slate-composition rules, not just the
     # cluster one: evaluation code uses it to see the scorer's raw ordering, and
-    # a half-disabled filter would be a misleading baseline.
+    # a half-disabled filter would be a misleading baseline. The mechanism gate
+    # is turned off with them — it is persona-editorial, and the raw ordering
+    # must stay comparable across rubrics.
     pol = replace(pol, window_days=window_days, show_undated=show_undated)
     if not dedupe:
         pol = replace(pol, max_per_lab=0, story_rare_df=0.0)
-    filt = SlateFilter(pol, all_claims)
+        no_mech = None
+    filt = SlateFilter(pol, all_claims, no_mech_quotes=no_mech,
+                       not_entailed=bad)
 
     out = []
     for r in rows:
@@ -626,11 +683,15 @@ def print_top(conn, k: int = 10, rubric: str | None = None) -> None:
 
 def print_report(res: dict) -> None:
     print(f"\n=== bake-off ({res['n_labels']} labels, {res['n_test']} held-out pairs) ===")
-    print(f"{'model':<24}{'heldout_acc':>12}{'p@10*':>8}{'ndcg@20*':>9}")
-    print("  * p@10 and ndcg are IN-SAMPLE (relevance built from all labels); "
-          "only heldout_acc is out-of-sample.")
+    print(f"{'model':<24}{'heldout_acc':>12}{'p@10':>8}{'ndcg@20':>9}{'p@10*':>8}{'ndcg*':>8}")
+    print("  p@10 / ndcg@20: relevance from HELD-OUT pairs only — out-of-sample,"
+          " like heldout_acc.\n"
+          "  * starred columns: relevance from ALL labels (in-sample; kept as a"
+          " coverage diagnostic).")
     for m, d in sorted(res["report"].items(), key=lambda kv: -(kv[1]['heldout_acc'] or 0)):
-        print(f"{m:<24}{d['heldout_acc']:>12.3f}{d['p@10']:>8.3f}{d['ndcg@20']:>9.3f}")
+        print(f"{m:<24}{d['heldout_acc']:>12.3f}"
+              f"{d['p@10_heldout']:>8.3f}{d['ndcg@20_heldout']:>9.3f}"
+              f"{d['p@10']:>8.3f}{d['ndcg@20']:>8.3f}")
     print(f"\nwinner: {res['winner']}  (GBM contender: {res['gbm']})")
     if res["n_human"]:
         h = res["report"][res["winner"]]["human_acc"]
@@ -639,7 +700,9 @@ def print_report(res: dict) -> None:
               f"the model; heldout_acc above is measured against the JUDGES).")
     print(f"  p@10 base rate: {res['n_relevant']} of {res['n_gold_events']} labelled "
           f"events have net_wins>0 ({res['n_relevant']/max(res['n_gold_events'],1):.0%}); "
-          f"a high p@10 over so few positives is weak evidence.")
+          f"held-out gold: {res['n_relevant_heldout']} of "
+          f"{res['n_gold_events_heldout']} — with positives this scarce, a "
+          f"high p@10 over either gold is weak evidence.")
     print("\nlogistic coefficients (interpretability):")
     for f, c in sorted(res["logistic_coef"].items(), key=lambda kv: -abs(kv[1])):
         print(f"  {f:<26}{c:>7.3f}")

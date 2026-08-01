@@ -190,13 +190,16 @@ def company_names_lab(company: str, bio: str, lab: str) -> bool:
 
 
 def _person_by_name(conn, name: str) -> int | None:
+    """Order-insensitive name lookup with a homonym guard: two tracked people
+    folding to the same key means a name alone cannot identify this profile,
+    so the lookup abstains instead of returning an arbitrary one. Mirrors
+    x_identities._person_by_name; both must abstain or C4's tiers lie."""
     if not name:
         return None
     key = name_key(name)
-    for r in conn.execute("SELECT id, canonical_name FROM people"):
-        if name_key(r["canonical_name"]) == key:
-            return r["id"]
-    return None
+    matches = [r["id"] for r in conn.execute("SELECT id, canonical_name FROM people")
+               if name_key(r["canonical_name"]) == key]
+    return matches[0] if len(matches) == 1 else None
 
 
 def lab_from_profile(profile: dict, labs: list[str]) -> str | None:

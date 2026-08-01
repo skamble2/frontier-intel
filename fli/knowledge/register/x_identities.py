@@ -80,12 +80,18 @@ def bio_names_lab(bio: str, lab: str) -> bool:
 
 
 def _person_by_name(conn: sqlite3.Connection, name: str) -> int | None:
-    """Order-insensitive name lookup, so 'Liang Wenfeng' finds 'Wenfeng Liang'."""
+    """Order-insensitive name lookup, so 'Liang Wenfeng' finds 'Wenfeng Liang'.
+
+    Homonym guard: when TWO tracked people fold to the same key, a name alone
+    cannot say which one this profile is, so the lookup abstains rather than
+    returning whichever row the table happens to yield first. The profile is
+    then rejected (or must qualify on its own bio via `self_link`), which is
+    the correct failure: a wrong identity link silently mis-attributes every
+    later observation, an abstention only costs one candidate."""
     key = name_key(name)
-    for r in conn.execute("SELECT id, canonical_name FROM people"):
-        if name_key(r["canonical_name"]) == key:
-            return r["id"]
-    return None
+    matches = [r["id"] for r in conn.execute("SELECT id, canonical_name FROM people")
+               if name_key(r["canonical_name"]) == key]
+    return matches[0] if len(matches) == 1 else None
 
 
 # The C4 pairing rule: the confidence tiers each resolution method may assert.

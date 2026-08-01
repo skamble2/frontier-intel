@@ -93,3 +93,37 @@ class TestSlateFilter(unittest.TestCase):
         self.assertTrue(f.accept(self._row(1, "(unattributed)", claim)))
         self.assertTrue(f.accept(self._row(2, "(unattributed)", claim)))
         self.assertEqual(f.dropped["same_story"], 0)
+
+    def test_mechanism_gate_drops_quotes_without_a_channel(self):
+        """The f16 failure class: a vendor case study scores well (official
+        source, high specificity) but names no transmission mechanism, so an
+        investment slate must not carry it. Gate ON = quotes the channel
+        classifier POSITIVELY verdicted 'none' are out; an unclassified quote
+        passes, because a missing cache entry is not evidence about the event.
+        Gate OFF (None) = the rule does not exist, which is every other
+        persona."""
+        from fli.intelligence.scoring import SlateFilter
+        no_mech = {"Acme Corp ships 40% faster with GPT"}
+        f = SlateFilter(self._policy(), self.CORPUS, no_mech_quotes=no_mech)
+        good = {**self._row(1, "OpenAI", "OpenAI contracts 900MW"),
+                "quote": "900 megawatts contracted in Abilene"}
+        vendor = {**self._row(2, "OpenAI", "Acme Corp ships 40% faster with GPT"),
+                  "quote": "Acme Corp ships 40% faster with GPT"}
+        unseen = {**self._row(3, "OpenAI", "a quote the classifier never saw"),
+                  "quote": "brand new quote"}
+        self.assertTrue(f.accept(good))
+        self.assertFalse(f.accept(vendor))
+        self.assertTrue(f.accept(unseen))
+        self.assertEqual(f.dropped["no_mechanism"], 1)
+        off = SlateFilter(self._policy(), self.CORPUS, no_mech_quotes=None)
+        self.assertTrue(off.accept(dict(vendor)))
+
+    def test_not_entailed_insights_never_render_for_any_persona(self):
+        """An insight whose claim its own verified quote does not support
+        (faithfulness check f15) is out before any other rule runs — a slate
+        that cites the quote as support for the claim would be lying."""
+        from fli.intelligence.scoring import SlateFilter
+        f = SlateFilter(self._policy(), self.CORPUS, not_entailed={7})
+        self.assertFalse(f.accept(self._row(7, "OpenAI", "an overclaimed thing")))
+        self.assertEqual(f.dropped["not_entailed"], 1)
+        self.assertTrue(f.accept(self._row(8, "OpenAI", "a faithful thing")))

@@ -126,6 +126,18 @@ max_per_lab: 2
 story_rare_df: 0.03
 story_days: 7
 
+# Rubrics whose slate requires a transmission MECHANISM: an event whose quote
+# the channel classifier could not assign a channel ("none") is dropped at
+# render time. This is the investment rubric's rule 1 — "channel over no
+# channel" — applied as an editorial boundary, in direct response to the f16
+# review: 12 of 18 investment slate items were cut by the human reader, and
+# the cuts were vendor case studies and official-channel engineering posts
+# whose feature shape (official source, high specificity) the score rewards
+# but which move no quantity a portfolio must respond to. The ai_team rubric
+# is deliberately NOT listed: "adopt this SDK fix" needs no portfolio channel.
+# Like every rule here, render-time only — the scorer never sees it.
+require_mechanism: [investment]
+
 # The persona whose ranking also lands in insights.score, and which the
 # evaluation figures describe unless told otherwise. Which audience the fund
 # serves by default is a business decision, so it lives here, not in code.
