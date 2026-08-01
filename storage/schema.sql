@@ -314,6 +314,23 @@ CREATE TABLE IF NOT EXISTS claim_checks (
     UNIQUE (insight_id, model)
 );
 
+-- RAGAS-style faithfulness of the delivery layer's generated prose: each
+-- persona note decomposed into atomic factual assertions and judged against
+-- the evidence the persona was shown. score = supported/total; detail names
+-- the unsupported statements, because the number without the names is
+-- unactionable. One row per (hypothesis, model), same posture as claim_checks.
+CREATE TABLE IF NOT EXISTS hypothesis_checks (
+    id            INTEGER PRIMARY KEY,
+    hypothesis_id INTEGER NOT NULL REFERENCES hypotheses(id),
+    model         TEXT NOT NULL,
+    supported     INTEGER NOT NULL,
+    total         INTEGER NOT NULL,
+    score         REAL NOT NULL,
+    detail        TEXT,                      -- the unsupported statements
+    created_at    TIMESTAMP NOT NULL,
+    UNIQUE (hypothesis_id, model)
+);
+
 -- Human keep/cut review of a delivered digest slate — precision@k for the one
 -- question the system is built around: "did this surface something we'd
 -- genuinely want to know?". One verdict per (event, persona, reviewer); a

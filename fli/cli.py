@@ -33,6 +33,7 @@ COMMANDS = {
     # validation + orchestration
     "evaluate": "fli.validation.evaluation",       # figures + report
     "verify": "fli.validation.entailment",         # claim faithfulness (SPENDS)
+    "faithfulness": "fli.validation.faithfulness", # persona notes + digests (SPENDS)
     "checks": "fli.validation.checks",
     "xbench": "fli.validation.x_benchmark",
     "pipeline": "fli.orchestration.pipeline",
