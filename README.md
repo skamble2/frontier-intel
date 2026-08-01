@@ -6,7 +6,7 @@
 cited, ranked intelligence — and refuses to store anything it cannot prove.**
 
 ![Python](https://img.shields.io/badge/python-3.x-blue)
-![Tests](https://img.shields.io/badge/tests-232%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-241%20passing-brightgreen)
 ![Storage](https://img.shields.io/badge/storage-SQLite-lightgrey)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%2B%20GPT-orange)
 

@@ -165,10 +165,16 @@ class LLM:
                     f"because a task is routed to a {provider} model.")
             if provider == "anthropic":
                 import anthropic          # lazy: keyless envs never import it
-                self._clients[provider] = anthropic.Anthropic(api_key=key)
+                # max_retries is explicit, not left to the SDK default: both
+                # SDKs retry 429/5xx/connection errors with their own
+                # exponential backoff, and 4 attempts rides out the typical
+                # "overloaded_error" burst without hiding a real outage.
+                self._clients[provider] = anthropic.Anthropic(
+                    api_key=key, max_retries=4)
             else:
                 import openai
-                self._clients[provider] = openai.OpenAI(api_key=key)
+                self._clients[provider] = openai.OpenAI(
+                    api_key=key, max_retries=4)
         return self._clients[provider]
 
     # Models that reject an explicit `temperature`. Class-level so the

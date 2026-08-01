@@ -10,6 +10,20 @@ Any value changed here changes behaviour, so each one carries how it was chosen.
 
 # --- ingestion (L1) -------------------------------------------------------
 HTTP_TIMEOUT_S = 20
+# Transient transport failures (timeouts, connection resets, HTTP 5xx) are
+# retried with exponential backoff: attempt n waits HTTP_BACKOFF_S * 2^(n-1).
+# Client errors (4xx, including 429) are NOT retried: a 404 will not heal in
+# two seconds, and X's rate windows are 15 minutes, so a short backoff would
+# just spend the budget guard's patience. 2 retries * max 3s keeps the worst
+# case per URL under one timeout's worth of extra wall clock.
+HTTP_RETRIES = 2
+HTTP_BACKOFF_S = 1.0
+# After this many CONSECUTIVE transport failures (retries exhausted) against
+# one host, the circuit opens and every further request to that host in this
+# process fails fast instead of eating a 20s timeout each. Chosen so a dead
+# sitemap host costs 3 timeouts, not MAX_SITEMAP_PAGES of them; one success
+# resets the count. Process-scoped on purpose: the next pipeline run retries.
+BREAKER_THRESHOLD = 3
 MAX_ENTRIES_PER_FEED = 25       # per-run politeness cap
 MAX_SITEMAP_PAGES = 8
 ARXIV_DELAY_S = 3               # arXiv API politeness (their published guidance)

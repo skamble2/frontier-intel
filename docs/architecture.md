@@ -250,8 +250,8 @@ exits on the validation battery's verdict. The three paid steps stay manual and
 explicit: `judge` (new pairwise labels), `x` (the paid source), and `personas`
 (the written reading). Each previews its projected spend before sending, checks
 the API key and the price table, and refuses to start a run it cannot afford.
-Cost is logged per call to `llm_calls`; the whole system to date has spent under
-$20.
+Cost is logged per call to `llm_calls`; the whole system to date has spent about
+$25 (the exact per-task split is in `docs/metrics-out.txt`, section M5a).
 
 ## Data discipline
 
