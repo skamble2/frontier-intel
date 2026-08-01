@@ -52,6 +52,12 @@ _MIGRATIONS = [
     # Reasoning models bill thinking as output tokens. Without this column the
     # cost table can say what a call cost but not what it bought.
     ("llm_calls", "reasoning_tokens", "INTEGER"),
+    # Prompt-cache accounting: cache tokens are billed at 1.25x / 0.10x the
+    # input rate and are NOT inside input_tokens, so without these columns the
+    # tokenomics table would silently under-report what a cached run cost —
+    # and could not prove that caching saved anything.
+    ("llm_calls", "cache_write_tokens", "INTEGER"),
+    ("llm_calls", "cache_read_tokens", "INTEGER"),
 ]
 
 # Tables whose SHAPE changed. SQLite cannot alter a UNIQUE constraint in place,
@@ -280,7 +286,9 @@ _llm_log_warned = False
 
 
 def log_llm_call(conn, task: str, model: str, input_tokens: int, output_tokens: int,
-                 cost_usd: float, reasoning_tokens: int | None = None) -> None:
+                 cost_usd: float, reasoning_tokens: int | None = None,
+                 cache_write_tokens: int | None = None,
+                 cache_read_tokens: int | None = None) -> None:
     """Cost telemetry. NEVER fatal.
 
     `reasoning_tokens` is a subset of output_tokens, not an addition: models
@@ -302,9 +310,10 @@ def log_llm_call(conn, task: str, model: str, input_tokens: int, output_tokens: 
     try:
         conn.execute(
             "INSERT INTO llm_calls (task, model, input_tokens, output_tokens,"
-            " reasoning_tokens, cost_usd, created_at) VALUES (?,?,?,?,?,?,?)",
+            " reasoning_tokens, cache_write_tokens, cache_read_tokens,"
+            " cost_usd, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (task, model, input_tokens, output_tokens, reasoning_tokens,
-             cost_usd, now_utc()))
+             cache_write_tokens, cache_read_tokens, cost_usd, now_utc()))
         conn.commit()
     except sqlite3.Error as e:
         if not _llm_log_warned:

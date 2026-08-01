@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import time
 from typing import Any
 
 from fli.core.paths import ROOT
@@ -76,6 +77,25 @@ PRICES = {
 }
 PRICES_CHECKED_AT = "2026-07-28"     # provider pricing pages, by hand
 
+# Prompt-cache pricing multipliers on the INPUT rate and the batch discount,
+# from the same pricing pages as PRICES. Cache write costs a 25% premium once;
+# every read of that prefix costs 10%. The Batch API halves everything in
+# exchange for asynchronous delivery (up to 24h, usually minutes).
+#
+# Caveat measured 2026-08-01: every system prompt in this repo is 200-620
+# tokens, BELOW Anthropic's cache minimum (1024 Sonnet / 2048 Haiku), so a
+# cache_control mark on the system block alone caches nothing today. It is
+# still always sent — below-minimum marks are free and ignored, and the mark
+# starts working the day a prompt grows past the line. The judge additionally
+# marks its first event block, which pushes the prefix past 1024 tokens when
+# consecutive pairs share their first event — see judge.build_user_blocks.
+CACHE_WRITE_MULT = 1.25
+CACHE_READ_MULT = 0.10
+BATCH_DISCOUNT = 0.5
+
+# Module alias so tests can silence batch polling without patching time.
+_sleep = time.sleep
+
 def reasoning_effort() -> str | None:
     """reasoning.effort for OpenAI reasoning models, or None for their default.
 
@@ -91,19 +111,49 @@ def reasoning_effort() -> str | None:
     return os.environ.get("FLI_REASONING_EFFORT")
 
 
-def cost_usd(model: str, input_tokens: int, output_tokens: int) -> float:
+def cost_usd(model: str, input_tokens: int, output_tokens: int,
+             cache_write_tokens: int = 0, cache_read_tokens: int = 0,
+             batch: bool = False) -> float:
+    """Cache tokens are billed at multiples of the INPUT rate and are NOT
+    inside input_tokens (the API reports them separately); batch halves the
+    whole call. Callers that pass neither get the exact old behaviour."""
     if model not in PRICES:
         raise KeyError(
             f"no price recorded for {model!r}. Add its per-1M input/output "
             f"rate to fli/ops/llm.PRICES as {model!r}: (input, output). "
             f"Refusing to invent a rate.")
     pin, pout = PRICES[model]
-    return (input_tokens * pin + output_tokens * pout) / 1_000_000
+    usd = (input_tokens * pin + output_tokens * pout
+           + (cache_write_tokens or 0) * pin * CACHE_WRITE_MULT
+           + (cache_read_tokens or 0) * pin * CACHE_READ_MULT) / 1_000_000
+    return usd * (BATCH_DISCOUNT if batch else 1.0)
 
 
 # Typical judge call, measured over the 615 existing judgements: two event
 # blocks with quotes plus the rules block in, one short JSON verdict out.
 TYPICAL_JUDGE_TOKENS = (1500, 120)
+
+
+def _flatten(user: str | list[dict]) -> str:
+    """Content blocks back to the plain string they are guaranteed to equal."""
+    if isinstance(user, str):
+        return user
+    return "".join(b["text"] for b in user)
+
+
+def _cached_system(system: str) -> list[dict]:
+    """System prompt as a block with a cache mark. Below the provider's cache
+    minimum the mark is free and ignored (see CACHE_WRITE_MULT comment); above
+    it, every repeat call in a 5-minute window reads the prefix at 10%."""
+    return [{"type": "text", "text": system,
+             "cache_control": {"type": "ephemeral"}}]
+
+
+def _cache_usage(usage) -> tuple[int, int]:
+    """(cache_write, cache_read) tokens, 0 when absent — older SDK responses
+    and OpenAI usage objects simply lack the fields."""
+    return (getattr(usage, "cache_creation_input_tokens", 0) or 0,
+            getattr(usage, "cache_read_input_tokens", 0) or 0)
 
 
 def preflight(model: str, n_calls: int = 0) -> float:
@@ -182,18 +232,27 @@ class LLM:
     # round trip on every call.
     _no_temperature: set[str] = set()
 
-    def call(self, task: str, system: str, user: str, max_tokens: int = 1024,
-             temperature: float = 0.0, model: str | None = None) -> str:
+    def call(self, task: str, system: str, user: str | list[dict],
+             max_tokens: int = 1024, temperature: float = 0.0,
+             model: str | None = None) -> str:
         """`model` overrides the task default — that is how a second judge from
-        another provider is run over the identical pairs."""
+        another provider is run over the identical pairs.
+
+        `user` is either a plain string or a list of Anthropic content blocks.
+        Blocks exist for one reason: a `cache_control` mark inside the user
+        message lets consecutive calls share a prefix (the judge's first event
+        block). The concatenated block text is byte-identical to the string a
+        caller would otherwise send — callers guarantee that, tests check it —
+        so caching can only change the bill, never the answer."""
         from fli import storage
         from fli.ops import tracing
         model = model or MODEL_FOR_TASK[task]
         if provider_for(model) == "openai":
-            return self._call_openai(task, model, system, user,
+            return self._call_openai(task, model, system, _flatten(user),
                                      max_tokens, temperature)
         with tracing.llm_span(task) as span:
-            tracing.annotate(span, tracing.input_attrs(model, system, user))
+            tracing.annotate(span, tracing.input_attrs(model, system,
+                                                       _flatten(user)))
             # temperature=0 wherever the model accepts it: every task here is
             # structured extraction or classification, where the same input
             # should give the same answer.
@@ -202,7 +261,8 @@ class LLM:
             # That is detected once and remembered. On those models
             # reproducibility cannot be asserted from a parameter and has to be
             # measured instead — see `judge --consistency N`.
-            kwargs = dict(model=model, max_tokens=max_tokens, system=system,
+            kwargs = dict(model=model, max_tokens=max_tokens,
+                          system=_cached_system(system),
                           messages=[{"role": "user", "content": user}])
             create = self._client("anthropic").messages.create
             if model in LLM._no_temperature:
@@ -224,10 +284,85 @@ class LLM:
             text = "".join(b.text for b in resp.content if b.type == "text")
             tracing.annotate(span, tracing.output_attrs(
                 text, usage.input_tokens, usage.output_tokens))
+        cw, cr = _cache_usage(usage)
         storage.log_llm_call(self.conn, task, model, usage.input_tokens,
                              usage.output_tokens,
-                             cost_usd(model, usage.input_tokens, usage.output_tokens))
+                             cost_usd(model, usage.input_tokens,
+                                      usage.output_tokens,
+                                      cache_write_tokens=cw,
+                                      cache_read_tokens=cr),
+                             cache_write_tokens=cw or None,
+                             cache_read_tokens=cr or None)
         return text
+
+    def call_batch(self, task: str, system: str,
+                   items: list[tuple[str, str | list[dict]]],
+                   max_tokens: int = 1024, temperature: float = 0.0,
+                   model: str | None = None,
+                   poll_s: float = 15.0) -> dict[str, str | None]:
+        """Send `items` [(custom_id, user), ...] through the Batch API at 50%
+        of the synchronous price. Returns {custom_id: text}, with None for any
+        item that errored — callers fall back to a synchronous `call` for
+        those, so a batch failure degrades to full price, never to a lost
+        verdict.
+
+        Anthropic-only by design: the one OpenAI use (second judge family) is
+        deliberately run synchronously so its labeler id keeps meaning "the
+        same pairs, judged independently, the same way".
+
+        Blocks until the batch ends. Batches usually finish in minutes; the
+        24h ceiling is the provider's, not ours — progress is printed so an
+        operator can Ctrl-C and re-run later (every caller's queue query is
+        resumable, so nothing is lost but the batch discount on unfinished
+        items)."""
+        from fli import storage
+        model = model or MODEL_FOR_TASK[task]
+        if provider_for(model) != "anthropic":
+            raise ValueError(f"call_batch supports anthropic models only, "
+                             f"got {model!r}")
+        client = self._client("anthropic")
+        params = dict(model=model, max_tokens=max_tokens,
+                      system=_cached_system(system))
+        if model not in LLM._no_temperature:
+            params["temperature"] = temperature
+        reqs = [{"custom_id": cid,
+                 "params": {**params,
+                            "messages": [{"role": "user", "content": user}]}}
+                for cid, user in items]
+        batch = client.messages.batches.create(requests=reqs)
+        print(f"  batch {batch.id}: {len(reqs)} request(s) submitted "
+              f"({model}, 50% batch rate)")
+        waited = 0.0
+        while batch.processing_status != "ended":
+            _sleep(poll_s)
+            waited += poll_s
+            batch = client.messages.batches.retrieve(batch.id)
+            if waited % 120 < poll_s:            # a line every ~2 minutes
+                print(f"  batch {batch.id}: {batch.processing_status} "
+                      f"after {waited:.0f}s")
+        out: dict[str, str | None] = {cid: None for cid, _ in items}
+        errored = 0
+        for entry in client.messages.batches.results(batch.id):
+            if entry.result.type != "succeeded":
+                errored += 1
+                continue
+            msg = entry.result.message
+            text = "".join(b.text for b in msg.content if b.type == "text")
+            u = msg.usage
+            cw, cr = _cache_usage(u)
+            storage.log_llm_call(self.conn, task, model, u.input_tokens,
+                                 u.output_tokens,
+                                 cost_usd(model, u.input_tokens,
+                                          u.output_tokens,
+                                          cache_write_tokens=cw,
+                                          cache_read_tokens=cr, batch=True),
+                                 cache_write_tokens=cw or None,
+                                 cache_read_tokens=cr or None)
+            out[entry.custom_id] = text
+        done = sum(1 for v in out.values() if v is not None)
+        print(f"  batch {batch.id}: ended — {done} succeeded, {errored} "
+              f"errored{' (will retry synchronously)' if errored else ''}")
+        return out
 
     # OpenAI's chat API differs in three ways, each handled by learning the
     # model's capability once rather than hardcoding a model list that goes

@@ -153,7 +153,8 @@ def _parse(raw: str, max_rule: int = 6) -> dict | None:
 
 def judge_pairs(conn, n: int = 150, dry_run: bool = False,
                 model: str | None = None,
-                rubric_name: str | None = None) -> dict:
+                rubric_name: str | None = None,
+                batch: bool = False) -> dict:
     """Judge pairs under one rubric with one model.
 
     Both are part of the labeler id (`llm:<model>/<rubric>/r<v>`), and
@@ -180,6 +181,9 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
     done = {(r["event_a"], r["event_b"]) for r in conn.execute(
         "SELECT event_a, event_b FROM pairwise_labels WHERE labeler = ?", (labeler,))}
     todo = [p for p in pairs if p not in done]
+    # A per-pair cache breakpoint was trialled here and rolled back: sampled
+    # pairs almost never share a shown-first event (0/6, 0/15, 2/30 measured),
+    # so the 1.25x cache-write premium was paid and never repaid.
 
     print(f"pairwise judge — {labeler}")
     print(f"  {len(pairs)} sampled, {len(done)} already judged, {len(todo)} to do")
@@ -197,13 +201,31 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
         return {"dry_run": True, "todo": len(todo)}
 
     llm = LLM(conn)                      # key/price already verified above
+    nrules = len(rubric.rules)
+
+    # Batch mode: everything through the Batch API at 50%, then the shared
+    # parse/record loop below. Anything the batch failed to answer (errored
+    # item, unusable verdict) falls through to the synchronous path — a batch
+    # problem degrades to full price, never to a lost verdict.
+    from fli.ops.llm import provider_for
+    batch_results: dict[str, str | None] = {}
+    if batch and todo:
+        if provider_for(model) != "anthropic":
+            print(f"  --batch is anthropic-only; {model} runs synchronously")
+        else:
+            batch_results = llm.call_batch(
+                "judge", system,
+                [(f"{a}:{b}", build_prompt(conn, a, b)) for a, b in todo],
+                max_tokens=300, model=model)
+
     stats = Counter()
     for i, (a, b) in enumerate(todo, 1):
         user = build_prompt(conn, a, b)
-        nrules = len(rubric.rules)
-        verdict = _parse(llm.call("judge", system, user, max_tokens=300,
-                                  model=model),
-                         max_rule=nrules)
+        raw = batch_results.get(f"{a}:{b}")
+        if raw is None:
+            raw = llm.call("judge", system, user,
+                           max_tokens=300, model=model)
+        verdict = _parse(raw, max_rule=nrules)
         if verdict is None:
             # one retry with an explicit correction, then give up and COUNT it
             verdict = _parse(llm.call(
@@ -394,6 +416,11 @@ def main() -> None:
                     help="override the judge model, e.g. a second provider. "
                          "Lands as its own labeler id, so both verdicts are "
                          "kept and can be compared with --agreement")
+    ap.add_argument("--batch", action="store_true",
+                    help="send the run through the Batch API at 50%% of the "
+                         "synchronous price (anthropic models only; blocks "
+                         "until the batch ends, usually minutes). Failed "
+                         "items retry synchronously at full price")
     ap.add_argument("--agreement", nargs=2, metavar=("LABELER_A", "LABELER_B"),
                     help="Cohen's kappa between two labeler ids on the pairs "
                          "both judged. Reads only, spends nothing")
@@ -429,7 +456,7 @@ def main() -> None:
         consistency_check(conn, args.consistency, args.rubric)
         return
     judge_pairs(conn, args.n, dry_run=args.dry_run,
-                model=args.model, rubric_name=args.rubric)
+                model=args.model, rubric_name=args.rubric, batch=args.batch)
 
 
 if __name__ == "__main__":

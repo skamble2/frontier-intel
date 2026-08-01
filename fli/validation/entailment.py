@@ -94,16 +94,31 @@ def _parse(text: str) -> tuple[str, str] | None:
 
 
 def check_all(conn, llm: LLM, limit: int | None = None,
-              model: str | None = None) -> dict:
+              model: str | None = None, batch: bool = False) -> dict:
     model = model or MODEL_FOR_TASK["verify"]
     queue = _queue(conn, model, limit)
     done = conn.execute("SELECT count(*) FROM claim_checks WHERE model=?",
                         (model,)).fetchone()[0]
     print(f"faithfulness — {done} checked, {len(queue)} to go ({model})")
     counts = {"entailed": 0, "partial": 0, "not_entailed": 0, "unparsed": 0}
+    # Batch mode: one Batch API round at 50%; errored items fall through to
+    # the synchronous call below, so a batch failure costs money, not verdicts.
+    batch_results: dict[str, str | None] = {}
+    if batch and queue:
+        from fli.ops.llm import provider_for
+        if provider_for(model) != "anthropic":
+            print(f"  --batch is anthropic-only; {model} runs synchronously")
+        else:
+            batch_results = llm.call_batch(
+                "verify", SYSTEM,
+                [(str(r["id"]), f"CLAIM: {r['claim']}\n\nQUOTE: \"{r['q'][:1200]}\"")
+                 for r in queue],
+                max_tokens=350, model=model)
     for n, r in enumerate(queue, 1):
-        user = f"CLAIM: {r['claim']}\n\nQUOTE: \"{r['q'][:1200]}\""
-        text = llm.call("verify", SYSTEM, user, max_tokens=350, model=model)
+        text = batch_results.get(str(r["id"]))
+        if text is None:
+            user = f"CLAIM: {r['claim']}\n\nQUOTE: \"{r['q'][:1200]}\""
+            text = llm.call("verify", SYSTEM, user, max_tokens=350, model=model)
         parsed = _parse(text)
         if parsed is None:
             counts["unparsed"] += 1
@@ -255,6 +270,11 @@ def main() -> int:
                          " then re-verify (SPENDS, ~2 calls per claim)")
     ap.add_argument("--dry-run", action="store_true",
                     help="show the prompt and projected cost; spend nothing")
+    ap.add_argument("--batch", action="store_true",
+                    help="verify through the Batch API at 50%% of the "
+                         "synchronous price (anthropic models only; blocks "
+                         "until the batch ends). Failed items retry "
+                         "synchronously")
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
@@ -291,7 +311,7 @@ def main() -> int:
     if not have_api_key(model):
         raise SystemExit("no API key for the verify model; set it in .env")
     preflight(model, n_calls=len(queue))
-    check_all(conn, LLM(conn), limit=args.n, model=args.model)
+    check_all(conn, LLM(conn), limit=args.n, model=args.model, batch=args.batch)
     return 0
 
 
