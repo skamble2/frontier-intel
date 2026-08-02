@@ -308,7 +308,7 @@ renders against — the two used to diverge, and every paid reading described an
 event the reader would never see — joins whatever readings exist, and lays the
 result out. One content model feeds two renderers (Markdown and a
 dependency-free PDF), so the exported PDF cannot drift from the Markdown a
-reviewer reads in the repo. Items without a reading are published *as* uncovered
+reader sees in the repo. Items without a reading are published *as* uncovered
 rather than dropped, so the coverage gap is visible in the committed artifact.
 
 `alerts` is the push path, and its trigger is deliberately not the score. The
@@ -355,8 +355,8 @@ matplotlib/seaborn for figures**, with optional OpenInference/Phoenix tracing.
 There is no vector store, no embeddings and no second database. Scoring is SQL
 plus scikit-learn over a few hundred rows; a vector store would be
 infrastructure carrying no measurement. SQLite is the right size for a
-single-writer daily pipeline, and it makes the deliverable a file a reviewer can
-open.
+single-writer daily pipeline, and it makes the whole corpus a single file you
+can open.
 
 Every dependency past the first four is **optional and lazily imported** —
 LangGraph, Flask, the MCP SDK, matplotlib and the tracing stack each live behind
@@ -490,8 +490,8 @@ drift* and must register instead of dividing by zero.
 Two design decisions worth stating:
 
 **The window is anchored to the newest document, not the wall clock**, so the
-report is reproducible on a static corpus — a reviewer running it next month
-gets the same numbers.
+report is reproducible on a static corpus — running it next month against an
+unchanged database gives the same numbers.
 
 **Drift is deliberately not part of `checks`.** An organic news cycle must not
 turn the release gate red. It is a monitoring signal with its own exit code (the
@@ -513,7 +513,7 @@ checked at each paid entry point (`fli/orchestration/pipeline.py`,
 `fli/validation/faithfulness.py`, `fli/validation/entailment.py`). Without one,
 ingestion, filtering, the register, clustering, features, scoring, the check
 battery, the digest and the web UI all run normally on the committed corpus —
-only new LLM extraction is skipped. A reviewer with no key gets a green
+only new LLM extraction is skipped. With no key at all you still get a green
 `checks` run and a readable digest.
 
 **Unknown model price → refuse, do not guess.** `cost_usd()` raises `KeyError`
@@ -606,8 +606,8 @@ finding is written into prose and the working binary is discarded. The
 ingestion-robustness history above is the worked example: a truncate-and-rebuild
 resets `fetch_log` to all-ok, so the failure counts were lifted out of a 34 MB
 working snapshot into the table in "Ingestion" and the snapshot deleted. A
-committed claim should rest on something a reviewer can read in a diff, not on a
-binary they would have to be sent separately.
+committed claim should rest on something readable in a diff, not on a binary
+that has to be sent separately.
 
 A run checkpoints the write-ahead log back into the main file before committing,
 so a committed DB never silently misses the writes of the run that produced it.
@@ -1299,8 +1299,8 @@ Empty bins are smoothed to 1e-4 rather than dropped, because the appearance of a
 new category **is** drift and must register instead of dividing by zero.
 
 The window is anchored to the newest document rather than the wall clock, so the
-report is reproducible on a static corpus — a reviewer running it a month later
-gets the same numbers rather than a slowly emptying window.
+report is reproducible on a static corpus — running it a month later gives the
+same numbers rather than a slowly emptying window.
 
 Known limitation: `_DOC_MIX` and `_DOC_LEN` count every `raw_documents` row,
 including register/identity pages that never enter extraction. A co-author

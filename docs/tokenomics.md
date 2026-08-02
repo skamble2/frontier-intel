@@ -232,6 +232,6 @@ learning curve flattens, which f11 says it has not. Buying those labels from
 GPT-5.2 rather than Sonnet is the difference between a few hundred more labels
 and a few thousand for the same money.
 
-The budget for this case study was €100. **$25.18 was spent — about a quarter of
-it** — and the binding constraint was never money; it was how many pairs a human
-could label in a sitting.
+Against a €100 budget, **$25.18 was spent — about a quarter of it.** The
+binding constraint was never money; it was how many pairs a human could label in
+a sitting.

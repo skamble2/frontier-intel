@@ -95,7 +95,7 @@ imported, so the daily run works on a machine that has none of it installed.
 | | | why |
 |---|---|---|
 | **Python 3** | runtime | no framework; the layers are plain modules |
-| **SQLite** | storage | right size for a single-writer daily pipeline, and it makes the deliverable a file you can open |
+| **SQLite** | storage | right size for a single-writer daily pipeline, and it makes the whole corpus a single file you can open |
 | **Anthropic SDK** (Claude) | classify · extract · repair · judge · persona | Sonnet where a wrong answer becomes a stored fact, Haiku where it only costs a re-check |
 | **OpenAI SDK** (GPT) | second judge family | reliability estimates need conditionally independent labelers, not two prompts of one model |
 | **Pydantic** | typed model I/O | model replies are validated into schemas; a reply that omits its working is rejected, not stored |
