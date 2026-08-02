@@ -1,8 +1,5 @@
 # Frontier Lab Intelligence — findings
 
-Every figure below is reproducible from the committed database, and every event
-named carries a verbatim quote and a source link.
-
 ## The system in one paragraph
 
 The system tracks eight frontier AI labs (OpenAI, Anthropic, Google DeepMind,
