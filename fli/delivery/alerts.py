@@ -1,53 +1,4 @@
-"""The push path: the few things that should not wait for the digest.
-
-An alert is a different product from a digest and the difference is entirely
-about cost. A digest is opened when the reader chooses to; an alert interrupts.
-So the bar is not "interesting" — the digest already carries everything
-interesting — it is "a reader would want to know before the next report".
-
-WHAT FIRES, AND WHY IT IS NOT THE SCORE. The obvious rule is a score
-threshold, and it is wrong here. Measured on the corpus, the two events that
-carry a signed reading score -0.02 and 1.13 against a p90 of 1.59: OpenAI
-launching Health in ChatGPT — the one event in 734 that the deterministic layer
-calls a threat to a named holding — sits near the MIDDLE of the ranking,
-because the rubric rewards specificity and shipped-ness, not portfolio
-consequence. A p90 alert rule would have missed it and fired on ten model
-releases instead.
-
-So the trigger is the READING, not the rank:
-
-  signed_position  a deterministic event->holding edge whose direction is not
-                   `unclear`. That requires a classifier-established mechanism
-                   plus a holding the mechanism can actually move, which 2 of
-                   59 edges satisfy.
-  signed_reading   a persona hypothesis that commits to a direction (threat,
-                   tailwind, adopt) at medium or better confidence. Low
-                   confidence is excluded: it means the reader themself flagged
-                   the evidence as thin, and interrupting on it is how a channel
-                   gets muted.
-
-Both are additionally bounded by the reporting period — a 2024 post is not
-news — and by the `alerts` table, whose UNIQUE constraint means an alert can
-fire exactly once. A channel that repeats itself every run trains its reader to
-ignore it, so this is enforced in the schema rather than left to the caller.
-
-Over the whole corpus these rules fire 3 times. That is the intended order of
-magnitude: rare enough to be read.
-
-DELIVERY IS PLUGGABLE AND STDOUT IS A REAL SINK. `SINKS` maps a name to a
-function. The Slack sink posts to the incoming-webhook URL in
-`SLACK_WEBHOOK_URL` and refuses to run without it — a silently dropped alert
-is worse than a crash, because the `alerts` row would claim delivery that
-never happened. An email relay would be the same shape.
-
-Free and deterministic: no LLM call; network only when the slack sink is
-selected.
-
-Run:  python3 -m fli.cli alerts --days 7 --dry-run
-      python3 -m fli.cli alerts --days 7
-      SLACK_WEBHOOK_URL=https://hooks.slack.com/... \
-          python3 -m fli.cli alerts --days 7 --sink slack
-"""
+"""The push path: the few things that should not wait for the digest."""
 from __future__ import annotations
 
 import argparse
@@ -59,8 +10,6 @@ from pathlib import Path
 
 from fli import storage
 
-# Directions that commit to an action, per persona. `unclear`, `monitor` and
-# `investigate` are honest answers but they are not news.
 ACTIONABLE = {"investment": ("threat", "tailwind"), "ai_team": ("adopt",)}
 MIN_CONFIDENCE = ("high", "medium")
 
@@ -78,14 +27,7 @@ def _sink_null(alert: dict) -> None:
 
 
 def _sink_slack(alert: dict) -> None:
-    """Post one alert to a Slack incoming webhook.
-
-    The URL comes from the environment, not config: a webhook is a secret,
-    and the config files in this repo are committed. Raises if the variable
-    is missing or Slack answers anything but 200 — the caller records the
-    alert as delivered only after this returns, so failing loudly is what
-    keeps the `alerts` table honest.
-    """
+    """Post one alert to a Slack incoming webhook."""
     url = os.environ.get("SLACK_WEBHOOK_URL")
     if not url:
         raise RuntimeError("sink 'slack' needs SLACK_WEBHOOK_URL set")
@@ -107,11 +49,6 @@ def candidates(conn, days: int = 7) -> list[dict]:
     """Everything the rules select, whether or not it has already fired."""
     out: list[dict] = []
 
-    # ONE EVENT IS ONE ALERT, even when it moves several holdings. The Health
-    # launch signs an edge to both HNGE and OSCR; delivering that twice is two
-    # interruptions carrying one fact, and the UNIQUE key on `alerts` would
-    # have recorded only the first — so the send would have been noisier than
-    # the record, which is the wrong way round.
     by_event: dict[int, dict] = {}
     for r in conn.execute(
             "SELECT ep.event_id, ep.ticker, ep.direction, ep.channel,"

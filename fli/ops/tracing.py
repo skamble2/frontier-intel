@@ -1,23 +1,9 @@
-"""Optional OpenInference tracing for the single LLM choke point (llm.py).
-
-Off by default. Enabled with FLI_TRACING=1, exporting spans over OTLP/HTTP to a
-local Phoenix (`pip install arize-phoenix && phoenix serve`). When disabled, or
-when opentelemetry isn't installed, every function here is a no-op and the
-pipeline runs exactly as before — same discipline as keyless stage 2.
-
-Spans carry OpenInference LLM semantic-convention attributes so Phoenix renders
-prompt, completion, model and token counts natively, and `fli.task` tags each
-span with its stage so the iteration loop is filterable. Phoenix is
-prompt-iteration tooling only: checks.py stays the source of truth, and reported
-numbers always come from there rather than from the tracing backend.
-"""
+"""Optional OpenInference tracing for the single LLM choke point (llm.py)."""
 from __future__ import annotations
 
 import os
 from contextlib import contextmanager
 
-# OpenInference semantic-convention attribute keys (stable string constants;
-# hardcoded to avoid a dependency on the conventions package).
 SPAN_KIND = "openinference.span.kind"
 LLM_MODEL = "llm.model_name"
 LLM_PROVIDER = "llm.provider"
@@ -28,7 +14,7 @@ TOKENS_PROMPT = "llm.token_count.prompt"
 TOKENS_COMPLETION = "llm.token_count.completion"
 TOKENS_TOTAL = "llm.token_count.total"
 
-_tracer = None  # set by setup(); None means tracing is off
+_tracer = None
 
 
 def enabled() -> bool:
@@ -41,9 +27,7 @@ def _endpoint() -> str:
 
 
 def setup(project_name: str = "frontier-intel", exporter=None) -> bool:
-    """Configure a tracer that exports to Phoenix. Idempotent; returns True if
-    tracing is active. No-op (returns False) when disabled or otel is absent.
-    `exporter` overrides the OTLP exporter (used by tests)."""
+    """Configure a tracer that exports to Phoenix. """
     global _tracer
     if _tracer is not None:
         return True
@@ -71,9 +55,7 @@ def setup(project_name: str = "frontier-intel", exporter=None) -> bool:
 
 @contextmanager
 def llm_span(task: str):
-    """Span for one LLM.call. Yields a span handle (None when tracing is off).
-    Pass it to annotate() before and after the call so a failed call still shows
-    its input."""
+    """Span for one LLM.call. """
     if _tracer is None:
         yield None
         return
@@ -93,8 +75,6 @@ def annotate(span, attrs: dict) -> None:
 
 
 def input_attrs(model: str, system: str, user: str) -> dict:
-    # system + user as the OpenInference input_messages sequence (Phoenix renders
-    # each message with its role), plus input.value as the primary display field.
     return {LLM_MODEL: model, LLM_PROVIDER: "anthropic", LLM_SYSTEM: "anthropic",
             INPUT_VALUE: user,
             "llm.input_messages.0.message.role": "system",

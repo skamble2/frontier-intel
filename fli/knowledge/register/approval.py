@@ -1,9 +1,4 @@
-"""Candidate approval.
-
-Three things, in precedence order: the human override file (always
-wins), the per-lab slate that keeps the register balanced,
-and the deterministic auto-approve rule. Approval is asynchronous - it
-never blocks a pipeline run."""
+"""Candidate approval."""
 import json
 import sqlite3
 
@@ -13,22 +8,18 @@ from fli.core.paths import OVERRIDES_PATH
 from fli.core.text import contains_verbatim, html_to_text, name_key
 from fli.knowledge.register.seeding import LABS
 
-# load_policy() is called at use site, never at import, so a policy edit takes
-# effect on the next run and tests can point at a different file.
-
 
 def auto_approve_rule() -> str:
     """Human-readable rule, printed every run so a person can always see which
-    policy version admitted whom. The rule's shape is a code concern; only
-    `slate_k` is a business choice, so only that comes from the policy."""
+    policy version admitted whom."""
     p = load_policy()
     return (f"policy v{p.version}: corroborated + valid_name "
             f"+ top-{p.slate_k}/lab + not vetoed")
 
 
 def valid_candidate_name(name: str) -> bool:
-    """Reject malformed author strings (leading spaces, single tokens,
-    lab names) that slip through mega-author paper metadata."""
+    """Reject malformed author strings (leading spaces, single tokens, lab names)
+    that slip through mega-author paper metadata."""
     if name != name.strip() or len(name.split()) < 2:
         return False
     if not all(any(ch.isalpha() for ch in tok) for tok in name.split()):
@@ -37,9 +28,8 @@ def valid_candidate_name(name: str) -> bool:
 
 
 def _load_raw_overrides() -> dict[str, list[str]]:
-    """Parse config/register_overrides.yml — a minimal, hand-written subset
-    (two lists, `approve:` / `reject:`, of canonical names under `- ` items).
-    Stdlib-only by design; the file is small and human-owned."""
+    """Parse config/register_overrides.yml — a minimal, hand-written subset (two
+    lists, `approve:` / `reject:`, of canonical names under `- ` items)."""
     data: dict[str, list[str]] = {"approve": [], "reject": []}
     if not OVERRIDES_PATH.exists():
         return data
@@ -83,8 +73,7 @@ def _candidate_lab_ids(conn, row) -> set[int]:
 
 def _slate(conn, pending: list) -> set[int]:
     """Candidate ids that make the top-K-by-paper_count slate of ANY lab they are
-    attributable to. Corroboration is already guaranteed — every queue row
-    comes from a corroborated paper — so paper_count is only the ranking here."""
+    attributable to."""
     by_lab: dict[int, list] = {}
     for r in pending:
         if not valid_candidate_name(r["name"]):
@@ -100,8 +89,8 @@ def _slate(conn, pending: list) -> set[int]:
 
 
 def show_queue(conn: sqlite3.Connection) -> None:
-    """Per-lab review slates: top-K per lab, so no single lab's mega-paper
-    cluster buries the others."""
+    """Per-lab review slates: top-K per lab, so no single lab's mega-paper cluster
+    buries the others."""
     pending = [dict(r) for r in conn.execute(
         "SELECT * FROM person_candidates WHERE status='pending'")]
     slate = _slate(conn, pending)
@@ -130,10 +119,7 @@ def _seed_labs_of(conn, candidate_row) -> set[int]:
 
 def _affiliation_for(conn, person_id: int, candidate_row,
                      page_cache: dict) -> str:
-    """Lab link for an approved person, best available basis:
-    1. name verbatim on a stored lab page  -> basis 'page_verbatim'
-    2. single corroborating seed's lab     -> basis 'coauthor_inference'
-    3. neither -> affiliation row with lab_id NULL (absence recorded)."""
+    """Lab link for an approved person, best available basis: 1. """
     name = candidate_row["name"]
     hits = []
     for d in conn.execute(
@@ -183,8 +169,7 @@ def _affiliation_for(conn, person_id: int, candidate_row,
 
 def _promote(conn, c, discovered_via: str, page_cache: dict) -> str:
     """Create person + identity + best-basis affiliation for an approved
-    candidate. Identity tier follows the method C4 expects: manual ->
-    manual_approved, auto_approved -> corroborated (every candidate is)."""
+    candidate."""
     conn.execute("UPDATE person_candidates SET status='approved', reviewed_at=? WHERE id=?",
                  (storage.now_utc(), c["id"]))
     cur = conn.execute(
@@ -202,10 +187,7 @@ def _promote(conn, c, discovered_via: str, page_cache: dict) -> str:
 
 
 def review(conn: sqlite3.Connection, ids: list[int], decision: str) -> None:
-    """Ad-hoc human decision. Writes the name into register_overrides.yml so it
-    survives DB rebuilds (fixing the old wart where re-running expand lost
-    approvals), then applies it immediately. A manual approve is a human override
-    and bypasses the slate/threshold; name hygiene (C9) still holds."""
+    """Ad-hoc human decision. """
     page_cache: dict = {}
     raw = _load_raw_overrides()
     for cid in ids:
@@ -234,14 +216,10 @@ def review(conn: sqlite3.Connection, ids: list[int], decision: str) -> None:
 
 
 def auto_approve(conn: sqlite3.Connection) -> dict:
-    """Deterministic promotion, re-applied every run. Overrides always
-    win; otherwise a candidate is promoted iff it is valid and in the top-K slate
-    of some lab it's attributable to. Corroboration is guaranteed by construction
-    (every queue row comes from a corroborated paper). Idempotent: already-
-    approved candidates aren't pending, so they're never re-promoted."""
+    """Deterministic promotion, re-applied every run. """
     overrides = load_overrides()
     all_cands = [dict(r) for r in conn.execute("SELECT * FROM person_candidates")]
-    slate = _slate(conn, all_cands)  # over ALL candidates -> caps at K per lab
+    slate = _slate(conn, all_cands)
     page_cache: dict = {}
     approved = vetoed = 0
     for c in all_cands:
@@ -253,7 +231,7 @@ def auto_approve(conn: sqlite3.Connection) -> dict:
                          (storage.now_utc(), c["id"]))
             vetoed += 1
             continue
-        if not valid_candidate_name(c["name"]):      # C9 holds even for overrides
+        if not valid_candidate_name(c["name"]):
             continue
         if key not in overrides["approve"] and c["id"] not in slate:
             continue

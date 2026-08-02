@@ -1,15 +1,4 @@
-"""Co-author expansion: discover candidate people from seeds' arXiv papers.
-
-For each seed person, their recent arXiv papers are fetched and stored.
-A paper counts only if corroborated — another tracked person or a lab
-collective author appears on it; bare name matches (homonym risk) get a
-low-tier identity and produce no candidates. Discovered co-authors land in
-the approval queue; promotion is manual (fli.register approve).
-
-Idempotent: re-runs never double-count papers or duplicate identities.
-
-Run:  python -m fli.cli expand [--db PATH]
-"""
+"""Co-author expansion: discover candidate people from seeds' arXiv papers."""
 from __future__ import annotations
 
 import argparse
@@ -31,10 +20,6 @@ ARXIV_API = "https://export.arxiv.org/api/query"
 
 ATOM = "{http://www.w3.org/2005/Atom}"
 
-# Collective author strings labs publish under; presence on a paper is
-# structural evidence that it is a lab paper. Config, not code: the mapping
-# lives in config/register_seeds.yml (collective_authors) so tracking a new
-# lab's collective never requires a code change.
 from fli.knowledge.register.seeding import load_seeds
 
 LAB_COLLECTIVE_AUTHORS = dict(load_seeds().get("collective_authors") or {})
@@ -81,9 +66,7 @@ def _record_identity(conn, seed, doc_id: int, corroborated, matched) -> None:
 def _queue_candidate(conn, author: str, entry: dict, seed_id: int,
                      seed_lab_id: int | None, lab_hint: str | None,
                      doc_id: int) -> bool:
-    """Add or update one queue row. Returns True if the row is new. Accumulates
-    every discovering seed and its lab, so discovery is order-
-    independent and a candidate is attributable to every lab it came through."""
+    """Add or update one queue row. """
     row = conn.execute("SELECT id, seed_person_ids, seed_lab_ids, entry_ids"
                        " FROM person_candidates WHERE name=?", (author,)).fetchone()
     if row:
@@ -120,10 +103,6 @@ def _queue_candidate(conn, author: str, entry: dict, seed_id: int,
 
 def expand_coauthors(conn: sqlite3.Connection) -> None:
     cutoff = (datetime.now(timezone.utc) - timedelta(days=EXPANSION_WINDOW_DAYS)).isoformat()
-    # Anchor expansion on RESEARCH seeds only. A founder co-signing a
-    # broad institutional paper is an org signature, not a research collaboration,
-    # and its huge author list swamps the queue with one lab's cluster. Founders
-    # stay tracked entities; they are simply not co-authorship anchors.
     seeds = conn.execute(
         "SELECT id, canonical_name FROM people WHERE discovered_via='seed'"
         " AND seniority_tier IN ('research_lead','senior_ic')").fetchall()
@@ -166,7 +145,6 @@ def expand_coauthors(conn: sqlite3.Connection) -> None:
         if matched:
             _record_identity(conn, seed, doc_id, corroborated, matched)
 
-        # the seed's own lab, so discovered candidates carry a per-lab tag
         seed_lab_row = conn.execute(
             "SELECT lab_id FROM affiliations WHERE person_id=? AND lab_id IS NOT NULL"
             " AND basis='page_verbatim' LIMIT 1", (seed["id"],)).fetchone()

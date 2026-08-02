@@ -1,39 +1,4 @@
-"""The periodic report: one audience, one period, every claim cited.
-
-WHAT THE DIGEST IS. Everything upstream produces a ranked list. A ranked list
-is not a report — it has no period, no coverage statement, and no way for the
-reader to tell an item the system understands from one it merely scored highly.
-This module is the reader-facing surface, and it is deliberately the dumbest
-thing in the repo: it selects nothing on its own and computes no scores. It
-asks `scoring.top_events` for the slate — the same call the persona layer makes
-— joins whatever readings exist, and lays it out.
-
-That shared call is the point. The two used to diverge: the persona layer read
-the raw ranking straight from `event_scores` while the digest applied the
-editorial rules, so ZERO of the ten events rendered for the engineering
-audience appeared in the technical digest at any window. Every reading was paid
-for and never shown; every published item arrived bare.
-
-ONE CONTENT MODEL, TWO RENDERERS. `blocks()` returns a list of
-(style, payload) pairs; markdown and PDF are two functions over that list.
-Writing the report twice would let the exported PDF drift from the markdown a
-reviewer reads in the repo, and the drift would be silent.
-
-WHAT IT REFUSES TO DO. `unclear` items are not hidden — 57 of 59 position
-edges are `unclear` by design, and a digest that showed only the two signed
-ones would imply the system knows more than it does. Coverage is stated in the
-header, including how many items carry no reading at all. Within the slate,
-items whose reading carries a direction or whose exposure has an established
-mechanism are ORDERED first — nothing is dropped or promoted into the slate
-for it, but a PM's first item should be the one the system can say something
-about. The score stays printed on every item so the reordering is visible.
-
-Free and deterministic: no LLM call, no network. Re-running overwrites.
-
-Run:  python3 -m fli.cli digest --persona investment --days 7
-      python3 -m fli.cli digest --all --days 7 --pdf
-      python3 -m fli.cli digest --review --persona investment   # keep/cut
-"""
+"""The periodic report: one audience, one period, every claim cited."""
 from __future__ import annotations
 
 import argparse
@@ -61,8 +26,6 @@ PERSONA_LEAD = {
         "should do about it. Commercial consequence is out of scope here by "
         "design. Every claim is quoted from the lab's own publication.",
 }
-# The reader is told what `unclear` means BEFORE meeting 8 of them, so it reads
-# as a deliberate answer rather than a broken field.
 UNCLEAR_NOTE = {
     "investment":
         "`unclear` is the most common direction and is an answer, not a gap: "
@@ -95,13 +58,7 @@ def _positions(conn) -> dict[int, list[sqlite3.Row]]:
 
 
 def _mechanism_first(rows, hyp, pos):
-    """Stable reorder: items the system can SAY something about come first.
-
-    An item leads the slate when its reading carries a direction other than
-    `unclear`, or any of its position edges has an established mechanism
-    (a non-NULL channel). Everything else keeps its score order below them —
-    the sort is stable, so within each band the ranking is untouched.
-    """
+    """Stable reorder: items the system can SAY something about come first."""
     def band(r):
         h = hyp.get(r["id"])
         signed = h is not None and h["direction"] != "unclear"
@@ -112,7 +69,7 @@ def _mechanism_first(rows, hyp, pos):
 
 def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
     """(blocks, stats). The single content model both renderers consume."""
-    from fli.intelligence.scoring import top_events        # layer 3 -> layer 2
+    from fli.intelligence.scoring import top_events
 
     policy = load_policy()
     rubric = load_rubric(RUBRIC_FOR_PERSONA[persona])
@@ -237,13 +194,7 @@ def to_markdown(b) -> str:
 
 
 def _for_pdf(b):
-    """Markdown emphasis is markup, not content.
-
-    The same block list feeds both renderers, so a backtick that reads as code
-    formatting in the .md would be printed literally in the PDF. Stripping it
-    here keeps the content model renderer-agnostic — the alternative, writing
-    two versions of every sentence, is exactly the drift this design avoids.
-    """
+    """Markdown emphasis is markup, not content."""
     out = []
     for style, payload in b:
         if style == "link" or not isinstance(payload, str):
@@ -283,15 +234,8 @@ def write(conn, persona: str, days: int = 7, k: int = 10,
 
 def review(conn, persona: str, days: int = 7, k: int = 10,
            reviewer: str = "soham") -> dict:
-    """Keep/cut pass over the slate the digest would deliver — precision@k.
-
-    Shows exactly what `blocks()` selects (same call, same ordering) and asks
-    the one question the system is built around: would you genuinely want this
-    in the report? Verdicts land in `slate_reviews`; re-reviewing overwrites,
-    because the latest human read is the one that counts. Figure f16 reports
-    the result as REFERENCE-tier precision@k.
-    """
-    from fli.intelligence.scoring import top_events        # layer 3 -> layer 2
+    """Keep/cut pass over the slate the digest would deliver — precision@k."""
+    from fli.intelligence.scoring import top_events
     rubric = load_rubric(RUBRIC_FOR_PERSONA[persona])
     rows, _ = top_events(conn, k=k, window_days=days, rubric=rubric.name)
     hyp = _hypotheses(conn, persona)

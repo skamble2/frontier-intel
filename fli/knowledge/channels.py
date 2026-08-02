@@ -1,21 +1,4 @@
-"""LLM channel classifier — replaces keyword matching.
-
-The keyword lexicon it replaces reaches F1 0.195 on the labelled X benchmark
-(3 true positives, 20 false), which is the number this has to beat.
-
-Why the lexicon fails, which shapes the design: in a corpus entirely about AI,
-AI vocabulary carries almost no information. The top false-positive triggers
-were `energy`, `license`, `gpus`, `open weights` and `cluster` — the ambient
-language of the domain. Channel membership is a semantic question ("does this
-move a number in a thesis?") and keywords answer a topical one.
-
-Caching is the cost story: a verdict is keyed on
-(sha256(text), policy_version, model), so re-running is free and a policy edit
-correctly invalidates.
-
-Run:  python3 -m fli.cli channels        # classify insights in the database
-      python3 -m fli.cli evaluate        # head-to-head vs the lexicon (fig 5)
-"""
+"""LLM channel classifier — replaces keyword matching."""
 from __future__ import annotations
 
 import argparse
@@ -83,12 +66,7 @@ def build_system(policy) -> str:
 
 def classify(texts: list[str], conn=None, verbose: bool = True,
              batch: bool = False) -> dict[str, dict]:
-    """Classify texts, using and updating the on-disk cache.
-
-    Returns {text -> verdict}. Only uncached texts cost anything. `batch`
-    sends uncached texts through the Batch API at 50%; items the batch fails
-    fall back to a synchronous call, so the cache fills either way.
-    """
+    """Classify texts, using and updating the on-disk cache."""
     from fli.ops.llm import LLM, MODEL_FOR_TASK, have_api_key
     policy = load_policy()
     model = MODEL_FOR_TASK["channel"]
@@ -129,7 +107,7 @@ def classify(texts: list[str], conn=None, verbose: bool = True,
             cache[_key(t, policy.version, model)] = v
             if verbose and i % 25 == 0:
                 print(f"  {i}/{len(todo)}")
-                _save_cache(cache)               # crash-safe: never lose paid calls
+                _save_cache(cache)
         _save_cache(cache)
 
     return {t: cache[_key(t, policy.version, model)] for t in texts}
@@ -142,12 +120,8 @@ def channel_for(text: str, conn=None) -> str | None:
 
 
 def cached_verdicts(texts: list[str]) -> dict[str, dict]:
-    """Cache-only lookup: {text -> verdict} for texts already classified,
-    silently omitting the rest. Never calls the API, so callers that must
-    stay free and deterministic (the feature builder) can consume classifier
-    verdicts without inheriting its cost or its network dependency. The cache
-    is committed to the repo, so "cached" is reproducible, not machine-local.
-    """
+    """Cache-only lookup: {text -> verdict} for texts already classified, silently
+    omitting the rest."""
     policy = load_policy()
     from fli.ops.llm import MODEL_FOR_TASK
     model = MODEL_FOR_TASK["channel"]

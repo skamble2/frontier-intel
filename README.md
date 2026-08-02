@@ -191,6 +191,7 @@ an intelligence system.
 | File | What it covers |
 |---|---|
 | [RUNNING.md](RUNNING.md) | How to run every layer |
+| [docs/design-notes.md](docs/design-notes.md) | Why the code is shaped this way — every non-obvious decision, keyed by module |
 | [docs/hld.mermaid](docs/hld.mermaid) | High-level design |
 | [docs/erd.mermaid](docs/erd.mermaid) | Data model |
 | [storage/schema.sql](storage/schema.sql) | The authoritative schema, commented |

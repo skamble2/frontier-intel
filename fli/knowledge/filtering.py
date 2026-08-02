@@ -1,9 +1,4 @@
-"""Stage 1 filter: deterministic and free, runs on every document.
-
-Rejections are logged rows. Only survivors ever reach the LLM, which makes
-this the primary token-cost control. Kill-list patterns grow only from
-observed noise, never speculation.
-"""
+"""Stage 1 filter: deterministic and free, runs on every document."""
 from __future__ import annotations
 
 import re
@@ -18,22 +13,12 @@ KILL_PATTERNS = [
     (r"\bjob (opening|posting)s?\b|\bwe'?re hiring\b", "job_post"),
 ]
 
-# A post opening with a discourse marker that points outside itself cannot
-# stand alone. These are generic closed-class English categories — subordinating
-# conjunctions, additive adverbs and fronted adjuncts — deliberately not a list
-# of openers read off the benchmark, which would fit the rule to the set it is
-# measured on.
-#
-# Leading bare pronouns ("It even outperforms…") are the same phenomenon but
-# only when no antecedent is present, so they are matched separately below.
 _CONTINUATION_OPENER = re.compile(
-    r"^(while|because|although|though|since|whereas|"        # subordinators
-    r"also|plus|and|but|so|however|meanwhile|"               # additives
-    r"in previous|by combining|to ensure|as part of)\b",     # fronted adjuncts
+    r"^(while|because|although|though|since|whereas|"
+    r"also|plus|and|but|so|however|meanwhile|"
+    r"in previous|by combining|to ensure|as part of)\b",
     re.IGNORECASE)
 
-# "You can also …", "It even …" — a pronoun subject whose referent is in the
-# previous post of the thread.
 _LEADING_ANAPHOR = re.compile(
     r"^(it|this|these|those|they|he|she)\b(?!\s+(is|are)\s+(a|an|the)\b)"
     r"|^you can also\b",
@@ -42,14 +27,7 @@ _LEADING_ANAPHOR = re.compile(
 
 def social_fragment_reason(body: str) -> str | None:
     """Why this social post is a thread fragment, or None if it stands alone.
-
-    `body` is the stored document, whose first two lines are the @handle and URL
-    header written by `x_api.as_document`; only the post text is judged.
-
-    PROVISIONAL: a text heuristic standing in for thread position, which is the
-    fact it is really trying to recover. `conversation_id` from the X API would
-    decide it structurally and cheaply.
-    """
+    Why this social post is a thread fragment, or None if it stands alone."""
     text = "\n".join(body.split("\n")[2:]).strip()
     if not text:
         return "social_empty"
@@ -62,13 +40,13 @@ def social_fragment_reason(body: str) -> str | None:
 
 def _lab_authored(conn, raw_content: str) -> bool:
     """True if the doc's 'authors:' line names a registered person or a lab
-    collective author. Pure string matching under the shared normalization."""
+    collective author."""
     from fli.knowledge.expansion import LAB_COLLECTIVE_AUTHORS
     from fli.core.text import name_key
     authors_line = next((ln[len("authors: "):] for ln in raw_content.split("\n")
                          if ln.startswith("authors: ")), None)
     if authors_line is None:
-        return True  # not an authored-paper doc shape; gate does not apply
+        return True
     authors = [a.strip() for a in authors_line.split(";") if a.strip()]
     tracked = {name_key(r["canonical_name"]) for r in
                conn.execute("SELECT canonical_name FROM people")}
@@ -91,7 +69,6 @@ def stage1(conn: sqlite3.Connection, document_id: int) -> tuple[bool, str | None
                               f"{len(doc['raw_content'])} chars < {min_chars}")
         return False, "too_short"
 
-    # must mention a tracked lab (or alias), or come from a tracked lab's source
     content_lower = doc["raw_content"].lower()
     if not labs.mentions_tracked_lab(conn, doc["raw_content"]):
         src = conn.execute("SELECT lab_id FROM sources WHERE id = ?",
@@ -100,18 +77,12 @@ def stage1(conn: sqlite3.Connection, document_id: int) -> tuple[bool, str | None
             storage.log_rejection(conn, document_id, "stage1", "no_tracked_entity", None)
             return False, "no_tracked_entity"
 
-    # Social thread rule. A lab account's own posts pass the "mentions a tracked
-    # lab" gate on the header this repo generated, so that gate is vacuous here
-    # and thread fragments would otherwise reach the paid classifier.
     if doc["source_type"] == "social":
         reason = social_fragment_reason(doc["raw_content"])
         if reason:
             storage.log_rejection(conn, document_id, "stage1", reason, None)
             return False, reason
 
-    # arXiv authorship gate: mentioning a lab is not being the lab. 126 of 127
-    # abs:-query papers were third parties writing about the labs, so a paper
-    # counts only if a registered person or a lab collective author is on it.
     if doc["source_type"] == "arxiv" and not _lab_authored(conn, doc["raw_content"]):
         storage.log_rejection(conn, document_id, "stage1", "not_lab_authored", None)
         return False, "not_lab_authored"
@@ -125,13 +96,8 @@ def stage1(conn: sqlite3.Connection, document_id: int) -> tuple[bool, str | None
 
 
 def stage1_all(conn: sqlite3.Connection) -> dict:
-    """Run stage 1 over every content document without a prior stage-1
-    rejection. Register-purpose documents (lab pages, author queries) are
-    entity evidence, never insight material. Passing is free to re-check.
-
-    stage1() re-queries labs/people per document instead of being handed them:
-    a deliberate non-optimization that keeps it independently testable, and
-    negligible at ~300 docs. Revisit past ~10^4 docs/run."""
+    """Run stage 1 over every content document without a prior stage-1 rejection.
+    Run stage 1 over every content document without a prior stage-1 rejection."""
     docs = conn.execute(
         "SELECT d.id FROM raw_documents d JOIN sources s ON s.id = d.source_id"
         " WHERE s.purpose = 'content' AND d.id NOT IN"
@@ -149,16 +115,7 @@ def stage1_all(conn: sqlite3.Connection) -> dict:
 
 
 def suppress_near_dups(conn: sqlite3.Connection) -> int:
-    """Suppress one story published at two URLs (e.g. a DeepMind
-    announcement on both deepmind.google and blog.google), which beats hash
-    dedup. Groups unrejected feed docs by normalized title, keeps the
-    earliest-published, and rejects the rest as near_duplicate pointing at the
-    kept doc, so the pointer preserves the corroboration count. Idempotent.
-
-    Runs over latest_documents so the three dedup layers compose: hash-dedup
-    removes exact repeats, latest_documents picks the current version per URL,
-    and this suppresses distinct stories across URLs — a newer version of one
-    URL is never mistaken for a near-duplicate of its own earlier version."""
+    """Suppress one story published at two URLs (e.g. """
     from fli.core.text import norm
     groups: dict[str, list] = {}
     for r in conn.execute(

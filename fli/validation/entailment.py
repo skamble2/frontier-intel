@@ -1,39 +1,5 @@
 """Claim faithfulness: is each extracted claim licensed by its verified quote?
-
-Every insight's quote is already byte-verified against the stored source (C2),
-so hallucinated QUOTES cannot exist. What C2 cannot see is the gap between the
-quote and the CLAIM written above it — an extractor can quote faithfully and
-still overclaim. This module closes that gap: for every insight, a cheap judge
-is shown the claim and the quote ALONE (no document, no lab name) and asked
-whether the quote supports the claim.
-
-Three verdicts, because "partially" is the common failure and collapsing it
-into either pole would hide it:
-
-    entailed      every load-bearing fact in the claim is in the quote
-    partial       the core is supported but some fact (a number, a date, an
-                  actor) is not in the quote
-    not_entailed  the claim asserts something the quote does not say
-
-Resumable and idempotent: one verdict per (insight, model), already-checked
-insights are skipped, so a crashed run continues where it stopped.
-
-The result is JUDGED-tier by this repo's own rules: an LLM's reading of an
-entailment rubric, not ground truth. It is reported as such in figure f15.
-
-`--repair` acts on the findings instead of only reporting them: for every
-insight the check called `partial`, the extract-tier model rewrites the claim
-so it asserts ONLY what the verified quote supports, and the repaired claim is
-re-verified in the same run. The quote, evidence row and event id never change
-— pairwise labels and scores keep pointing at the same event — but claims feed
-clustering and the story rule, so re-run `cluster`, `features` and `score`
-after a repair pass (the pipeline does this anyway).
-
-Run:  python -m fli.cli verify              # SPENDS (~$0.5 on 734 events)
-      python -m fli.cli verify --dry-run    # prompt preview + projection, $0
-      python -m fli.cli verify --repair --dry-run   # repair queue + cost, $0
-      python -m fli.cli verify --repair             # SPENDS (~$2 on 341 partials)
-"""
+Claim faithfulness: is each extracted claim licensed by its verified quote?"""
 from __future__ import annotations
 
 import argparse
@@ -84,8 +50,6 @@ def _parse(text: str) -> tuple[str, str] | None:
             return v, str(d.get("reason", ""))[:300]
     except (ValueError, json.JSONDecodeError):
         pass
-    # Salvage a reply truncated by max_tokens: the verdict is written first,
-    # so it survives even when the closing brace of the reason does not.
     m = re.search(r'"verdict"\s*:\s*"(entailed|partial|not_entailed)"', text)
     if m:
         rm = re.search(r'"reason"\s*:\s*"([^"]*)', text)
@@ -101,8 +65,6 @@ def check_all(conn, llm: LLM, limit: int | None = None,
                         (model,)).fetchone()[0]
     print(f"faithfulness — {done} checked, {len(queue)} to go ({model})")
     counts = {"entailed": 0, "partial": 0, "not_entailed": 0, "unparsed": 0}
-    # Batch mode: one Batch API round at 50%; errored items fall through to
-    # the synchronous call below, so a batch failure costs money, not verdicts.
     batch_results: dict[str, str | None] = {}
     if batch and queue:
         from fli.ops.llm import provider_for
@@ -164,9 +126,7 @@ Reply with ONLY this JSON:
 
 
 def _repair_queue(conn, verify_model: str) -> list:
-    """Insights whose CURRENT verdict from `verify_model` is `partial`.
-    Deterministic order = resumable; a repaired row gets a fresh verdict in
-    the same pass, so it leaves this queue and a re-run skips it."""
+    """Insights whose CURRENT verdict from `verify_model` is `partial`. """
     return conn.execute(
         "SELECT i.id, i.claim, ev.verbatim_content q, c.reason"
         " FROM insights i"
@@ -190,18 +150,7 @@ def _parse_repair(text: str) -> tuple[str | None, str] | None:
 
 def repair_all(conn, llm: LLM, limit: int | None = None,
                verify_model: str | None = None) -> dict:
-    """Rewrite `partial` claims against their own quote, then re-verify.
-
-    Acts only on the claim column: evidence, quote, event id, scores and
-    pairwise labels are untouched, so nothing downstream dangles. The old
-    claim is kept in the rejections log, which is the same place every other
-    discarded text goes — an edit that leaves no trace of what it replaced
-    would be indistinguishable from silent history rewriting.
-
-    Not idempotent in the trivial sense — it is CONVERGENT: each pass moves
-    rows out of `partial` (to entailed, or occasionally an honest downgrade),
-    and rows that reach `entailed` are never touched again.
-    """
+    """Rewrite `partial` claims against their own quote, then re-verify."""
     verify_model = verify_model or MODEL_FOR_TASK["verify"]
     queue = _repair_queue(conn, verify_model)
     if limit:
@@ -224,17 +173,10 @@ def repair_all(conn, llm: LLM, limit: int | None = None,
             counts["unrepairable"] += 1
             print(f"  [{n}/{len(queue)}] event {r['id']}: unrepairable — {why}")
             continue
-        # The old claim goes to the rejections log before it is overwritten —
-        # an edit that leaves no trace of what it replaced would be silent
-        # history rewriting. Stage 'verification' because repair IS the
-        # verification loop acting on its own finding (and the committed DB's
-        # CHECK constraint predates a dedicated stage).
         storage.log_rejection(conn, None, "verification", "claim_rewritten",
                               f"event {r['id']}: {r['claim'][:300]}")
         conn.execute("UPDATE insights SET claim=? WHERE id=?",
                      (new_claim, r["id"]))
-        # fresh verdict for the fresh claim, same run — the row must not keep
-        # a verdict that describes text which no longer exists
         conn.execute("DELETE FROM claim_checks WHERE insight_id=? AND model=?",
                      (r["id"], verify_model))
         v = _parse(llm.call("verify", SYSTEM,
@@ -289,7 +231,6 @@ def main() -> int:
                 r = queue[0]
                 print(f"\n--- first user message ---\nCLAIM: {r['claim']}\n\n"
                       f"QUOTE: \"{r['q'][:1200]}\"\n\nGAP: {r['reason']}")
-            # each repaired claim costs one rewrite (Sonnet) + one re-verify
             preflight(MODEL_FOR_TASK["repair"], n_calls=len(queue))
             preflight(model, n_calls=len(queue))
             print(f"DRY RUN — {len(queue)} claim(s) would be repaired. $0 spent.")

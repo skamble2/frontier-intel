@@ -1,49 +1,17 @@
 """Synthetic ground truth: plant a known policy, ask the machinery for it back.
-
-Every figure on real data is capped at AGREEMENT, because no gold standard for
-"which frontier-lab event matters more" exists. This module is the one place
-F1 / precision / recall / ROC-AUC are honest: relevance is known by
-construction, because we planted it.
-
-Four policies of increasing difficulty are planted over the REAL standardized
-feature matrix — real, so the training has to cope with the actual feature
-correlations (official-channel co-varies with specificity, and so on) rather
-than an independent-Gaussian fantasy where recovery is trivially easy. From
-each planted policy, noisy pairwise labels are generated the way the judge
-produces them (a forced winner per pair, some fraction wrong), and the SAME
-training path as the bake-off (antisymmetric pair differences ->
-fit_intercept=False logistic) is asked to recover the planted ranking.
-
-What this validates is the machinery, not the product: a high recovery score
-says "IF the judge's preferences are near-linear in these features, this
-pipeline finds them through 10% label noise". It says nothing about whether
-the judge's preferences are correct — that is what the human sittings measure.
-
-Run:  exercised by `python3 -m fli.cli evaluate` (figure f17).
-"""
+Synthetic ground truth: plant a known policy, ask the machinery for it back."""
 from __future__ import annotations
 
 import numpy as np
 
 from fli.core.config import RANDOM_SEED
 
-# Label noise: fraction of pair verdicts flipped. 10% is the same order as the
-# judge's observed disagreement with the human audit (f6: 0.86-0.88 agreement),
-# so the synthetic labeler is about as unreliable as the real one.
 NOISE = 0.10
-N_PAIRS = 400   # same order as one rubric's real training set
+N_PAIRS = 400
 
 
 def planted_policies(names: list[str]) -> dict[str, dict[str, float]]:
-    """Four known weight vectors, easiest to hardest.
-
-    single_feature   one feature is the whole policy — sanity floor.
-    hand_shape       the shape of config/policy.yml's hand weights — the
-                     policy the system actually believes readers hold.
-    dense_mixed      many features, mixed signs — a fussy reader.
-    anti_prior       recency NEGATIVE — a policy that contradicts the priors
-                     baked into the baselines, so nothing recovers it by luck.
-    """
+    """Four known weight vectors, easiest to hardest."""
     pol = {
         "single_feature": {"recency": 1.0},
         "hand_shape": {"recency": 1.0, "corroboration": 0.6,
@@ -68,9 +36,6 @@ def _plant_and_recover(Xz: np.ndarray, w: np.ndarray,
 
     n = len(Xz)
     s_true = Xz @ w
-    # Relevance by construction: above the (standardized) average event. A
-    # natural threshold rather than a top-k cut, so precision and recall are
-    # free to differ and the metrics are not three copies of one number.
     truth = s_true > 0
 
     pairs = []
@@ -81,7 +46,7 @@ def _plant_and_recover(Xz: np.ndarray, w: np.ndarray,
             winner = "b" if winner == "a" else "a"
         pairs.append((int(a), int(b), winner, "synth"))
 
-    row = {i: i for i in range(n)}          # ids ARE row indices here
+    row = {i: i for i in range(n)}
     tr, te = _split(pairs)
     Xtr, ytr = _pair_xy(tr, Xz, row)
     coef = _fit_logistic(Xtr, ytr)
@@ -111,8 +76,8 @@ def _plant_and_recover(Xz: np.ndarray, w: np.ndarray,
 
 def recover(Xz: np.ndarray, names: list[str],
             seed: int = RANDOM_SEED) -> dict[str, dict]:
-    """Plant each policy over the given standardized matrix and measure
-    recovery. Pure over arrays, so tests need no database."""
+    """Plant each policy over the given standardized matrix and measure recovery.
+    Plant each policy over the given standardized matrix and measure recovery."""
     fidx = {f: j for j, f in enumerate(names)}
     out = {}
     for pname, weights in planted_policies(names).items():
@@ -121,7 +86,7 @@ def recover(Xz: np.ndarray, names: list[str],
         w = np.zeros(len(names))
         for f, wt in weights.items():
             w[fidx[f]] = wt
-        rng = np.random.RandomState(seed)    # fresh per policy: independent
+        rng = np.random.RandomState(seed)
         out[pname] = _plant_and_recover(Xz, w, rng)
     return out
 

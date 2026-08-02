@@ -1,22 +1,4 @@
-"""Judging rubrics, loaded from config/rubrics/*.yml.
-
-A rubric is the definition of "important" for ONE audience. It was previously a
-string constant in judge.py, which had two consequences worth stating:
-
-  1. Changing what the system considers important meant editing Python, so the
-     decision sat with the engineer rather than with the reader it serves.
-  2. There could only be one of them, so there could only be one ranking.
-
-The second turned out to matter. Measured on a single rubric, `commercial`
-events took 60% of the top 50 at a 6.2x lift while `research` and `benchmark` —
-34% of the corpus — took none at all. That is the investment rubric working
-correctly and the AI team being served nothing. Two audiences need two
-definitions of important, and a definition that lives in a file can be
-swapped, diffed and owned.
-
-The rubric name is part of the labeler id (`llm:<model>/<rubric>/<version>`),
-so judgements made under different definitions can never be pooled by accident.
-"""
+"""Judging rubrics, loaded from config/rubrics/*.yml."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -51,9 +33,8 @@ class Rubric:
 
     @property
     def label_suffix(self) -> str:
-        """The part of a labeler id that identifies this rubric AND its
-        version. Bumping `version` in the YAML makes new judgements a distinct
-        labeler, so a rubric edit can never silently contaminate a prior run."""
+        """The part of a labeler id that identifies this rubric AND its version.
+        The part of a labeler id that identifies this rubric AND its version."""
         return f"{self.name}/r{self.version}"
 
     @property

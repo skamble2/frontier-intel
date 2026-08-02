@@ -1,10 +1,4 @@
-"""Feed ingestion: RSS/Atom feeds, GitHub Atom, sitemap-driven pages, arXiv.
-
-Each feed entry (or fetched page, or arXiv paper) becomes one immutable
-document, deduped by content hash on arrival. Every fetch attempt is logged.
-
-Run:  python -m fli.cli ingest [--db PATH]
-"""
+"""Feed ingestion: RSS/Atom feeds, GitHub Atom, sitemap-driven pages, arXiv."""
 from __future__ import annotations
 
 import sqlite3
@@ -23,17 +17,6 @@ ATOM = "{http://www.w3.org/2005/Atom}"
 SM = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
 CONTENT_NS = "{http://purl.org/rss/1.0/modules/content/}"
 
-# (lab, source_type, kind, url) — all URLs verified fetchable 2026-07-23.
-#
-# Known gaps: Anthropic, Mistral, Qwen and Meta serve no blog RSS at standard
-# paths, so a sitemap or substitute feed is used; Meta AI's own blog offers only
-# a gzipped sitemap and is substituted by the Engineering feed.
-#
-# JS-rendering wall: the OpenAI blog renders article bodies client-side, so a
-# direct fetch returns a shell with only headline and teaser. Those domains are
-# listed in JS_WALLED_DOMAINS and hydrated through the rendering proxy in
-# `_hydrated_body` — measured before the fallback: 27 docs averaging 286 chars,
-# 14 rejected in stage 2 as low_substance.
 FEEDS = [
     ("OpenAI",          "blog",   "feed",    "https://openai.com/news/rss.xml"),
     ("Google DeepMind", "blog",   "feed",    "https://deepmind.google/blog/rss.xml"),
@@ -43,39 +26,20 @@ FEEDS = [
     ("Anthropic",       "newsroom", "sitemap", "https://www.anthropic.com/sitemap.xml"),
     ("Mistral",         "newsroom", "sitemap", "https://mistral.ai/sitemap-index.xml"),
     ("DeepSeek",        "github", "feed",    "https://github.com/deepseek-ai/DeepSeek-V3/releases.atom"),
-    # Qwen3 publishes no releases (0 entries, 4 empty fetches); Qwen-Agent does
     ("Qwen",            "github", "feed",    "https://github.com/QwenLM/Qwen-Agent/releases.atom"),
     ("Mistral",         "github", "feed",    "https://github.com/mistralai/mistral-inference/releases.atom"),
     ("OpenAI",          "github", "feed",    "https://github.com/openai/openai-python/releases.atom"),
     ("Anthropic",       "github", "feed",    "https://github.com/anthropics/anthropic-sdk-python/releases.atom"),
-    # releases, not commits: the commit feed was 70% git chatter (measured)
     ("Meta AI",         "github", "feed",    "https://github.com/meta-llama/llama-models/releases.atom"),
     ("xAI",             "github", "feed",    "https://github.com/xai-org/grok-1/releases.atom"),
-    # x.ai publishes no RSS at the standard path. Listed anyway so the attempt
-    # is logged as an `empty`/`error` row rather than a source never tried.
     ("xAI",             "blog",   "feed",    "https://x.ai/news/rss.xml"),
 ]
 
-# sitemap URL -> page-path prefix worth ingesting
 SITEMAP_PREFIX = {
     "https://www.anthropic.com/sitemap.xml": "https://www.anthropic.com/news/",
     "https://mistral.ai/sitemap-index.xml": "https://mistral.ai/news",
 }
 
-# Two paper streams.
-#
-# abs: (mention) queries are the recall net. 126 of 127 of their results were
-# third parties writing ABOUT the labs, which is why stage 1 gates arXiv docs on
-# authorship — a tracked person or collective author string must be present.
-#
-# au: (authorship) queries anchor the stream on the labs' own output. Only
-# collectives that actually return papers are listed; Anthropic, Llama Team and
-# Meta AI return 0 because those labs publish under individual names, which the
-# authorship gate matches via the register.
-#
-# xAI is deliberately absent from ARXIV_QUERY_LABS: `abs:"xAI"` is a homograph
-# trap, since XAI is the standard acronym for eXplainable AI. It is covered by
-# the au: query below, which cannot collide.
 ARXIV_QUERY_LABS = ["OpenAI", "Anthropic", "DeepMind", "Meta AI",
                     "Mistral", "DeepSeek", "Qwen"]
 
@@ -95,7 +59,7 @@ def _norm_date(s: str | None) -> str | None:
     try:
         return parsedate_to_datetime(s).isoformat(timespec="seconds")
     except (TypeError, ValueError):
-        return s  # already ISO (Atom) or unparseable; keep as-is
+        return s
 
 
 def parse_feed(xml_text: str) -> list[dict]:
@@ -136,16 +100,7 @@ def _js_walled(url: str) -> bool:
 
 
 def _hydrated_body(entry: dict, source_type: str) -> str:
-    """Body to store for a feed entry. Blog feeds often carry only a teaser;
-    when the entry body is thin, fetch the linked article and use its visible
-    text if richer. GitHub release notes ARE the content and are never
-    re-fetched; a failed fetch falls back to the teaser.
-
-    JS-rendered sites (JS_WALLED_DOMAINS) return a shell whose text isn't
-    richer than the teaser; for those, and only when the direct fetch is
-    still thin, the body is fetched once more through the rendering proxy.
-    The longest candidate wins, so no fallback can ever make a document
-    poorer than the teaser the feed already gave us."""
+    """Body to store for a feed entry. """
     body = entry["content"]
     if source_type != "blog" or len(body) >= BLOG_BODY_MIN or not entry["link"]:
         return body
@@ -197,8 +152,7 @@ def ingest_feed(conn, lab: str, source_type: str, url: str) -> tuple[int, int]:
 
 
 def _sitemap_pages(xml_text: str, prefix: str) -> list[tuple[str, str | None]]:
-    """(url, lastmod) pairs under prefix, newest first. Follows one level of
-    sitemap-index nesting."""
+    """(url, lastmod) pairs under prefix, newest first. """
     root = ET.fromstring(xml_text)
     if root.tag == f"{SM}sitemapindex":
         pages = []
@@ -221,8 +175,8 @@ def _sitemap_pages(xml_text: str, prefix: str) -> list[tuple[str, str | None]]:
 
 
 def ingest_sitemap(conn, lab: str, url: str) -> tuple[int, int]:
-    """Sitemap-driven: newest pages under the configured prefix are fetched
-    and stored as documents. Returns (pages_tried, new_docs)."""
+    """Sitemap-driven: newest pages under the configured prefix are fetched and
+    stored as documents."""
     prefix = SITEMAP_PREFIX[url]
     source_id = storage.upsert_source(
         conn, "newsroom", f"{lab} newsroom: {urllib.parse.urlparse(url).netloc}",
@@ -244,9 +198,6 @@ def ingest_sitemap(conn, lab: str, url: str) -> tuple[int, int]:
         except FetchError as e:
             storage.log_fetch(conn, source_id, "error", detail=f"{page_url}: {e}")
             continue
-        # lastmod is when the page last CHANGED (a template rerender re-dated
-        # an 8-month-old announcement to "last week" and put it back on the
-        # digest); the page's own byline/metadata date wins when present.
         published = page_published(html) or lastmod
         _, is_new = storage.store_page(conn, source_id, "newsroom",
                                        page_url, html, published)
@@ -258,15 +209,13 @@ def ingest_sitemap(conn, lab: str, url: str) -> tuple[int, int]:
 
 def ingest_arxiv(conn, lab: str, field: str = "abs",
                  term: str | None = None) -> tuple[int, int]:
-    """Recent arXiv papers: field='abs' (mentions the lab) or field='au'
-    (authored by a collective). One document per paper entry.
-    Returns (entries_seen, new_docs)."""
+    """Recent arXiv papers: field='abs' (mentions the lab) or field='au' (authored
+    by a collective)."""
     q = urllib.parse.urlencode({
         "search_query": f'{field}:"{term or lab}"',
         "sortBy": "submittedDate", "sortOrder": "descending",
         "max_results": 20})
     url = f"http://export.arxiv.org/api/query?{q}".replace("http://", "https://")
-    # au: queries belong to a lab (authorship); abs: mention queries do not
     source_id = storage.upsert_source(
         conn, "arxiv", f'arXiv {field}:"{term or lab}"', url, channel="official",
         lab_id=_lab_id(conn, lab) if field == "au" else None)

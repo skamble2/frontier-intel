@@ -1,32 +1,4 @@
-"""Mobility synthesis: turn affiliation history into personnel events.
-
-The affiliations table is append-only dated observations, and the schema has
-promised since day one that "a person with rows at two labs inside a window is
-a mobility event" — this module is the code that keeps that promise. It runs
-right after `observe()` in the pipeline, so a move is emitted in the SAME run
-whose re-observation saw it: the window below bounds which observations may be
-PAIRED into one move, it never delays detection.
-
-Rules, and why each exists:
-
-    page_verbatim only   A co-author inference is a mention, not presence.
-                         Pairing an inferred link with a page-verbatim one
-                         would manufacture moves out of collaborations.
-    strict succession    The move A -> B fires only when B's FIRST observation
-                         is after A's LAST. Overlapping observations mean a
-                         dual affiliation, which is common and not a move.
-    pairing window       last-seen-at-A and first-seen-at-B more than
-                         `mobility_window_days` apart is a stale pairing, not
-                         a fresh signal (policy knob, owned by the fund).
-    idempotent           One insight per (person, from_lab, to_lab), keyed by
-                         the evidence locator, so daily re-runs append nothing.
-
-Synthesized insights are tagged in their evidence locator
-(kind='mobility_synthesis') rather than a new schema value, so the live DB
-needs no migration and every figure can separate them from extracted events.
-Their entities carry basis='source_inferred', the tier scoring already
-downweights — a synthesized claim must never outrank a cited verbatim one.
-"""
+"""Mobility synthesis: turn affiliation history into personnel events."""
 from __future__ import annotations
 
 import json
@@ -45,8 +17,6 @@ def _days_between(earlier: str, later: str) -> float:
 
 
 def _already_synthesized(conn, person_id: int, from_lab: int, to_lab: int) -> bool:
-    # LIKE guard first: json_extract on a non-JSON locator would error, and
-    # only this module's locators are guaranteed to carry the kind key.
     return conn.execute(
         "SELECT 1 FROM insights i JOIN evidence e ON e.id = i.evidence_id"
         " WHERE i.event_type='personnel' AND e.locator LIKE ?"
@@ -59,10 +29,7 @@ def _already_synthesized(conn, person_id: int, from_lab: int, to_lab: int) -> bo
 def detect_mobility_events(conn: sqlite3.Connection,
                            window_days: int | None = None) -> dict:
     """Scan affiliation history and synthesize one `personnel` insight per
-    detected move, with mover_from / mover_to lab entities. Returns counts.
-
-    Emits the event the moment the arrival observation exists — a fund reads
-    the move in the digest of the run that saw it, not a window later."""
+    detected move, with mover_from / mover_to lab entities."""
     if window_days is None:
         window_days = load_policy().mobility_window_days
     rows = conn.execute(
@@ -86,11 +53,11 @@ def detect_mobility_events(conn: sqlite3.Connection,
             continue
         for prev, nxt in zip(stints, stints[1:]):
             if nxt["first_seen"] <= prev["last_seen"]:
-                skipped_overlap += 1     # concurrent affiliations, not a move
+                skipped_overlap += 1
                 continue
             gap = _days_between(prev["last_seen"], nxt["first_seen"])
             if gap > window_days:
-                skipped_window += 1      # stale pairing, not a fresh signal
+                skipped_window += 1
                 continue
             if _already_synthesized(conn, prev["person_id"], prev["lab_id"],
                                     nxt["lab_id"]):
@@ -109,13 +76,7 @@ def detect_mobility_events(conn: sqlite3.Connection,
 
 
 def _synthesize(conn, prev: sqlite3.Row, nxt: sqlite3.Row) -> None:
-    """One personnel insight for the move prev.lab -> nxt.lab.
-
-    The insight's own evidence is a NEW row on the arrival document: same
-    verbatim name (so C2 re-verifies against the page), but a locator that
-    carries the synthesis facts — the tag figures filter on, the idempotency
-    key, and the observation date the digest shows (arrival pages have no
-    published_at; the observation date is the honest date of this event)."""
+    """One personnel insight for the move prev.lab -> nxt.lab."""
     doc_id = conn.execute("SELECT document_id FROM evidence WHERE id=?",
                           (nxt["evidence_id"],)).fetchone()["document_id"]
     locator = json.dumps({

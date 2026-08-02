@@ -1,5 +1,5 @@
-"""Register reporting - the per-lab balance evidence printed every run
-(check C13). The de-skew claim is stated from these numbers, never assumed."""
+"""Register reporting - the per-lab balance evidence printed every run (check
+C13)."""
 import json
 import sqlite3
 
@@ -7,9 +7,7 @@ from fli.knowledge.register.approval import valid_candidate_name
 
 
 def balance_by_lab(conn: sqlite3.Connection) -> dict:
-    """Per-lab candidates / approved layer-below / insights. The honest de-skew
-    evidence, stated every run. Derives candidate labs from seed_person_ids so it
-    works on any schema version."""
+    """Per-lab candidates / approved layer-below / insights. """
     lab_name = {r["id"]: r["name"] for r in conn.execute("SELECT id, name FROM labs")}
     out = {n: {"candidates": 0, "approved": 0, "insights": 0} for n in lab_name.values()}
     seed_lab: dict[int, set] = {}
@@ -62,7 +60,6 @@ def report(conn: sqlite3.Connection) -> None:
     bad = sum(1 for r in q("SELECT name FROM person_candidates WHERE status='pending'")
               if not valid_candidate_name(r["name"]))
     print(f"  pending failing name-hygiene gate (excluded from review): {bad}")
-    # rejections log is append-only, so count distinct reasons, not rows
     print("register rejections (distinct by reason+detail; log rows in parens):")
     for r in q("SELECT reason, count(DISTINCT COALESCE(detail,'')) d, count(*) c"
                " FROM rejections WHERE reason LIKE 'seed_%' GROUP BY 1"):

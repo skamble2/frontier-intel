@@ -1,21 +1,4 @@
-"""Editorial policy, loaded from config/policy.yml.
-
-The split this module enforces:
-
-    fli/core/config.py   ENGINEERING constants - timeouts, seeds, cost caps.
-                         Changing one is a code change.
-    config/policy.yml    BUSINESS decisions - what counts as decision-relevant.
-                         Changing one changes the ranking, and is owned by a
-                         domain expert rather than by this repository.
-
-Validation is strict on purpose: an unknown key raises. A policy file is edited
-by a non-programmer, so a typo (`slate-k` for `slate_k`) must fail loudly rather
-than silently fall back to a default - a silent default would put the business
-decision back in the code, defeating the point of the file.
-
-Every key here is read by something. Config nobody reads is just hardcoding
-with extra steps, so unused keys are deleted rather than kept "for later".
-"""
+"""Editorial policy, loaded from config/policy.yml."""
 from __future__ import annotations
 
 import re
@@ -32,18 +15,7 @@ POLICY_PATH = CONFIG_DIR / "policy.yml"
 
 @lru_cache(maxsize=512)
 def term_pattern(term: str) -> re.Pattern:
-    """Word-boundary matcher for one lexicon term.
-
-    Substring matching scored `cluster` against "we clustered similar values" —
-    data clustering, not a GPU cluster. Multi-word terms match as phrases with
-    flexible whitespace, so a line break inside "training run" still hits.
-
-    Boundaries are applied only at ends that are word characters. `\\b` is a
-    transition between a word and a non-word character, so `\\b@handle` demands
-    a word character immediately before the `@` and can never match "scientist
-    @AnthropicAI" or a handle at the start of a string. No current term begins
-    with punctuation; this stops the next one from silently never firing.
-    """
+    """Word-boundary matcher for one lexicon term."""
     body = r"\s+".join(re.escape(w) for w in term.split())
     left = r"\b" if term[:1].isalnum() or term[:1] == "_" else ""
     right = r"\b" if term[-1:].isalnum() or term[-1:] == "_" else ""
@@ -52,9 +24,6 @@ def term_pattern(term: str) -> re.Pattern:
 _KEYS = {"version", "owner", "effective_from", "source", "channels",
          "event_type_prior", "slate_k", "hand_weights"}
 
-# `positions` is OPTIONAL so this module loads both a v2 file (no positions)
-# and a v3 file (with them). That is what makes the rollout safe: new code
-# reads old config, so the code can ship before the policy is swapped.
 _OPTIONAL_KEYS = {"positions", "window_days", "show_undated",
                   "max_per_lab", "story_rare_df", "story_days",
                   "primary_rubric", "mobility_window_days",
@@ -68,8 +37,7 @@ class PolicyError(ValueError):
 
 @dataclass(frozen=True)
 class Position:
-    """One disclosed holding. BIT-SPECIFIC content, kept apart from the general
-    channel mechanism so the fund can be swapped without touching the code."""
+    """One disclosed holding. """
     ticker: str
     name: str
     weight_pct: float | None
@@ -83,73 +51,38 @@ class Policy:
     owner: str
     effective_from: str
     source: str
-    channels: dict[str, tuple[str, ...]]     # name -> lowercase match terms
+    channels: dict[str, tuple[str, ...]]
     event_type_prior: dict[str, int]
     slate_k: int
     hand_weights: dict[str, float]
     window_days: int = 90
     show_undated: bool = False
-    # Pairing bound for mobility synthesis: last-seen-at-A and first-seen-at-B
-    # further apart than this is a stale pairing, not a fresh move. NOT a
-    # latency — detection runs every pipeline run and emits the same run the
-    # arrival observation lands.
     mobility_window_days: int = 90
-    # The persona whose ranking also lands in insights.score, and which the
-    # evaluation figures describe unless told otherwise. Optional with a
-    # default so a v2/v3 policy file that predates the key still loads.
     primary_rubric: str = "investment"
-    # Slate composition — render-time only, never seen by the scorer.
-    max_per_lab: int = 0            # 0 = no cap
-    story_rare_df: float = 0.0      # 0 = same-story suppression off
+    max_per_lab: int = 0
+    story_rare_df: float = 0.0
     story_days: int = 7
-    # Rubrics whose slates require a transmission mechanism: an event whose
-    # quote the channel classifier could not assign a channel is dropped at
-    # render time. The investment rubric's rule 1 ("channel over no channel")
-    # applied as an editorial boundary, not a scoring change.
     require_mechanism: tuple[str, ...] = ()
     positions: tuple[Position, ...] = ()
     positions_as_of: str | None = None
     positions_source: str | None = None
 
     def channel_for(self, text: str) -> str | None:
-        """Best-matching channel by term hits, or None.
-
-        Terms match on word boundaries, never as substrings. Ties break by
-        order in the YAML file, so results are reproducible across machines.
-        """
+        """Best-matching channel by term hits, or None."""
         best, best_hits = None, 0
-        for name, terms in self.channels.items():   # dicts keep insertion order
+        for name, terms in self.channels.items():
             hits = sum(1 for t in terms if term_pattern(t).search(text))
             if hits > best_hits:
                 best, best_hits = name, hits
         return best
 
     def positions_for(self, text: str) -> list[str]:
-        """Tickers whose exposure vocabulary appears in the text.
-
-        Deliberately separate from `channel_for`. Two different questions:
-
-            positions_for  does this touch something the fund owns? (topical —
-                           what keyword matching is actually good at)
-            channel_for    through what mechanism does it transmit? (semantic —
-                           "does this move a number in a thesis", which keywords
-                           cannot decide)
-
-        Fusing them put sector nouns like `health` and `broker` in the
-        `competitive_displacement` lexicon, so any post mentioning health scored
-        as displacement whether or not anything was displaced. Exposure without
-        a mechanism is a candidate, not a signal.
-        """
+        """Tickers whose exposure vocabulary appears in the text."""
         return [p.ticker for p in self.positions
                 if any(term_pattern(t).search(text) for t in p.exposure_terms)]
 
     def type_prior(self, event_type: str | None) -> int:
-        """Ordinal prior for an event type; unknown types rank lowest.
-
-        Deliberately not an exception: the extractor may emit a new type before
-        the owner has ranked it, and that must not break a pipeline run. Check
-        C17 reports the gap instead.
-        """
+        """Ordinal prior for an event type; unknown types rank lowest."""
         return self.event_type_prior.get(event_type or "", 0)
 
     @property
@@ -267,8 +200,7 @@ def _reject_unknown_position(h: dict) -> None:
 
 @lru_cache(maxsize=4)
 def load_policy(path: str | Path | None = None) -> Policy:
-    """Load and validate. Cached per path; tests that write a policy file should
-    call `load_policy.cache_clear()`."""
+    """Load and validate. """
     p = Path(path) if path else POLICY_PATH
     if not p.exists():
         raise PolicyError(

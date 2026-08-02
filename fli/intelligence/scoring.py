@@ -1,19 +1,4 @@
-"""The scoring bake-off.
-
-Ranking becomes binary classification on pairwise feature differences
-(x_a - x_b -> a wins), which works at the label counts available here. Every
-model scores the identical event set, so the comparison is fair, and a
-hand-weighted sum is included as the baseline to beat. Whichever model wins on
-held-out pairs ships, even if it is the simple one.
-
-Lab identity is never a feature, pairwise labels are lab-stratified, and
-per-lab precision@10 for the winner is the fairness check. No embeddings,
-vector store or second database — scikit-learn over a few hundred rows.
-
-Run:  python3 -m fli.cli score --bakeoff
-      python3 -m fli.cli score --bakeoff --rubric investment
-      python3 -m fli.cli score --top 10 --rubric investment
-"""
+"""The scoring bake-off."""
 from __future__ import annotations
 
 import argparse
@@ -33,53 +18,23 @@ from fli.core.config import RANDOM_SEED, TEST_FRAC
 from fli.core.policy import load_policy
 from fli.core.text import norm
 
-# Below this many labelled events, a per-lab precision@10 is arithmetic on too
-# little to be a fairness measurement. Not tuned: it is the smallest n at which
-# a p@10 can differ from 1.0 or 0.0 by more than one event.
 MIN_FAIRNESS_N = 10
 
 
 def primary_rubric() -> str:
     """The persona whose ranking also lands in insights.score, and which the
-    evaluation figures describe unless told otherwise. Which audience the fund
-    serves by default is a business decision, so it comes from
-    config/policy.yml at call time rather than being hard-coded here."""
+    evaluation figures describe unless told otherwise."""
     return load_policy().primary_rubric
 
 
 def hand_weights() -> dict[str, float]:
-    """The hand-weighted baseline, read from config/policy.yml at call time.
-
-    A business judgement, so not a constant here. The defence is not that these
-    numbers are right but that they are attributable, versioned and owned by
-    the fund rather than hard-coded here.
-    """
+    """The hand-weighted baseline, read from config/policy.yml at call time."""
     return load_policy().hand_weights
 
 
 def load_pairs(conn, include_lf: bool = False, verbose: bool = True,
                rubric: str | None = None) -> list[tuple[int, int, str, str]]:
-    """Training judgements, as (event_a, event_b, winner, labeler).
-
-    Four exclusions:
-
-    `human:%` — the audit sample, the one independent signal labeler reliability
-    is measured against. Training on it would contaminate that.
-
-    `conf=low` — a forced choice on an equal pair is a coin flip that would
-    enter training looking like signal. The judge prompt promises this.
-
-    `lf:%` — circular. The labeling functions are deterministic functions of the
-    features the models train on (`lf:specificity` <-> `specificity`, and so on),
-    so training on their votes partly fits an identity function. Including them
-    scored gbm 0.697 / logistic 0.672; excluding them, gbm 0.663 / logistic
-    0.684, which flips the winner to the interpretable model. `include_lf=True`
-    reproduces that comparison as a diagnostic, not a training mode.
-
-    `rubric` — only judgements made under this rubric train this model.
-    Audiences disagree about which event matters, and pooling the label sets
-    would average that into a ranking serving neither.
-    """
+    """Training judgements, as (event_a, event_b, winner, labeler)."""
     where = ["labeler NOT LIKE 'human:%'",
              "NOT (labeler LIKE 'llm:%' AND reason LIKE '%conf=low%')"]
     if not include_lf:
@@ -114,7 +69,7 @@ def load_pairs(conn, include_lf: bool = False, verbose: bool = True,
 def _standardize(X):
     mu = X.mean(axis=0)
     sd = X.std(axis=0)
-    sd = np.where(sd == 0, 1.0, sd)          # constant features -> 0, no effect
+    sd = np.where(sd == 0, 1.0, sd)
     return (X - mu) / sd, mu, sd
 
 
@@ -133,10 +88,7 @@ def _pair_xy(pairs, Xz, row):
 
 
 def _split(pairs, seed=RANDOM_SEED, test_frac=TEST_FRAC):
-    """Split at the PAIR level, not the row level. The same (a, b) pair judged
-    by several labelers is several rows; a row-level split puts the identical
-    pair on both sides, so "held-out" accuracy partly measures memorisation of
-    training pairs. All rows for one pair land on the same side."""
+    """Split at the PAIR level, not the row level. """
     keys = sorted({(p[0], p[1]) for p in pairs})
     rng = np.random.RandomState(seed)
     idx = rng.permutation(len(keys))
@@ -167,9 +119,6 @@ def _gold_net_wins(pairs) -> dict:
         elif w == "b":
             net[b] += 1; net[a] -= 1
         else:
-            # A tie still enters both events at 0 — they were judged, so they
-            # belong in the p@k / ndcg candidate pool. Not a no-op: the
-            # defaultdict access is what creates the keys.
             net[a] += 0; net[b] += 0
     return net
 
@@ -191,16 +140,13 @@ def _ndcg_at_k(scores, row, gold, k=20) -> float:
 
 def _fit_logistic(Xtr, ytr):
     from sklearn.linear_model import LogisticRegression
-    # L2 is the default penalty; C=1.0 is the regularization strength.
     clf = LogisticRegression(C=1.0, fit_intercept=False, max_iter=2000)
     clf.fit(Xtr, ytr)
     return clf.coef_[0]
 
 
 def _fit_gbm(Xtr, ytr):
-    """A gradient-boosted contender. Prefer LightGBM/XGBoost if installed;
-    otherwise sklearn's HistGradientBoosting (a real GBM) so the bake-off always
-    has one. Returns (predict_win_prob, label)."""
+    """A gradient-boosted contender. """
     try:
         from lightgbm import LGBMClassifier
         m = LGBMClassifier(n_estimators=200, max_depth=3, verbosity=-1)
@@ -227,17 +173,7 @@ def _dense_rank(scores):
 
 def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
             persist: bool = True) -> dict:
-    """Train and compare models on one rubric's judgements.
-
-    `rubric=None` pools every judgement regardless of rubric, which is only
-    correct while a single rubric exists. Pass a name for one audience's
-    ranking: extraction, clustering and features underneath are shared, and only
-    the definition of "important" differs. The split sits at the judge rather
-    than the renderer, because a render-time filter cannot rescue an audience
-    whose events the score already calls worthless.
-
-    `persist=False` is reporting mode — see the note at the write below.
-    """
+    """Train and compare models on one rubric's judgements."""
     ids, names, X = featmod.feature_matrix(conn)
     row = {iid: i for i, iid in enumerate(ids)}
     Xz, _, _ = _standardize(X)
@@ -250,48 +186,29 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
             + " — run `python3 -m fli.cli judge --n 300"
             + (f" --rubric {rubric}" if rubric else "") + "` first")
     tr, te = _split(pairs)
-    # Two golds. `gold` uses ALL labels (train + test) and is IN-SAMPLE by
-    # construction — kept because per-lab fairness needs its coverage, and
-    # test labels alone leave most labs with no positives at all. `gold_te`
-    # is built from the held-out pairs ONLY, so its p@10 / ndcg are honest
-    # ranking metrics on the same footing as heldout_acc: the model never
-    # trained on any judgement that produced them. Both are reported, and
-    # each is labeled with what it is.
     gold = _gold_net_wins(pairs)
     gold_te = _gold_net_wins(te)
 
     model_scores: dict[str, np.ndarray] = {}
     extras: dict[str, dict] = {}
 
-    # baselines: rank by a single raw feature
     model_scores["baseline_recency"] = X[:, fidx["recency"]].copy()
     model_scores["baseline_corroboration"] = X[:, fidx["corroboration"]].copy()
-    # hand-weighted sum on standardized features (the red flag to beat)
     hw = np.zeros(len(ids))
     for f, w in hand_weights().items():
         if f in fidx:
             hw += w * Xz[:, fidx[f]]
     model_scores["hand_weights"] = hw
-    # logistic — primary candidate
     Xtr, ytr = _pair_xy(tr, Xz, row)
     coef = _fit_logistic(Xtr, ytr)
     model_scores["logistic"] = Xz @ coef
     extras["logistic"] = {"coef": {names[j]: round(float(coef[j]), 3) for j in range(len(names))}}
-    # GBM contender — per-event score = P(beats the average event)
     predict, gbm_label = _fit_gbm(Xtr, ytr)
     xmean = Xz.mean(axis=0)
     gbm_scores = np.array([predict((Xz[i] - xmean).reshape(1, -1))[0][1] for i in range(len(ids))])
     model_scores[gbm_label] = gbm_scores
 
-    # `acc_llm` excludes labeling-function votes, which are deterministic
-    # functions of the training features (lf:specificity <-> specificity, and so
-    # on) — accuracy against those is partly a model recovering its own inputs.
     te_llm = [p for p in te if p[3].startswith("llm:")] if te and len(te[0]) > 3 else []
-    # The human audit sample is excluded from training entirely (see
-    # load_pairs), which makes it the one label set that is out-of-sample for
-    # EVERY model — including the judges themselves. Accuracy against it is the
-    # number that answers "does the ranking agree with a person", not "does the
-    # ranking agree with the LLM that trained it".
     human_pairs = [(r["event_a"], r["event_b"], r["winner"], r["labeler"])
                    for r in conn.execute(
                        "SELECT event_a, event_b, winner, labeler"
@@ -299,15 +216,9 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
                        " AND winner != 'tie'",
                        (f"human:%/{rubric}/%" if rubric else "human:%",))]
     ts = storage.now_utc()
-    pol = load_policy()   # stamped on every row (check C17)
-    # `model` carries the rubric as a prefix: "investment:gbm_sklearn". A prefix
-    # rather than a column because event_scores is UNIQUE (event_id, model), and
-    # SQLite cannot alter a UNIQUE constraint without rebuilding a table that
-    # checks C15-C17 depend on and that holds every scored event.
+    pol = load_policy()
     tag = f"{rubric}:" if rubric else ""
 
-    # Score every model first, pick the winner, then write, so the winner flag
-    # can be set in the same pass.
     report = {}
     for model, scores in model_scores.items():
         report[model] = {
@@ -321,10 +232,6 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
     winner = max(report, key=lambda m: (report[m]["heldout_acc"]
                                         if not math.isnan(report[m]["heldout_acc"]) else -1))
 
-    # persist=False is reporting mode: a figure must never mutate the thing it
-    # describes. The evaluation figures call bakeoff() to read numbers, and
-    # writing here would drop the per-rubric rankings and replace them with one
-    # trained on both rubrics' labels pooled.
     if persist:
         if rubric:
             conn.execute("DELETE FROM event_scores WHERE model LIKE ?", (f"{tag}%",))
@@ -337,15 +244,9 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
                     "INSERT INTO event_scores (event_id, model, score, rank,"
                     " components, policy_version, created_at) VALUES (?,?,?,?,?,?,?)",
                     (iid, tag + model, float(scores[i]), int(ranks[i]),
-                     # flags the shipped model for this rubric, so top_events
-                     # can find the ranking that counts without re-running the
-                     # bake-off to discover who won
                      '{"winner": true}' if model == winner else None,
                      pol.version, ts))
         conn.commit()
-    # Ablation refits logistic and is reported against logistic's own accuracy,
-    # which is not the winner's when the GBM wins. The base model is named in
-    # the output so the two cannot be confused.
     ablation = {}
     ablation_model = "logistic"
     base_acc = report[ablation_model]["heldout_acc"]
@@ -355,13 +256,9 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
         s = Xz[:, keep] @ _fit_logistic(xa, ya)
         ablation[f] = round(base_acc - _pairwise_accuracy(te, s, row), 4)
 
-    # per-lab precision@10 for the winner (fairness check)
     lab_of = {r["id"]: r["lab"] for r in conn.execute(
         "SELECT i.id, COALESCE(l.name,'(none)') lab FROM insights i"
         " LEFT JOIN labs l ON l.id=i.attributed_lab_id")}
-    # Below MIN_FAIRNESS_N, p@10 is arithmetic on too few events to mean
-    # anything: a lab with 2 good events scores 1.000, indistinguishable in the
-    # figure from a lab with 152. Small-n labs are counted, not scored.
     per_lab, per_lab_small, per_lab_detail = {}, {}, {}
     for lab in sorted(set(lab_of.values())):
         g = {e: gold[e] for e in gold if lab_of.get(e) == lab}
@@ -369,9 +266,6 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
             continue
         p10 = round(_precision_at_k(model_scores[winner], row, g, 10), 3)
         rel = sum(1 for v in g.values() if v > 0)
-        # The top-10 events the ranking got wrong for this lab, by type — raw
-        # p@10 tracks the lab's BASE RATE (rel/n), so diagnosing fairness needs
-        # both the base and what the misses actually are.
         miss_types: dict = {}
         for e in sorted(g, key=lambda e: -model_scores[winner][row[e]])[:10]:
             if g[e] <= 0:
@@ -386,14 +280,9 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
         else:
             per_lab_small[lab] = (p10, len(g))
 
-    # insights.score is a single column and can only hold one audience's
-    # opinion, so it is written for the pooled run and the primary rubric only.
-    # Other rubrics are read through event_scores via top_events(rubric=...).
     if persist and rubric in (None, primary_rubric()):
         _write_winner_scores(conn, ids, names, Xz, model_scores[winner], winner, extras)
 
-    # p@10's base rate: with many ties, few events have net_wins > 0, so a high
-    # p@10 can be an artifact of a tiny relevant set rather than good ranking.
     n_relevant = sum(1 for v in gold.values() if v > 0)
     n_relevant_te = sum(1 for v in gold_te.values() if v > 0)
     return {"n_labels": len(pairs), "n_test": len(te), "winner": winner,
@@ -415,7 +304,6 @@ def _write_winner_scores(conn, ids, names, Xz, scores, winner, extras):
     coef = extras.get("logistic", {}).get("coef", {})
     ranks = _dense_rank(scores)
     for i, iid in enumerate(ids):
-        # top contributing features for the reader (standardized value x coef)
         contribs = sorted(((f, round(coef.get(f, 0.0) * Xz[i, fidx[f]], 3)) for f in names),
                           key=lambda kv: -abs(kv[1]))[:5]
         comp = {"model": winner, "rank": int(ranks[i]),
@@ -429,26 +317,13 @@ _EDGE = re.compile(r"^[^\w]+|[^\w]+$")
 
 
 def _story_tokens(claim: str) -> set[str]:
-    """Tokens for same-story matching, with edge punctuation removed.
-
-    `norm()` keeps punctuation attached because it backs the verbatim quote
-    check (C2), where stripping would loosen an invariant. That leaves `cyber,`
-    and `cyber` as different tokens — harmless there, wrong here, so the
-    stripping is local. Single characters are dropped as list markers.
-    """
+    """Tokens for same-story matching, with edge punctuation removed."""
     return {t for t in (_EDGE.sub("", w) for w in norm(claim).split()) if len(t) > 1}
 
 
 class SlateFilter:
     """Decides what a reader is shown, given the ordering the scorer produced.
-
-    A class because it is stateful: the window and undated rules judge each
-    event on its own, while the cluster, story and lab rules judge a candidate
-    against what has already been selected. This object is the slate so far.
-
-    Nothing here touches `event_scores`. Every decision is reversible by editing
-    config/policy.yml and re-printing — no re-train required.
-    """
+    Decides what a reader is shown, given the ordering the scorer produced."""
 
     def __init__(self, policy, corpus_claims: list[str],
                  no_mech_quotes: set[str] | None = None,
@@ -456,16 +331,7 @@ class SlateFilter:
         self.pol = policy
         self.cutoff = (datetime.now(timezone.utc)
                        - timedelta(days=policy.window_days)).isoformat()
-        # None = gate off. A set = quotes the channel classifier POSITIVELY
-        # verdicted 'none' (no transmission mechanism); those are dropped.
-        # A quote the classifier has never seen passes — absence of a cache
-        # entry is an infrastructure fact about this run, not evidence about
-        # the event, and a gate must only act on evidence.
         self.no_mech_quotes = no_mech_quotes
-        # Insights whose claim the faithfulness check (f15) called
-        # not_entailed: the claim asserts something its own verified quote
-        # does not say. A slate that cites the quote as support for the claim
-        # would be lying, so these never render — for ANY persona.
         self.not_entailed = not_entailed or set()
         self.rare_cut = policy.story_rare_df * max(len(corpus_claims), 1)
         df: Counter = Counter()
@@ -484,12 +350,7 @@ class SlateFilter:
         return {w for w in _story_tokens(claim) if self.df[w] <= self.rare_cut}
 
     def _same_story(self, row) -> bool:
-        """True if an already-chosen item is the same announcement.
-
-        Compares only against the handful already selected, so there is no
-        transitive chaining — a union-find version of this merged 41 unrelated
-        events into one "story" by hopping A-B-C.
-        """
+        """True if an already-chosen item is the same announcement."""
         if not row["published_at"] or row["lab"] == "(unattributed)":
             return False
         rare = self._rare(row["claim"])
@@ -507,8 +368,7 @@ class SlateFilter:
 
     def accept(self, row) -> bool:
         """Apply every rule in order, counting the reason for each rejection.
-        Counts are printed with the slate: a filter that silently discards is
-        indistinguishable from a bug."""
+        Apply every rule in order, counting the reason for each rejection."""
         if row["id"] in self.not_entailed:
             self.dropped["not_entailed"] += 1
             return False
@@ -531,7 +391,7 @@ class SlateFilter:
         if self.pol.max_per_lab and self.by_lab[row["lab"]] >= self.pol.max_per_lab:
             self.dropped["lab_cap"] += 1
             return False
-        if row["cluster_id"] is not None:   # NULL is "unclustered", not a shared id
+        if row["cluster_id"] is not None:
             self.seen_clusters.add(row["cluster_id"])
         self.by_lab[row["lab"]] += 1
         self.chosen.append(row)
@@ -539,10 +399,7 @@ class SlateFilter:
 
 
 def _parse_ts(s: str) -> datetime:
-    """ISO timestamp or bare date -> aware datetime. Naive values (a page
-    byline like '2025-11-24', or a date-only sitemap lastmod) are taken as
-    UTC; comparing naive with aware raises, and a slate must not crash on
-    the honest form of a date."""
+    """ISO timestamp or bare date -> aware datetime. """
     dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
@@ -550,35 +407,11 @@ def _parse_ts(s: str) -> datetime:
 def top_events(conn, k: int = 10, window_days: int | None = None,
                dedupe: bool = True, show_undated: bool | None = None,
                rubric: str | None = None) -> list[dict]:
-    """The ranked list a reader sees.
-
-    Scoring produces an ordering; this applies the editorial boundaries on top,
-    all configured in policy.yml. What to SHOW is a separate decision from how
-    to score, so none of it is a scoring change.
-
-    1. Window — recent events only. The model gives recency a coefficient near
-       zero, because the judge rewards "shipped vs intended", not publication
-       date.
-    2. Undated out — an event we cannot date cannot be presented as recent.
-       Undated events take a neutral recency of 0.5 in the features.
-    3. One per cluster — keep the highest-scoring member and count the rest as
-       corroboration. That is what a cluster means.
-    4. One per story — clusters are too fine to be news. One model launch
-       produced 12 events across 9 clusters at a peak pairwise Jaccard of 0.158
-       against a 0.4 threshold, so no clustering setting merges them. Grouped
-       here rather than in `insights`, where it would corrupt the corroboration
-       feature that scoring depends on.
-    5. Lab cap — without it one lab took half the top 10.
-
-    Rules 1-2 are per-event; 3-5 depend on what has already been chosen, which
-    is why they live in `SlateFilter` rather than in SQL.
-    """
+    """The ranked list a reader sees."""
     pol = load_policy()
     window_days = pol.window_days if window_days is None else window_days
     show_undated = pol.show_undated if show_undated is None else show_undated
 
-    # With a rubric, the score comes from that rubric's winning model in
-    # event_scores rather than from the single-valued insights.score.
     if rubric:
         src = ("(SELECT event_id, score FROM event_scores"
                " WHERE model LIKE ? AND components LIKE '%\"winner\"%')")
@@ -593,10 +426,6 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
     rows = conn.execute(
         f"SELECT i.id, i.claim, {score_expr} AS score, i.score_components,"
         " i.event_type, i.cluster_id, COALESCE(l.name,'(unattributed)') lab,"
-        # A synthesized mobility event's document is a lab page, which has no
-        # published_at; its honest date is the arrival observation recorded in
-        # its locator. Without this the digest's undated rule would silently
-        # hide every move the register detects.
         " COALESCE(d.published_at,"
         "   CASE WHEN ev.locator LIKE '%mobility_synthesis%'"
         "        THEN json_extract(ev.locator,'$.to_first_observed') END)"
@@ -610,19 +439,9 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
         f" WHERE {score_expr} IS NOT NULL"
         f" ORDER BY {score_expr} DESC", params).fetchall()
 
-    # Document frequency is computed over the WHOLE corpus, not the window, so
-    # the meaning of "uncommon token" does not drift as the window slides.
     all_claims = [r[0] for r in conn.execute(
         "SELECT claim FROM insights WHERE claim IS NOT NULL")]
 
-    # Mechanism gate — the investment rubric's rule 1 ("channel over no
-    # channel") applied at render time for the rubrics policy.yml names in
-    # `require_mechanism`. The f16 review measured the failure class this
-    # closes: vendor case studies and official-channel engineering posts whose
-    # feature shape the score rewards but the investment reader cuts. The gate
-    # reads the committed classifier cache only (free, offline) and drops a
-    # quote only on a POSITIVE 'none' verdict; an unclassified quote passes,
-    # because a missing cache entry says nothing about the event.
     no_mech: set | None = None
     if rubric and rubric in pol.require_mechanism:
         from fli.knowledge.channels import cached_verdicts
@@ -630,20 +449,10 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
         no_mech = {t for t, v in cached_verdicts(quotes).items()
                    if v["channel"] == "none"}
 
-    # Faithfulness gate — insights whose claim the entailment check called
-    # not_entailed (claim asserts what its own quote does not say). Applies to
-    # every persona and also under dedupe=False: it is a correctness bound,
-    # not a composition rule, and a "raw ordering" baseline that includes
-    # unfaithful claims would flatter every model measured against it.
     bad = {r[0] for r in conn.execute(
         "SELECT DISTINCT insight_id FROM claim_checks"
         " WHERE verdict='not_entailed'")}
 
-    # `dedupe=False` turns off all three slate-composition rules, not just the
-    # cluster one: evaluation code uses it to see the scorer's raw ordering, and
-    # a half-disabled filter would be a misleading baseline. The mechanism gate
-    # is turned off with them — it is persona-editorial, and the raw ordering
-    # must stay comparable across rubrics.
     pol = replace(pol, window_days=window_days, show_undated=show_undated)
     if not dedupe:
         pol = replace(pol, max_per_lab=0, story_rare_df=0.0)

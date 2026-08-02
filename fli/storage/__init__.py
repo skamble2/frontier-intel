@@ -1,9 +1,4 @@
-"""Persistence layer (SQLite). No domain logic lives here.
-
-`fli.storage` is the public surface, `fli.storage.db` the implementation.
-Re-exported explicitly rather than with `import *`: this is the contract every
-other layer codes against, so it should be readable in one screen.
-"""
+"""Persistence layer (SQLite). """
 from fli.storage import db  # noqa: F401
 from fli.storage.db import (DEFAULT_DB, SCHEMA_PATH,
                             backfill_attribution_from_source,

@@ -1,19 +1,8 @@
 """Daily pipeline: ingest all feeds -> stage-1 filter -> stage-2 extraction
-(skipped without an API key; everything else stays deterministic and green)
--> re-observe affiliations -> cluster -> features -> score (per rubric,
-skipped for a rubric with too few judge labels) -> evaluation report ->
-positions -> digest -> alerts -> validation battery. Exit code is the
-battery's verdict.
-
-The paid stages stay manual: `judge` (new pairwise labels), `x` (paid source)
-and `personas` (the written reading) are never run here — scoring trains on the
-labels already in the DB, and the digest publishes the readings that exist,
-naming the items that have none.
-
-Run:  python -m fli.cli pipeline [--db PATH] [--max-extract N]
-Scheduled daily by .github/workflows/pipeline.yml, which commits data/fli.db
-and the regenerated report back after a green run.
-"""
+(skipped without an API key; everything else stays deterministic and green) ->
+re-observe affiliations -> cluster -> features -> score (per rubric, skipped
+for a rubric with too few judge labels) -> evaluation report -> positions ->
+digest -> alerts -> validation battery."""
 from __future__ import annotations
 
 import argparse
@@ -48,7 +37,7 @@ def near_dup_titles(conn) -> int:
                           " WHERE source_type IN ('blog','newsroom','github')"):
         first = r["raw_content"].split("\n", 1)[0]
         if first.lstrip().startswith("<"):
-            continue  # raw HTML page, first line is markup not a title
+            continue
         title = norm(first)[:120]
         if title:
             titles.setdefault(title, set()).add(r["content_hash"])
@@ -84,12 +73,10 @@ def main() -> None:
         print(f"  rejected {reason}: {n}")
     print(f"  near-duplicates suppressed: {filter1.suppress_near_dups(conn)}")
 
-    # Register discovery + approval run BEFORE extraction, so the layer-below
-    # people exist when stage 2 resolves per-insight person attribution.
     print("\n=== co-author expansion (research seeds) ===")
     try:
         expand.expand_coauthors(conn)
-    except Exception as e:  # network/arXiv failure must not kill the run
+    except Exception as e:
         print(f"expansion unavailable: {e} (deterministic stages unaffected)")
 
     print("\n=== auto-approve register (balance re-asserted every run) ===")
@@ -108,13 +95,9 @@ def main() -> None:
             cost = conn.execute("SELECT round(sum(cost_usd),4) c"
                                 " FROM llm_calls").fetchone()["c"]
             print(f"cumulative LLM cost: ${cost}")
-        except Exception as e:  # API/network failure must not kill the run
+        except Exception as e:
             print(f"extraction unavailable: {e} (deterministic stages unaffected)")
 
-    # Deterministic and free, so it runs whether or not stage 2 did: any
-    # arXiv insight whose author list names a tracked person gets an
-    # 'author' entity — the extractor only names people the TEXT is about,
-    # which leaves research events person-blind without this.
     print("\n=== arXiv author attribution (deterministic) ===")
     ba = extraction.backfill_arxiv_authors(conn)
     print(f"author entities: +{ba['entities']}"
@@ -123,11 +106,6 @@ def main() -> None:
     print("\n=== re-observe affiliations ===")
     register.observe(conn)
 
-    # Bio re-observation is the X-side of observe(): bios are where moves are
-    # announced. Gated on the token exactly like extraction is gated on its
-    # key, cadence-capped in fetch_log so daily runs spend at most
-    # ~$0.41/week, and it must land BEFORE mobility synthesis so a rewritten
-    # bio becomes a personnel event in this same run.
     print("\n=== re-observe X bios ===")
     from fli.ingestion.x_api import bearer_token
     if not bearer_token():
@@ -135,23 +113,17 @@ def main() -> None:
     else:
         try:
             register.reobserve_x_bios(conn)
-        except Exception as e:  # API/network failure must not kill the run
+        except Exception as e:
             print(f"bio re-observation unavailable: {e}"
                   " (deterministic stages unaffected)")
 
-    # GitHub profiles are the third observation surface, and the free one:
-    # the `company` field is where an engineer's move shows up first. Same
-    # placement rule as X bios — BEFORE mobility synthesis, so a flipped
-    # company field becomes a personnel event in this same run.
     print("\n=== re-observe GitHub profiles ===")
     try:
         register.observe_gh_profiles(conn)
-    except Exception as e:  # API/network failure must not kill the run
+    except Exception as e:
         print(f"gh re-observation unavailable: {e}"
               " (deterministic stages unaffected)")
 
-    # Mobility synthesis runs immediately after re-observation so a detected
-    # move lands in THIS run's digest, before clustering/scoring see the corpus.
     print("\n=== mobility synthesis ===")
     register.detect_mobility_events(conn)
 
@@ -171,26 +143,18 @@ def main() -> None:
         try:
             scoring.print_report(scoring.bakeoff(conn, rubric=name))
         except SystemExit as e:
-            # bakeoff refuses to train on <10 labels; a missing rubric's
-            # labels must not kill the scheduled run.
             print(f"  {name}: skipped ({e})")
 
     print("\n=== evaluate (figures + report) ===")
     try:
         evaluation.build(conn)
-    except Exception as e:  # a chart must not kill the run
+    except Exception as e:
         print(f"evaluation unavailable: {type(e).__name__}: {e}")
 
-    # DELIVERY. All three stages are deterministic and free, so they belong in
-    # the scheduled run: a digest that only exists when someone remembers to
-    # ask for it is not a periodic report. `personas` is deliberately NOT here
-    # — it is the one delivery stage that spends, and paid calls stay manual.
-    # The digest names its own uncovered items, so the gap is visible in the
-    # committed artifact rather than hidden.
     print("\n=== positions (event -> holding edges) ===")
     try:
         positions.build(conn)
-    except SystemExit as e:          # no `positions` block in policy.yml
+    except SystemExit as e:
         print(f"skipped: {e}")
 
     print("\n=== digest ===")
@@ -208,9 +172,6 @@ def main() -> None:
 
     print("\n=== checks ===")
     verdict = checks.run(conn)
-    # Checkpoint the WAL back into fli.db before exiting: the -wal/-shm
-    # sidecars are gitignored, so a committed DB that hasn't been
-    # checkpointed would silently miss this run's writes.
     conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
     conn.close()
     sys.exit(verdict)

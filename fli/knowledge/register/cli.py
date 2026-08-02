@@ -49,7 +49,5 @@ def main() -> None:
     elif args.cmd == "gh_observe":
         observe_gh_profiles(conn, dry_run=args.dry_run)
     elif args.cmd == "gh_retract":
-        # Full GitHub consistency cleanup: withdraw rows whose evidence stopped
-        # re-verifying, then prune people the current name gate would reject.
         retract_unverifiable(conn, dry_run=args.dry_run)
         prune_unnameable_github_people(conn, dry_run=args.dry_run)

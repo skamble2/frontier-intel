@@ -1,15 +1,4 @@
-"""The tracked-entity register.
-
-Facade over four single-responsibility modules:
-
-    seeding      the tracked labs and their founding people (verbatim-gated)
-    approval     overrides > per-lab slate > auto-approve rule
-    observation  affiliation currency, re-observed once per person/lab/day
-    reporting    per-lab balance, the de-skew evidence
-
-Import from here for the public operations; import a submodule directly when
-you need its internals, as the tests do.
-"""
+"""The tracked-entity register."""
 from fli.knowledge.register.approval import (auto_approve, auto_approve_rule,
                                              load_overrides, review, show_queue,
                                              valid_candidate_name)

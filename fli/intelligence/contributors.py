@@ -1,40 +1,4 @@
-"""Contributor scoring: which tracked people matter most right now.
-
-The trap this module refuses is the obvious one — inventing a person-quality
-formula (papers × w1 + followers × w2 + ...) whose weights nobody can defend.
-That is the same "arbitrary weighted sum" red flag the event bake-off exists
-to kill, and it would be strictly worse here because there are no pairwise
-labels over people to validate against.
-
-Instead, a person's score is an aggregation of ALREADY-VALIDATED numbers:
-
-    score(person) = Σ over the person's linked events of
-                        percentile(event under the rubric's winning model)
-                        × recency(event)          # the same exp decay features use
-
-Every term is inherited. The event percentiles come from the bake-off winner,
-which beat baselines and a hand-weighted sum on held-out human/LLM pairs; the
-recency decay is the documented RECENCY_SCALE_DAYS constant scoring already
-lives with. This module adds ZERO new tunable parameters — its only claim is
-"people attached to more high-scoring recent events matter more", and each
-score decomposes into the exact events that produced it.
-
-Person↔event links come from both attribution channels the schema has:
-`event_entities` rows with entity_kind='person' (authors, releasers, movers,
-subjects — every role counts: being the subject of a personnel event is
-standing evidence too) and the denormalized `insights.attributed_person_id`.
-Each (person, event) pair counts once however many roles connect them.
-
-Validation is the same human loop the digest slate gets: `--review` asks
-keep/cut over the top-K and lands verdicts in `contributor_reviews`
-(REFERENCE-tier precision@k). The free sanity check prints the seniority-tier
-mix of the top 20 — a ranking whose top is all unreviewed ICs is answering a
-different question than "who matters".
-
-Run:  python -m fli.cli contributors                 # compute + top 20
-      python -m fli.cli contributors --top 30
-      python -m fli.cli contributors --review --k 20 # human keep/cut audit
-"""
+"""Contributor scoring: which tracked people matter most right now."""
 from __future__ import annotations
 
 import argparse
@@ -61,8 +25,6 @@ def _linked_events(conn, rubric: str) -> list:
         "   WHERE attributed_person_id IS NOT NULL)"
         " SELECT l.person_id, l.event_id, group_concat(DISTINCT l.role) roles,"
         "  r.rank,"
-        # mobility-synthesis events live on undated lab pages; their honest
-        # date is the arrival observation — same rule top_events applies
         "  COALESCE(d.published_at,"
         "    CASE WHEN ev.locator LIKE '%mobility_synthesis%'"
         "         THEN json_extract(ev.locator,'$.to_first_observed') END)"
@@ -77,12 +39,7 @@ def _linked_events(conn, rubric: str) -> list:
 
 
 def compute(conn, rubric: str) -> list[dict]:
-    """Score every linked person under `rubric` and persist the result.
-
-    Full recompute each call: contributor scores are a VIEW of event scores,
-    so they must never outlive the bake-off run they were derived from. Stale
-    rows for people whose links vanished are deleted, not left behind.
-    """
+    """Score every linked person under `rubric` and persist the result."""
     n_scored = conn.execute(
         "SELECT count(*) FROM event_scores WHERE model LIKE ?"
         " AND components LIKE '%\"winner\"%'", (f"{rubric}:%",)).fetchone()[0]
@@ -92,7 +49,7 @@ def compute(conn, rubric: str) -> list[dict]:
     now = datetime.now(timezone.utc)
     per_person: dict[int, list[dict]] = {}
     for r in _linked_events(conn, rubric):
-        pctl = (n_scored - r["rank"] + 1) / n_scored     # dense rank 1 = best
+        pctl = (n_scored - r["rank"] + 1) / n_scored
         rec = _recency(r["published_at"], now)
         per_person.setdefault(r["person_id"], []).append({
             "event_id": r["event_id"], "roles": r["roles"],
@@ -149,11 +106,7 @@ def print_top(conn, rubric: str, k: int = 20) -> None:
 
 
 def review(conn, rubric: str, k: int = 20, reviewer: str = "soham") -> dict:
-    """Keep/cut audit of the contributor ranking — precision@k, human tier.
-
-    The question, matching what the ranking is FOR: is this someone whose next
-    move you'd want surfaced? Re-reviewing overwrites; the latest read counts.
-    """
+    """Keep/cut audit of the contributor ranking — precision@k, human tier."""
     rows = top(conn, rubric, k)
     print(f"contributor review — {rubric}, top {len(rows)}, reviewer {reviewer}")
     print("keep = you'd want their next move surfaced; cut = noise.\n"

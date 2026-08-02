@@ -1,29 +1,4 @@
-"""X (Twitter) as an ingestion source.
-
-Labs and researchers announce things on X hours to days before a blog post
-exists, and personnel moves ("excited to share I'm joining…") often appear only
-here — the corpus is thin on personnel events, and this is the channel most
-likely to change that.
-
-Pricing (docs.x.com/x-api/getting-started/pricing, read 2026-07-26): pay-per-use
-billed per resource RETURNED, not per request — $0.005 per post read, $0.010 per
-user read. Resources are deduplicated within a 24h UTC window, so re-running the
-same day costs nothing for posts already seen.
-
-Every run prints a cost ledger, and the caps in core/config.py are a hard stop
-rather than a suggestion — see `_budget_guard`.
-
-Attribution rule:
-    Lab accounts (@OpenAI, @AnthropicAI, …) are `channel='official'` with a
-    lab_id. Those are the lab speaking, so a source_inferred attribution is
-    legitimate (check C12).
-    Researcher accounts are `channel='third_party'` with lab_id NULL. A person
-    tweeting is not their employer announcing, and without this every personal
-    post would be attributed to the lab as though it were official.
-
-Run:  python3 -m fli.cli x --dry-run     # cost estimate, spends nothing
-      python3 -m fli.cli x               # fetch, capped
-"""
+"""X (Twitter) as an ingestion source."""
 from __future__ import annotations
 
 import argparse
@@ -39,7 +14,6 @@ from fli.core.http import FetchError, http_get
 
 API = "https://api.x.com/2"
 
-# Official lab accounts: the lab speaking for itself -> lab_id set.
 LAB_ACCOUNTS = {
     "OpenAI": "OpenAI",
     "AnthropicAI": "Anthropic",
@@ -53,22 +27,14 @@ LAB_ACCOUNTS = {
 
 
 def bearer_token() -> str | None:
-    """Token from the environment or .env.
-
-    Goes through `load_dotenv` so a token in .env works the same way the
-    Anthropic key does.
-    """
+    """Token from the environment or .env."""
     from fli.ops.llm import load_dotenv
     load_dotenv()
     return os.environ.get("X_BEARER_TOKEN")
 
 
 class XClient:
-    """Thin API client that counts what it spends.
-
-    Cost is derived from resources RETURNED, mirroring how X bills, so the
-    ledger is an accounting of the same quantity the invoice will show.
-    """
+    """Thin API client that counts what it spends."""
 
     def __init__(self, token: str):
         self._headers = {"Authorization": f"Bearer {token}"}
@@ -82,7 +48,7 @@ class XClient:
 
     def _get(self, path: str, params: dict) -> dict:
         url = f"{API}{path}?{urllib.parse.urlencode(params)}"
-        body, _ = http_get(url, headers=self._headers)   # token never logged
+        body, _ = http_get(url, headers=self._headers)
         return json.loads(body)
 
     def user_id(self, handle: str) -> tuple[str, str] | None:
@@ -93,21 +59,14 @@ class XClient:
         return (u["id"], u.get("name", handle)) if u else None
 
     def user_profile(self, handle: str) -> dict | None:
-        """Full profile: id, name, bio, verified. Billed as one User: Read.
-
-        Separate from `user_id` on purpose: that one runs per account on every
-        ingest and needs only the id. This runs once per candidate handle during
-        register seeding, where the bio is the point — a self-declared "Research
-        scientist @AnthropicAI" is what makes the identity row admissible.
-        """
+        """Full profile: id, name, bio, verified. """
         data = self._get(f"/users/by/username/{handle}", {
             "user.fields": "name,description,verified,public_metrics,url"})
         self.users_read += 1
         return data.get("data")
 
     def recent_posts(self, user_id: str, limit: int) -> list[dict]:
-        """Most recent original posts. Retweets and replies are excluded: a
-        retweet carries no new claim and would pollute the evidence base."""
+        """Most recent original posts. """
         data = self._get(f"/users/{user_id}/tweets", {
             "max_results": max(5, min(limit, 100)),
             "exclude": "retweets,replies",
@@ -119,11 +78,7 @@ class XClient:
 
 
 def _budget_guard(n_accounts: int, per_account: int) -> float:
-    """Refuse to start a run whose worst case exceeds the budget.
-
-    Checked before any call: a cap that only triggers mid-run has already spent
-    the money it was meant to protect.
-    """
+    """Refuse to start a run whose worst case exceeds the budget."""
     worst = (n_accounts * X_USER_COST_USD
              + min(n_accounts * per_account, X_MAX_POSTS_PER_RUN) * X_POST_COST_USD)
     if worst > X_RUN_BUDGET_USD:
@@ -135,18 +90,13 @@ def _budget_guard(n_accounts: int, per_account: int) -> float:
 
 
 def as_document(handle: str, post: dict) -> tuple[str, str]:
-    """(url, body). The body keeps the same header convention as every other
-    source so readable_text and the extractor need no special case."""
+    """(url, body). """
     url = f"https://x.com/{handle}/status/{post['id']}"
     return url, f"@{handle}\n{url}\n\n{post['text']}"
 
 
 def accounts_to_track(conn) -> list[tuple[str, str | None, str]]:
-    """(handle, lab_name_or_None, channel).
-
-    Lab accounts carry their lab. Researcher handles come from `identities`
-    (platform='x') and deliberately carry no lab — see the module docstring.
-    """
+    """(handle, lab_name_or_None, channel)."""
     out = [(h, lab, "official") for h, lab in LAB_ACCOUNTS.items()]
     for r in conn.execute(
             "SELECT handle FROM identities WHERE platform='x' ORDER BY handle"):
@@ -195,7 +145,6 @@ def ingest(conn, dry_run: bool = False, per_account: int = X_MAX_POSTS_PER_ACCOU
             budget_left = X_MAX_POSTS_PER_RUN - client.posts_read
             posts = client.recent_posts(uid, min(per_account, budget_left))
         except FetchError as e:
-            # 429 is the expected failure mode; it is logged like any other
             storage.log_fetch(conn, sid, "error", 0, str(e)[:200])
             print(f"  {handle:<18} FETCH ERROR {e}")
             continue

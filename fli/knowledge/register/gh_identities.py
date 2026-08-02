@@ -1,48 +1,4 @@
-"""Resolve GitHub logins to registered people, with evidence.
-
-THE THIRD PLATFORM. The register already links an arXiv author string to an X
-handle; this closes the loop — knowing that a GitHub account is the same
-person as both.
-
-WHY THIS COULD NOT BE DONE FROM WHAT WE ALREADY STORED. Ingestion reads
-`releases.atom`, which carries a tag, a URL and a changelog and NO author
-field. There was nothing in the stored bytes to correlate a person against, so
-for a long time the honest answer was "not implemented". The fix is not more
-parsing — it is a different endpoint:
-
-    /repos/{owner}/{repo}/contributors   who actually commits to a lab's repo
-    /users/{login}                       their name, company and bio
-
-Contributors are a better population than release notes ever were: these are
-people the lab's own repository says wrote its code.
-
-DISCOVERY RUNS IN TWO PASSES. The configured feeds are all SDK/inference
-repos, and they produced engineers with zero overlap against the arXiv
-population — the people who ship a client library are not the people who write
-the papers. So the org is mined too:
-
-    /orgs/{org}/public_members  membership GitHub itself asserts
-    /orgs/{org}/repos           the lab's RESEARCH repos, where paper authors
-                                actually commit
-
-THE ADMISSION RULE, ordered by how much inference each signal needs:
-
-    public member of the org  -> verbatim        (self_link)
-    `company` names the lab   -> verbatim        (self_link)
-    name is in the register   -> name_match_only (exact)
-    none of the above         -> REJECTED, logged with the profile
-
-Most contributors will fail. GitHub's `company` field is optional and often
-blank, and many contributors to a lab's SDK are outside users. The rejections
-are the measurement, not a failure of the method.
-
-COST: nothing. The GitHub REST API is free — 60 requests/hour unauthenticated,
-5,000 with any personal access token. Set GITHUB_TOKEN in .env to get the
-higher limit; without it the run still works but caps itself.
-
-Run:  python3 -m fli.cli register gh_identities --dry-run
-      python3 -m fli.cli register gh_identities
-"""
+"""Resolve GitHub logins to registered people, with evidence."""
 from __future__ import annotations
 
 import json
@@ -57,24 +13,12 @@ from fli.knowledge.register.approval import valid_candidate_name
 
 API = "https://api.github.com"
 
-# Contributors ranked below this many commits are noise: a one-commit typo fix
-# does not make someone a lab researcher. Measured against the tracked repos,
-# where the tail is dominated by single-commit outside contributors.
 MIN_CONTRIBUTIONS = 5
 
-# Per repo. Contributor lists are long and sorted by commit count, so the head
-# is where the lab's own people are.
 MAX_CONTRIBUTORS_PER_REPO = 30
 
-# Unauthenticated GitHub allows 60 requests/hour. Refuse to start a run that
-# would obviously exceed the limit rather than fail halfway with a 403.
 UNAUTH_BUDGET = 55
 
-# A GitHub `company` field is usually the ORG HANDLE, not the company name, and
-# the handle is often not the lab's name: Anthropic's org is `anthropics`,
-# plural. `\banthropic\b` cannot match "anthropics" — the boundary fails
-# between 'c' and 's' — so three people whose company field literally named
-# their employer were rejected. Org handles are listed explicitly.
 _COMPANY_TERMS = {
     "OpenAI":          ["openai", "@openai", "open ai"],
     "Anthropic":       ["anthropic", "anthropics", "@anthropics", "@anthropic"],
@@ -88,8 +32,6 @@ _COMPANY_TERMS = {
     "xAI":             ["xai", "x.ai", "@xai-org", "@xai"],
 }
 
-# Accounts that are automation, not people. GitHub's `type` field catches Apps
-# but not user accounts operated as bots, which is what `stainless-bot` is.
 _BOT_MARKERS = ("-bot", "bot-", "[bot]", "-ci", "-automation")
 
 
@@ -113,13 +55,8 @@ def _headers() -> dict[str, str]:
     return h
 
 
-# How many of an org's repos to mine, ranked by stars. The tail is forks,
-# templates and abandoned experiments; the head is where the lab's own people
-# are. Ten per org keeps the whole run inside a few hundred requests.
 REPOS_PER_ORG = 10
 
-# Repos below this many stars are not the lab speaking — they are a personal
-# scratch repo that happens to live under the org.
 MIN_REPO_STARS = 100
 
 
@@ -130,13 +67,7 @@ def github_orgs() -> dict[str, list[str]]:
 
 
 def org_members(org: str) -> list[str]:
-    """Logins GitHub itself lists as public members of the org.
-
-    The strongest signal available anywhere in the register: no bio parsing, no
-    company string, no name matching — the platform asserting membership. Most
-    people keep membership private, so this under-counts badly, but it never
-    guesses.
-    """
+    """Logins GitHub itself lists as public members of the org."""
     try:
         rows = _get(f"/orgs/{org}/public_members?per_page=100")
     except FetchError:
@@ -145,12 +76,7 @@ def org_members(org: str) -> list[str]:
 
 
 def org_repos(org: str, limit: int = REPOS_PER_ORG) -> list[str]:
-    """The org's most-starred repos, as owner/repo.
-
-    Discovered rather than configured: a lab adds repos faster than a config
-    file gets updated, and the point of mining an org is to find the research
-    code we are not already tracking.
-    """
+    """The org's most-starred repos, as owner/repo."""
     try:
         rows = _get(f"/orgs/{org}/repos?sort=stars&direction=desc&per_page={limit}")
     except FetchError:
@@ -162,11 +88,7 @@ def org_repos(org: str, limit: int = REPOS_PER_ORG) -> list[str]:
 
 
 def repo_slugs(conn) -> list[tuple[str, str]]:
-    """(owner/repo, lab) for every tracked GitHub source.
-
-    Parsed from the stored feed URL rather than configured separately, so the
-    repos we mine for people are exactly the repos we already ingest.
-    """
+    """(owner/repo, lab) for every tracked GitHub source."""
     out = []
     for r in conn.execute(
             "SELECT s.url, COALESCE(l.name,'') lab FROM sources s"
@@ -179,11 +101,7 @@ def repo_slugs(conn) -> list[tuple[str, str]]:
 
 
 def company_names_lab(company: str, bio: str, lab: str) -> bool:
-    """Word-boundary match of a lab in the profile's company or bio.
-
-    Same matcher as the policy lexicon, for the same reason: substring matching
-    would read "Metaphysics" as Meta.
-    """
+    """Word-boundary match of a lab in the profile's company or bio."""
     from fli.core.policy import term_pattern
     hay = f"{company or ''} {bio or ''}"
     return any(term_pattern(t).search(hay) for t in _COMPANY_TERMS.get(lab, []))
@@ -191,9 +109,8 @@ def company_names_lab(company: str, bio: str, lab: str) -> bool:
 
 def _person_by_name(conn, name: str) -> int | None:
     """Order-insensitive name lookup with a homonym guard: two tracked people
-    folding to the same key means a name alone cannot identify this profile,
-    so the lookup abstains instead of returning an arbitrary one. Mirrors
-    x_identities._person_by_name; both must abstain or C4's tiers lie."""
+    folding to the same key means a name alone cannot identify this profile, so
+    the lookup abstains instead of returning an arbitrary one."""
     if not name:
         return None
     key = name_key(name)
@@ -203,18 +120,7 @@ def _person_by_name(conn, name: str) -> int | None:
 
 
 def lab_from_profile(profile: dict, labs: list[str]) -> str | None:
-    """Which tracked lab this profile's own company field names, if any.
-
-    Checked against EVERY tracked lab, not just the repo we found them through.
-    A person is found via whatever repo they commit to, which is not the same
-    as who employs them: `dltn` says `@anthropics` and was discovered on
-    meta-llama, `logankilpatrick` says `Google Deepmind` and was discovered on
-    openai-python. Testing only the repo's lab threw both away — and worse,
-    would have accepted them under the wrong employer if the wording had been
-    looser.
-
-    Ties are impossible in practice and resolved by list order if they occur.
-    """
+    """Which tracked lab this profile's own company field names, if any."""
     company, bio = profile.get("company") or "", profile.get("bio") or ""
     for lab in labs:
         if company_names_lab(company, bio, lab):
@@ -224,17 +130,7 @@ def lab_from_profile(profile: dict, labs: list[str]) -> str | None:
 
 def classify(profile: dict, lab: str, person_id: int | None,
              is_org_member: bool = False) -> tuple[str, str, str]:
-    """(decision, tier, method) for one GitHub profile.
-
-    Ordered by how much inference each signal requires:
-
-      org membership  GitHub asserting the person is IN the organisation. No
-                      parsing, no matching — the platform's own answer.
-      company field   self-declared, and self-declaration is evidence.
-      name match      weakest: agreeing with a name already in the register.
-
-    Pure, so the rule that admits a row is testable without a network.
-    """
+    """(decision, tier, method) for one GitHub profile."""
     if is_org_member:
         return "accept", "verbatim", "self_link"
     if company_names_lab(profile.get("company") or "", profile.get("bio") or "", lab):
@@ -245,14 +141,7 @@ def classify(profile: dict, lab: str, person_id: int | None,
 
 
 def _reverifies(quote: str, raw: str) -> bool:
-    """Is the quote still a verbatim substring of the stored document?
-
-    The same substring test C2 applies, computed here from the layer-0 text
-    primitives rather than by importing the validation battery — a knowledge
-    module must not depend on a validation module (the layering test enforces
-    it). A github profile is stored as plain text, so the raw form is enough;
-    the html fallback is kept for parity with how C2 reads a page.
-    """
+    """Is the quote still a verbatim substring of the stored document?"""
     from fli.core.text import contains_verbatim, html_to_text
     return (contains_verbatim(raw, quote)
             or contains_verbatim(html_to_text(raw), quote))
@@ -268,18 +157,7 @@ def member_quote(org: str) -> str:
 
 def as_document(login: str, profile: dict, member_of: str | None = None) -> str:
     """Profile rendered so the quoted field appears VERBATIM in stored bytes.
-
-    Learned from the X profile bug: `json.dumps` escapes newlines, so a quote
-    taken from the raw field is not a substring of the stored document and the
-    verification check fails on every row.
-
-    ORG MEMBERSHIP IS WRITTEN INTO THE DOCUMENT, and that is the point of
-    `member_of`. The first version of this quoted the sentence "public member
-    of the organisation" — a description of what the API returned, not bytes
-    the API returned. It read as evidence and re-verified against nothing: 53
-    rows failed C2 and, through their affiliations, C5 as well. A field that
-    was fetched must be written down before it can be cited.
-    """
+    Profile rendered so the quoted field appears VERBATIM in stored bytes."""
     lines = [f"github:{login}",
              f"https://github.com/{login}",
              f"{profile.get('name') or login}",
@@ -318,19 +196,10 @@ def seed_gh_identities(conn: sqlite3.Connection, dry_run: bool = False,
         print("  NOTE: no GITHUB_TOKEN; capping requests to stay under the "
               "unauthenticated limit. Add one to .env for full coverage.")
 
-    seen: dict[str, str] = {}            # login -> lab (first source wins)
-    # login -> the org handle GitHub listed them under. Not a set: the org is
-    # the evidence, so it has to survive as far as the quote.
+    seen: dict[str, str] = {}
     members: dict[str, str] = {}
     calls = 0
 
-    # PASS 1 — org membership and research-repo discovery.
-    #
-    # The 7 configured feeds are all SDK/inference repos, and they produced
-    # engineers with ZERO overlap against the arXiv population: the people who
-    # ship a client library are not the people who write the papers. Mining the
-    # org finds the research repos where those two populations might actually
-    # meet.
     orgs = github_orgs()
     if orgs and token():
         for lab, handles in orgs.items():
@@ -394,7 +263,7 @@ def seed_gh_identities(conn: sqlite3.Connection, dry_run: bool = False,
         try:
             profile = _get(f"/users/{login}")
             calls += 1
-            time.sleep(0.1)                              # politeness, not a retry
+            time.sleep(0.1)
         except FetchError as e:
             storage.log_fetch(conn, sid, "error", 0, f"{login}: {str(e)[:180]}")
             print(f"  ERR  {login:<22}{str(e)[:50]}")
@@ -413,13 +282,6 @@ def seed_gh_identities(conn: sqlite3.Connection, dry_run: bool = False,
             print(f"  BOT  {login:<22}skipped")
             rejected += 1
             continue
-        # A LOGIN IS NOT A NAME. Org membership is the strongest signal here,
-        # and it was strong enough to admit profiles whose `name` field is
-        # blank — so the register gained "people" called `dcarr622` and
-        # `liann-oai`, 26 of which failed C9. GitHub asserting that an account
-        # belongs to the org does not tell us WHO it belongs to, and a register
-        # of people cannot hold a row it cannot name. The membership is still
-        # recorded as a rejection, so the count remains visible.
         if not valid_candidate_name(name):
             storage.log_rejection(
                 conn, doc_id, "stage1", "gh_name_not_a_person",
@@ -429,7 +291,6 @@ def seed_gh_identities(conn: sqlite3.Connection, dry_run: bool = False,
                   f"{'org member' if login in members else ''}")
             rejected += 1
             continue
-        # The lab this profile CLAIMS, which beats the repo we found them on.
         claimed = lab_from_profile(profile, all_labs)
         attributed = claimed or lab
         person_id = _person_by_name(conn, name)
@@ -497,28 +358,7 @@ def seed_gh_identities(conn: sqlite3.Connection, dry_run: bool = False,
 
 
 def retract_unverifiable(conn: sqlite3.Connection, dry_run: bool = False) -> dict:
-    """Remove GitHub register rows whose evidence no longer re-verifies.
-
-    THE SYSTEM MUST BE ABLE TO TAKE SOMETHING BACK. The evidence-first rule is
-    only worth anything if a row that stops being evidence stops being in the
-    register — otherwise "every claim re-verifies" degrades into "every claim
-    re-verified once, when it was written".
-
-    What this exists to clean up: an earlier org-membership path quoted the
-    sentence "public member of the organisation", which describes what the API
-    said rather than repeating what it returned. 53 identities cited it, their
-    affiliations inherited the failure, and both C2 and C5 went red. The fix is
-    upstream (`as_document` now writes the membership into the document, and
-    `member_quote` cites those exact bytes); this retracts what the broken run
-    left behind so a re-run can admit the same people properly.
-
-    Deliberately narrow. It only touches `github_profile` evidence, and it only
-    deletes a person when nothing else in the database depends on them: an
-    event attribution, a second identity, or an APPROVED queue row all keep the
-    person. A *pending* candidate does not — that row keys on the name string,
-    so it survives the person being removed and will be considered again on its
-    own merits.
-    """
+    """Remove GitHub register rows whose evidence no longer re-verifies."""
     bad = [r["id"] for r in conn.execute(
         "SELECT ev.id, ev.verbatim_content q, d.raw_content raw"
         " FROM evidence ev JOIN raw_documents d ON d.id = ev.document_id"
@@ -548,8 +388,6 @@ def retract_unverifiable(conn: sqlite3.Connection, dry_run: bool = False) -> dic
                      (p,)).fetchone(),
         conn.execute("SELECT 1 FROM event_entities WHERE person_id=?",
                      (p,)).fetchone(),
-        # The queue keys on the name string, not a person id, so a person who
-        # also sits in the approval queue must survive the retraction.
         conn.execute("SELECT 1 FROM person_candidates c JOIN people pe"
                      " ON pe.canonical_name = c.name WHERE pe.id = ?",
                      (p,)).fetchone()))]
@@ -570,8 +408,6 @@ def retract_unverifiable(conn: sqlite3.Connection, dry_run: bool = False) -> dic
         conn.execute(f"DELETE FROM affiliations WHERE person_id IN ({po})",
                      orphans)
         conn.execute(f"DELETE FROM people WHERE id IN ({po})", orphans)
-    # A source row created for a profile that was never fetched is bookkeeping
-    # debris and fails C7 forever; it has no documents, so nothing cites it.
     cur = conn.execute(
         "DELETE FROM sources WHERE purpose='register' AND source_type='github'"
         " AND id NOT IN (SELECT source_id FROM fetch_log)"
@@ -587,23 +423,7 @@ def retract_unverifiable(conn: sqlite3.Connection, dry_run: bool = False) -> dic
 def prune_unnameable_github_people(conn: sqlite3.Connection,
                                    dry_run: bool = False) -> dict:
     """Remove GitHub-only people the current admission gate would now reject.
-
-    A REGISTER OF PEOPLE CANNOT HOLD A ROW IT CANNOT NAME. An earlier run
-    admitted a profile on its org membership or its `company` field without
-    checking that the profile carried a person's name, so the register gained
-    entries called `liann-oai`, `hallacy` and `pomelo` — a login is not a
-    name. `seed_gh_identities` now rejects these outright (`gh_name_not_a_person`),
-    and this applies the same rule to what the old path left behind.
-
-    The evidence for these rows still re-verifies — the company field really
-    does name the lab — so `retract_unverifiable` correctly leaves them alone.
-    The problem is not the evidence, it is that we do not know WHO the account
-    belongs to, and C9 exists to keep exactly that out of the register.
-
-    Same orphan-safety as the retract: a person is only removed when nothing
-    depends on them. Their pending queue row keys on the name string and
-    survives, so anyone later matched to a real name is admitted again.
-    """
+    Remove GitHub-only people the current admission gate would now reject."""
     targets = []
     for r in conn.execute(
             "SELECT p.id, p.canonical_name FROM people p"
@@ -613,11 +433,9 @@ def prune_unnameable_github_people(conn: sqlite3.Connection,
             "SELECT DISTINCT platform FROM identities WHERE person_id=?",
             (r["id"],))}
         if plats - {"github"}:
-            continue                     # has a non-github identity; keep it
-        # unnameable = a login masquerading as a name, or no identity left
+            continue
         if valid_candidate_name(r["canonical_name"]) and plats:
             continue
-        # nothing downstream may depend on the person
         depended = any((
             conn.execute("SELECT 1 FROM insights WHERE attributed_person_id=?",
                          (r["id"],)).fetchone(),
@@ -647,10 +465,6 @@ def prune_unnameable_github_people(conn: sqlite3.Connection,
         conn.execute(f"DELETE FROM affiliations WHERE person_id IN ({q})", ids)
         conn.execute(f"DELETE FROM people WHERE id IN ({q})", ids)
 
-    # Deleting the identity strands its evidence row: nothing references it,
-    # and C10 flags every stranded row forever. Sweep github_profile evidence
-    # that no identity, affiliation, insight, candidate or entity cites — this
-    # also collects strays a previous prune left behind.
     cur = conn.execute(
         "DELETE FROM evidence WHERE"
         " json_extract(locator,'$.kind') = 'github_profile'"
@@ -661,13 +475,6 @@ def prune_unnameable_github_people(conn: sqlite3.Connection,
         " AND NOT EXISTS (SELECT 1 FROM event_entities ee WHERE ee.evidence_id = evidence.id)")
     stranded = cur.rowcount
 
-    # Runs even when there were no people to prune: source debris outlives the
-    # person it belonged to, so this sweep is independent cleanup.
-    #
-    # A pruned profile leaves its source + document behind. Once no evidence or
-    # rejection cites that document, the source is orphan debris — and a source
-    # with a document but no fetch_log row (an artifact of an earlier code path)
-    # fails C7 forever. Remove only those that nothing references.
     debris = [r["id"] for r in conn.execute(
         "SELECT s.id FROM sources s"
         " WHERE s.purpose='register' AND s.source_type='github'"
@@ -690,30 +497,12 @@ def prune_unnameable_github_people(conn: sqlite3.Connection,
     return {"people": len(ids), "sources": len(debris), "evidence": stranded}
 
 
-# Re-fetching a profile that was observed hours ago buys nothing: employer
-# changes are weekly-scale events. Seven days matches the X bio cadence.
 OBSERVE_CADENCE_DAYS = 7
 
 
 def observe_gh_profiles(conn: sqlite3.Connection, dry_run: bool = False) -> dict:
     """Re-observe the CURRENT employer of every person with a GitHub identity.
-
-    `seed_gh_identities` skips logins that are already in the register, so a
-    person admitted once was never looked at again — their GitHub identity was
-    plumbing with no downstream signal. This is the GitHub side of `observe()`
-    and `reobserve_x_bios`: re-fetch each known profile, and when its `company`
-    field names a tracked lab, append a dated `page_verbatim` affiliation
-    observation. Mobility synthesis pairs those observations into personnel
-    events — a company field that flips from one lab to another becomes a move
-    in the same pipeline run that saw it.
-
-    A profile that names NO tracked lab appends nothing: absence of evidence is
-    not an observation, and mobility only fires on presence at the new lab.
-
-    Cadence-gated in fetch_log (like X bios), so a daily pipeline re-fetches
-    each profile at most every {OBSERVE_CADENCE_DAYS} days. Free: the REST API
-    costs $0 and one request per profile.
-    """
+    Re-observe the CURRENT employer of every person with a GitHub identity."""
     rows = conn.execute(
         "SELECT i.person_id, i.handle login, p.canonical_name name"
         " FROM identities i JOIN people p ON p.id = i.person_id"
@@ -746,7 +535,7 @@ def observe_gh_profiles(conn: sqlite3.Connection, dry_run: bool = False) -> dict
         try:
             profile = _get(f"/users/{login}")
             calls += 1
-            time.sleep(0.1)                          # politeness, not a retry
+            time.sleep(0.1)
         except FetchError as e:
             storage.log_fetch(conn, sid, "error", 0, f"{login}: {str(e)[:180]}")
             errors += 1

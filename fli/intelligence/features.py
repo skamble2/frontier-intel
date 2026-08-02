@@ -1,20 +1,4 @@
-"""Build insight_features — the numeric surface models train on.
-
-score_components (JSON on insights) stays the reader-facing explanation; models
-never parse JSON — they read these numeric rows. Every feature is derivable from
-the current schema (no new data), and every insight gets the SAME fixed feature
-set (one-hots are 0/1), so there are no NULLs. Absent inputs get an explicit,
-documented neutral value.
-
-Lab identity is NEVER a feature: no is_openai. A DeepMind release and an
-OpenAI release compete on merits.
-
-Pure function of the DB except `recency`, which decays from the wall clock at
-compute time — re-running on the same day reproduces identical values; across
-days only recency moves (by design).
-
-Run:  python -m fli.cli features
-"""
+"""Build insight_features — the numeric surface models train on."""
 from __future__ import annotations
 
 import argparse
@@ -47,8 +31,7 @@ def _recency(published_at: str | None, now: datetime) -> float:
 
 
 def _specificity(quote: str) -> float:
-    """Concreteness proxy: numeric/version tokens plus $ and % signs.
-    '$5 per million tokens' scores high; 'frontier intelligence' scores 0."""
+    """Concreteness proxy: numeric/version tokens plus $ and % signs. """
     return float(len(re.findall(r"\d[\d.,]*", quote)) + quote.count("$") + quote.count("%"))
 
 
@@ -56,24 +39,12 @@ def compute_features(conn: sqlite3.Connection) -> dict:
     now = datetime.now(timezone.utc)
     cluster_size = {r["cluster_id"]: r["n"] for r in conn.execute(
         "SELECT cluster_id, count(*) n FROM insights GROUP BY cluster_id")}
-    # contributor_lab_depth: registered layer-below people per lab — the honest
-    # lab-level stand-in for a per-person feature (person attribution is 1/406).
     lab_depth = {r["lab_id"]: r["n"] for r in conn.execute(
         "SELECT a.lab_id, count(DISTINCT a.person_id) n FROM affiliations a"
         " JOIN people p ON p.id=a.person_id WHERE a.lab_id IS NOT NULL"
         " AND p.discovered_via IN ('coauthor_expansion','auto_approved')"
         " GROUP BY a.lab_id")}
 
-    # mechanism_channel: 1.0 if the mechanism classifier assigned the quote a
-    # transmission channel, 0.0 otherwise (including quotes it has never seen
-    # — an unclassified quote has not demonstrated a mechanism). This is the
-    # investment rubric's rule 1 ("channel over no channel") given a column to
-    # land in: the f16 slate review showed the score rewarding official-channel
-    # engineering posts and vendor case studies the reader cuts, because the
-    # judges encode the rule in labels but no feature could express it. Read
-    # from the committed verdict cache only — the feature builder stays free,
-    # offline and deterministic; `python -m fli.cli channels` is the paid step
-    # that fills the cache.
     from fli.knowledge.channels import cached_verdicts
     all_quotes = [r[0] for r in conn.execute(
         "SELECT ev.verbatim_content FROM insights i"
@@ -81,10 +52,6 @@ def compute_features(conn: sqlite3.Connection) -> dict:
     mech = {t: v for t, v in cached_verdicts(all_quotes).items()
             if v["channel"] != "none"}
 
-    # basis via a scalar subquery, not a LEFT JOIN: event_entities is 0..N per
-    # event, so a join fans one insight into several feature-row inserts the
-    # moment an event carries two lab entities. First entity row (lowest id)
-    # is the deterministic representative.
     rows = conn.execute(
         "SELECT i.id, i.event_type, i.cluster_id, i.attributed_lab_id,"
         " d.published_at, d.source_type, s.channel,"
@@ -107,7 +74,6 @@ def compute_features(conn: sqlite3.Connection) -> dict:
             "recency": _recency(r["published_at"], now),
             "corroboration": float(cluster_size.get(r["cluster_id"], 1)),
             "channel_official": 1.0 if r["channel"] == "official" else 0.0,
-            # attribution tiering made numeric ONLY here, at model input
             "attribution_confidence": 1.0 if r["basis"] == "model_asserted" else 0.5,
             "specificity": _specificity(quote),
             "quote_len_words": float(len(quote.split())),
@@ -129,7 +95,7 @@ def compute_features(conn: sqlite3.Connection) -> dict:
 
 def feature_matrix(conn):
     """(event_ids, feature_names, matrix) — the dense matrix models train on.
-    Rows are insights ordered by id; columns are features in stable name order."""
+    (event_ids, feature_names, matrix) — the dense matrix models train on."""
     names = [r["feature"] for r in conn.execute(
         "SELECT DISTINCT feature FROM insight_features ORDER BY feature")]
     ids = [r["id"] for r in conn.execute("SELECT id FROM insights ORDER BY id")]

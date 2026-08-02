@@ -1,13 +1,4 @@
-"""Seed the register: the tracked labs and their founding people.
-
-Seeding is gated on a VERBATIM name match in a fetched lab page - a
-person enters the register only with evidence behind them.
-
-The seed data itself (labs, pages, people, X-handle candidates) lives in
-config/register_seeds.yml alongside register_overrides.yml: the tracked
-universe is a judgement call, not code, so editing it must not be a code
-change. This module keeps the same LABS / LAB_PAGES / SEED_PEOPLE /
-PERSON_PAGES shapes it always exposed."""
+"""Seed the register: the tracked labs and their founding people."""
 import json
 import sqlite3
 import urllib.parse
@@ -23,8 +14,7 @@ from fli.core.text import contains_verbatim, html_to_text
 
 @lru_cache(maxsize=1)
 def load_seeds() -> dict:
-    """Parse config/register_seeds.yml once. A missing or malformed file is a
-    hard error - there is deliberately no hardcoded fallback list."""
+    """Parse config/register_seeds.yml once. """
     if not SEEDS_PATH.exists():
         raise FileNotFoundError(
             f"seed file not found: {SEEDS_PATH}\nIt holds the tracked labs, "
@@ -39,7 +29,6 @@ def load_seeds() -> dict:
 
 _seeds = load_seeds()
 
-# name, is_public_company, parent_ticker
 LABS = [(l["name"], l["is_public_company"], l["parent_ticker"])
         for l in _seeds["labs"]]
 
@@ -63,8 +52,7 @@ def seed_labs(conn: sqlite3.Connection) -> None:
 
 def _fetch_pages(conn, page_list, source_label: str,
                  lab_id: int | None = None) -> list[tuple[int, str, str]]:
-    """Fetch and store a [(url, channel)] list. Every attempt gets a
-    fetch_log row, including the decode note. Returns [(doc_id, url, text)]."""
+    """Fetch and store a [(url, channel)] list. """
     out = []
     for url, channel in page_list:
         source_id = storage.upsert_source(
@@ -84,8 +72,7 @@ def _fetch_pages(conn, page_list, source_label: str,
 
 
 def seed_people(conn: sqlite3.Connection) -> None:
-    """Register each seed whose name verifies verbatim on a stored page.
-    Creates person + affiliation + identity, all pointing at the evidence."""
+    """Register each seed whose name verifies verbatim on a stored page. """
     seed_labs(conn)
     pages: dict[str, list[tuple[int, str, str]]] = {}
 
@@ -95,8 +82,6 @@ def seed_people(conn: sqlite3.Connection) -> None:
             pages[lab_name] = _fetch_pages(conn, LAB_PAGES[lab_name],
                                            f"{lab_name} page", lab_id=lab["id"])
 
-        # first page containing the name wins; person-level fallback pages
-        # are fetched only when every lab page misses
         candidates = list(pages[lab_name])
         hit = next(((d, u, t) for d, u, t in candidates
                     if contains_verbatim(t, person_name)), None)

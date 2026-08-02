@@ -1,31 +1,4 @@
-"""RAGAS-style faithfulness for the delivery layer (internal validation).
-
-Upstream, every CLAIM is entailment-checked against its quote (entailment.py).
-What nobody checks is the text the delivery layer generates on top: the
-persona hypotheses — the only LLM-written prose a reader is shown. The persona
-prompt orders the model to use nothing beyond the claim and quote; this module
-measures whether it obeyed, instead of trusting the instruction.
-
-The metric is RAGAS faithfulness, self-hosted (no new dependency): decompose
-the rendered note into atomic factual assertions, judge each against the
-evidence the persona was shown, score = supported / total. One adaptation is
-deliberate: the note's JUDGEMENT — direction, confidence, what to do — is its
-job, not a fact, so only assertions about the world (numbers, dates, actors,
-events, capabilities) are extracted and judged. A note that calls an event a
-`threat` is doing its work; a note that invents a benchmark number is not.
-
-Scored with the verify-tier model. JUDGED-tier by this repo's rules: an LLM's
-reading, not ground truth — which is why it is stored per (hypothesis, model)
-and reported with the unsupported statements named, never as a bare number.
-
-The digest itself is deterministic (no LLM), so its check is deterministic and
-free: every quote and every claim printed in docs/digests/*.md must exist,
-byte-for-byte after the renderer's own normalisation, in the database.
-
-Run:  python -m fli.cli faithfulness --dry-run    # queue + cost, $0
-      python -m fli.cli faithfulness              # SPENDS (verify-tier model)
-      python -m fli.cli faithfulness --digests    # deterministic, $0
-"""
+"""RAGAS-style faithfulness for the delivery layer (internal validation)."""
 from __future__ import annotations
 
 import argparse
@@ -74,11 +47,7 @@ def _queue(conn, model: str, limit: int | None = None) -> list:
 
 def _user(conn, r) -> str:
     """EVIDENCE must be exactly what the note's author was shown, or the audit
-    flags artifacts. The persona saw its build_prompt (claim, quote, date,
-    type, position edges or the explicit absence of any) plus — for the
-    investment audience — the fund's holdings in the system prompt. The first
-    run of this audit omitted the holdings and the no-exposure line, and its
-    most common "unsupported" finding was the note repeating them."""
+    flags artifacts."""
     from fli.delivery.personas import build_prompt
     parts = ["EVIDENCE (everything the note's author was shown)",
              build_prompt(conn, r["insight_id"], r["persona"])]
@@ -135,8 +104,6 @@ def score_hypotheses(conn, llm: LLM, limit: int | None = None,
             continue
         supported = sum(1 for _, ok in stmts if ok)
         unsupported = [t for t, ok in stmts if not ok]
-        # RAGAS convention: a note with no factual assertions has nothing to
-        # be unfaithful about; scored 1.0 with total=0 visible in the row.
         score = supported / len(stmts) if stmts else 1.0
         conn.execute(
             "INSERT OR IGNORE INTO hypothesis_checks (hypothesis_id, model,"
@@ -152,7 +119,6 @@ def score_hypotheses(conn, llm: LLM, limit: int | None = None,
                   f"score {score:.2f} — unsupported: {'; '.join(unsupported)[:160]}")
         elif n % 25 == 0:
             print(f"  [{n}/{len(queue)}] ...")
-    # The report: mean per persona, over everything this model has scored.
     print()
     for row in conn.execute(
             "SELECT h.persona, count(1) n, avg(c.score) mean,"
@@ -165,21 +131,13 @@ def score_hypotheses(conn, llm: LLM, limit: int | None = None,
     return counts
 
 
-# ---------------------------------------------------------------------------
-# Digest parity: deterministic, free. The digest renderer normalises a quote
-# with " ".join(q.split())[:600] before printing; the same normalisation is
-# applied to every evidence row here, so parity is exact, not fuzzy.
-
 def _normalise(q: str) -> str:
     return " ".join((q or "").split())[:600]
 
 
 def check_digests(conn, out_dir: Path | None = None) -> dict:
     """Every quote and numbered claim in docs/digests/*.md must exist in the DB.
-
-    Catches the failure class the LLM metric cannot: a renderer bug, a stale
-    file, or a hand-edited digest asserting evidence the database does not
-    hold. Zero cost, so it can run every time."""
+    Every quote and numbered claim in docs/digests/*.md must exist in the DB."""
     from fli.delivery.digest import OUT_DIR
     out_dir = out_dir or OUT_DIR
     quotes = {_normalise(r[0]) for r in conn.execute(

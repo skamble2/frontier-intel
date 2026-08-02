@@ -1,8 +1,4 @@
-"""Document ingestion.
-
-Development uses fixture replay: downstream stages always run against the
-stored copy, never a re-fetch. Live polling is added per source type.
-"""
+"""Document ingestion."""
 from __future__ import annotations
 
 import sqlite3
@@ -31,7 +27,7 @@ def ingest_fixture(conn: sqlite3.Connection, path: Path) -> int:
     lab_row = conn.execute("SELECT id FROM labs WHERE name = ?", (lab_name,)).fetchone()
     source_id = storage.upsert_source(
         conn, meta["source_type"], f"{lab_name} {meta['source_type']}",
-        meta["url"].rsplit("/", 1)[0],  # feed-level url
+        meta["url"].rsplit("/", 1)[0],
         lab_id=lab_row["id"] if lab_row else None,
         channel="official")
     doc_id, is_new = storage.store_document(

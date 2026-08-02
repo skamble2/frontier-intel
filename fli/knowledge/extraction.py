@@ -1,9 +1,4 @@
-"""Stage 2 extraction: classify -> extract -> verify.
-
-Every extracted claim must carry a verbatim quote, which is matched back
-into the stored document. Claims whose quote does not verify are discarded
-and logged — that counter is the hallucination-control number.
-"""
+"""Stage 2 extraction: classify -> extract -> verify."""
 from __future__ import annotations
 
 import json
@@ -13,7 +8,7 @@ from pydantic import BaseModel, ValidationError
 
 from fli import storage
 from fli.core.text import contains_verbatim, html_to_text, name_key, norm
-from fli.knowledge.labs import resolve_lab  # shared lab-name resolver
+from fli.knowledge.labs import resolve_lab
 from fli.ops.llm import LLM
 from fli.core.config import MAX_INSIGHTS_PER_DOC
 
@@ -29,15 +24,15 @@ class Classification(BaseModel):
 
 class ExtractedInsight(BaseModel):
     claim: str
-    quote: str            # verbatim from document, verified downstream
+    quote: str
     event_type: str
     attributed_lab: str | None = None
     attributed_person: str | None = None
 
 
 class ExtractionResult(BaseModel):
-    """The full extract-call answer: what the prompt's JSON contract promises,
-    as one schema — also sent to the API verbatim as the structured-output
+    """The full extract-call answer: what the prompt's JSON contract promises, as
+    one schema — also sent to the API verbatim as the structured-output
     constraint (see LLM.call_typed)."""
     insights: list[ExtractedInsight] = []
 
@@ -78,21 +73,14 @@ def _extract_system(max_insights: int) -> str:
 
 
 def classify(llm: LLM, content: str) -> Classification:
-    """Cheap Haiku gate before the expensive Sonnet extract: it kills
-    ~28% of documents, which more than pays for the 6k prefix both stages see."""
+    """Cheap Haiku gate before the expensive Sonnet extract: it kills ~28% of
+    documents, which more than pays for the 6k prefix both stages see."""
     return llm.call_typed("classify", CLASSIFY_SYSTEM, content[:6000],
                           Classification, max_tokens=200)
 
 
 def extract(llm: LLM, content: str) -> list[ExtractedInsight]:
-    """The document's distinct events. The cap scales with available
-    evidence (~1 per 1000 chars) so short documents can't quota-fill events;
-    the model is told the per-document max and the list is truncated to it.
-    Empty list is valid; malformed JSON raises and is logged upstream.
-
-    Truncates at 12k chars: an event described only in a long
-    document's tail is currently unreachable.
-    """
+    """The document's distinct events. """
     max_insights = max(1, min(MAX_INSIGHTS_PER_DOC, len(content) // 1000))
     result = llm.call_typed("extract", _extract_system(max_insights),
                             content[:12000], ExtractionResult, max_tokens=1500)
@@ -100,9 +88,8 @@ def extract(llm: LLM, content: str) -> list[ExtractedInsight]:
 
 
 def resolve_person(conn: sqlite3.Connection, name: str | None) -> int | None:
-    """Extracted person name -> people.id via the order-insensitive name_key
-    (same key the register resolves with). Unmatched -> None, so an absence is
-    recorded rather than guessed."""
+    """Extracted person name -> people.id via the order-insensitive name_key (same
+    key the register resolves with)."""
     if not name:
         return None
     key = name_key(name)
@@ -113,17 +100,14 @@ def resolve_person(conn: sqlite3.Connection, name: str | None) -> int | None:
 
 
 def readable_text(raw_content: str) -> str:
-    """What stage 2 should actually read: visible text for stored HTML pages,
-    the raw body otherwise. Newsroom pages store full HTML, so without this the
-    input cap is spent on <head>/nav/chrome instead of the article."""
+    """What stage 2 should actually read: visible text for stored HTML pages, the
+    raw body otherwise."""
     return html_to_text(raw_content) if raw_content.lstrip().startswith("<") else raw_content
 
 
 def verify_quote(raw_content: str, quote: str) -> tuple[str, float] | None:
-    """Exact match under the shared normalization (same one checks.py
-    re-verifies with, so stored evidence always re-verifies). Tries the raw
-    bytes and their visible text, since stage 2 may quote from either.
-    Returns (verification_method, score) or None."""
+    """Exact match under the shared normalization (same one checks.py re-verifies
+    with, so stored evidence always re-verifies)."""
     if contains_verbatim(raw_content, quote) or contains_verbatim(html_to_text(raw_content), quote):
         return ("exact", 1.0)
     return None
@@ -131,8 +115,9 @@ def verify_quote(raw_content: str, quote: str) -> tuple[str, float] | None:
 
 def _attribute_lab(conn, ins: ExtractedInsight, src) -> tuple[int | None, str]:
     """Resolve the insight's lab and its basis: the model's named lab
-    (model_asserted), else the publisher of an official channel (source_inferred,
-    src is the (lab_id, channel) row of the document's source."""
+    (model_asserted), else the publisher of an official channel
+    (source_inferred, src is the (lab_id, channel) row of the document's
+    source."""
     lab_id = resolve_lab(conn, ins.attributed_lab)
     if lab_id is not None:
         return lab_id, "model_asserted"
@@ -142,10 +127,7 @@ def _attribute_lab(conn, ins: ExtractedInsight, src) -> tuple[int | None, str]:
 
 
 def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int]:
-    """Full stage 2 for one document. Returns the list of insight ids it
-    produced (empty if the document yielded none — reason logged). Idempotent:
-    a document that already has any insight is never re-extracted. A document
-    can yield several events, each independently quote-verified."""
+    """Full stage 2 for one document. """
     existing = conn.execute(
         "SELECT i.id FROM insights i JOIN evidence e ON e.id = i.evidence_id"
         " WHERE e.document_id = ?", (document_id,)).fetchall()
@@ -179,14 +161,11 @@ def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int
     for ins in extracted:
         verdict = verify_quote(doc["raw_content"], ins.quote)
         if verdict is None:
-            # Per-insight hallucination-control counter. This is the
-            # denominator of the quote-verification rate, so it must be logged
-            # rather than silently skipped.
             storage.log_rejection(conn, document_id, "verification",
                                   "quote_unverified", ins.quote[:200])
             continue
         qkey = norm(ins.quote)
-        if qkey in seen_quotes:      # two events citing the identical span -> one evidence
+        if qkey in seen_quotes:
             storage.log_rejection(conn, document_id, "stage2",
                                   "duplicate_quote_in_doc", ins.quote[:200])
             continue
@@ -199,8 +178,6 @@ def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int
             ins.quote, method, score)
         lab_id, basis = _attribute_lab(conn, ins, src)
         person_id = resolve_person(conn, ins.attributed_person)
-        # extract's per-event type is authoritative; fall back to classify's
-        # document-level type when the model returned an out-of-taxonomy value.
         event_type = ins.event_type if ins.event_type in EVENT_TYPES else (
             cls.event_type if cls.event_type in EVENT_TYPES else "other")
         insight_ids.append(storage.insert_insight(
@@ -208,20 +185,14 @@ def run_stage2(conn: sqlite3.Connection, llm: LLM, document_id: int) -> list[int
             attributed_lab_id=lab_id, attributed_person_id=person_id, basis=basis))
 
     if not insight_ids:
-        # document-level: nothing survived (distinct from the per-insight counter)
         detail = extracted[0].quote[:200] if extracted else "no insights returned"
         storage.log_rejection(conn, document_id, "verification", "no_verified_insight", detail)
     return insight_ids
 
 
 def extract_all(conn: sqlite3.Connection, llm: LLM, max_docs: int = 60) -> dict:
-    """Stage 2 over stage-1 survivors that have no insight and no prior
-    stage-2 verdict. Only the latest version of each URL is extracted.
-    Capped per run so a large backlog cannot surprise the budget.
-
-    Parse errors (classify/extract returned malformed JSON) are TRANSIENT —
-    a retry usually succeeds — so they do not permanently exclude a document
-    the way substantive rejections do. Retries stay bounded by max_docs."""
+    """Stage 2 over stage-1 survivors that have no insight and no prior stage-2
+    verdict."""
     docs = conn.execute(
         "SELECT d.id FROM latest_documents d"
         " JOIN sources s ON s.id = d.source_id"
@@ -248,9 +219,6 @@ def extract_all(conn: sqlite3.Connection, llm: LLM, max_docs: int = 60) -> dict:
 def report_measurements(conn: sqlite3.Connection) -> None:
     """Quote-verification rate, event-type distribution, rejection reasons."""
     total = conn.execute("SELECT count(*) c FROM insights").fetchone()["c"]
-    # Per-insight failures: each dropped insight is one quote_unverified row,
-    # so this is the true kept/(kept+failed) rate, not inflated by multi-
-    # insight documents.
     fails = conn.execute("SELECT count(*) c FROM rejections"
                          " WHERE reason='quote_unverified'").fetchone()["c"]
     if total + fails:
@@ -268,28 +236,7 @@ def report_measurements(conn: sqlite3.Connection) -> None:
 
 
 def backfill_arxiv_authors(conn: sqlite3.Connection) -> dict:
-    """Deterministic person attribution from arXiv author lines. Free.
-
-    The extractor names a person only when the TEXT is about one, so research
-    events almost never carry person attribution (14 of 734) even though every
-    arXiv document arrives with a machine-readable `authors:` line and the
-    register already tracks many of those authors. This closes that gap
-    without an LLM: match each listed author against `people` under the same
-    order-insensitive name_key the register resolves with, and record the hit
-    as an event_entities row with role='author'.
-
-    Distinctions that keep the row honest:
-      role   'author', never 'subject' — being on the paper is not the same
-             as the event being about you, so attributed_person_id stays NULL.
-      basis  'source_inferred' — the link comes from the publisher's metadata,
-             not a model assertion (C12 holds: arXiv sources are official).
-      cite   a NEW evidence row quoting the `authors:` line verbatim, one per
-             document, shared by that document's author entities — the quote
-             an auditor re-verifies is the line that actually names the person
-             (C11), not the insight's unrelated claim quote.
-
-    Idempotent: existing (event, person) entities are skipped, the evidence
-    row is reused on re-run."""
+    """Deterministic person attribution from arXiv author lines. """
     docs = conn.execute(
         "SELECT DISTINCT d.id, d.raw_content FROM insights i"
         " JOIN evidence e ON e.id = i.evidence_id"

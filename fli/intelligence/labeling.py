@@ -1,16 +1,4 @@
-"""Elicit ~150 pairwise labels.
-
-"Which of these two would you rather see?" is faster and more consistent than
-absolute importance scores. Sampling is STRATIFIED — ~50% cross-lab,
-~30% cross-type, ~20% random — so the ranker can't just learn one lab's writing
-style, and the deliberate cross pairs carry the most information. Deterministic
-sample (seeded) + resumable: a labeled pair is never re-asked.
-
-Single annotator by design, and reported as such rather than hidden. If a
-second annotator labels 40 overlapping pairs, report agreement.
-
-Run:  python -m fli.cli label --n 150 --by soham
-"""
+"""Elicit ~150 pairwise labels."""
 from __future__ import annotations
 
 import argparse
@@ -29,8 +17,7 @@ def _events(conn):
 
 
 def sample_pairs(conn, n: int = 150, seed: int = RANDOM_SEED) -> list[tuple[int, int]]:
-    """Deterministic stratified pair sample. Same corpus + n -> same pairs, so
-    labeling is resumable by simply skipping pairs already in pairwise_labels."""
+    """Deterministic stratified pair sample. """
     rng = random.Random(seed)
     events = _events(conn)
     if len(events) < 2:
@@ -53,24 +40,20 @@ def sample_pairs(conn, n: int = 150, seed: int = RANDOM_SEED) -> list[tuple[int,
     while len(pairs) < n and guard < n * 100:
         guard += 1
         frac = len(pairs) / n
-        if frac < 0.5 and len(labs) >= 2:                 # cross-lab
+        if frac < 0.5 and len(labs) >= 2:
             la, lb = rng.sample(labs, 2)
             add(rng.choice(by_lab[la]), rng.choice(by_lab[lb]))
-        elif frac < 0.8 and len(types) >= 2:              # cross-type
+        elif frac < 0.8 and len(types) >= 2:
             ta, tb = rng.sample(types, 2)
             add(rng.choice(by_type[ta]), rng.choice(by_type[tb]))
-        else:                                             # random fill
+        else:
             a, b = rng.sample(ids, 2)
             add(a, b)
     return sorted(pairs)
 
 
 def _fmt(conn, event_id: int) -> str:
-    """Render an event for a human, with the lab name withheld.
-
-    The rubric bans lab identity as a reason and the cheapest way to enforce
-    that is not to show it. Per-lab precision@10 is the fairness check, so a
-    labeler primed by lab prestige would invalidate it."""
+    """Render an event for a human, with the lab name withheld."""
     r = conn.execute(
         "SELECT i.event_type, i.claim, ev.verbatim_content q"
         " FROM insights i JOIN evidence ev ON ev.id=i.evidence_id"
@@ -80,12 +63,7 @@ def _fmt(conn, event_id: int) -> str:
 
 def record_label(conn, event_a: int, event_b: int, winner: str, labeler: str,
                  thesis_channel: str | None = None, reason: str | None = None) -> None:
-    """One judgement from one labeler.
-
-    `labeler` is 'llm:<model>' | 'human:<name>' | 'lf:<function>'. The same pair
-    may be judged by many labelers — that is what lets reliability be estimated
-    from disagreement rather than assumed.
-    """
+    """One judgement from one labeler."""
     conn.execute(
         "INSERT OR IGNORE INTO pairwise_labels (event_a, event_b, winner,"
         " labeler, thesis_channel, reason, labeled_at) VALUES (?,?,?,?,?,?,?)",
@@ -96,12 +74,7 @@ def record_label(conn, event_a: int, event_b: int, winner: str, labeler: str,
 
 def _disagreement_queue(conn, labeler: str, n: int) -> list[tuple]:
     """Pairs where two LLM labelers on this labeler's rubric picked OPPOSITE
-    winners and this human has not judged yet. A human label on a pair the
-    model families agree on mostly confirms; on a pair they split on, it
-    decides — so per label this queue carries the most information.
-
-    Blind: the LLM verdicts are deliberately not shown (unlike --audit),
-    so the human judgement stays independent rather than anchored."""
+    winners and this human has not judged yet."""
     suffix = labeler.split("/", 1)[1] if "/" in labeler else ""
     return [(r["event_a"], r["event_b"], None, None, None)
             for r in conn.execute(
@@ -119,15 +92,8 @@ def _disagreement_queue(conn, labeler: str, n: int) -> list[tuple]:
 
 
 def _near_tie_queue(conn, labeler: str, n: int) -> list[tuple]:
-    """Pairs whose Dawid-Skene posterior sits closest to 0.5 — the label
-    model's least confident calls — that this human has not judged yet.
-
-    The disagreement queue empties fast (two families disagree on a fixed
-    corpus only so often); this is the refill. A pair can be uncertain
-    without an opposite-winner split: one judge abstained with a tie, or a
-    low-reliability labeler is the only vote. Ranking by |posterior - 0.5|
-    surfaces exactly those. Blind, like --disagreements: verdicts withheld.
-    """
+    """Pairs whose Dawid-Skene posterior sits closest to 0.5 — the label model's
+    least confident calls — that this human has not judged yet."""
     import numpy as np
 
     from fli.intelligence.weak_supervision import dawid_skene
@@ -153,8 +119,8 @@ def _near_tie_queue(conn, labeler: str, n: int) -> list[tuple]:
 
 
 def _audit_queue(conn, labeler: str, n: int) -> list[tuple]:
-    """Pairs an LLM has already judged and this human has not — the audit
-    sample. Deterministic order, so the pass is resumable."""
+    """Pairs an LLM has already judged and this human has not — the audit sample.
+    Pairs an LLM has already judged and this human has not — the audit sample."""
     return [(r["event_a"], r["event_b"], r["labeler"], r["thesis_channel"], r["reason"])
             for r in conn.execute(
                 "SELECT l.event_a, l.event_b, l.labeler, l.thesis_channel, l.reason"
@@ -237,9 +203,6 @@ def main() -> None:
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
-    # The rubric belongs in the id for the same reason it does on LLM labels:
-    # comparing a human's investment judgements against a technical judge
-    # measures disagreement about the QUESTION, not about the events.
     if ":" in args.by:
         labeler = args.by
     else:

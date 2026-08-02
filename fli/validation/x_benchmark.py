@@ -1,20 +1,4 @@
-"""The frozen X benchmark: 29 labelled posts, an extension set, and scoring.
-
-Scores any channel-assignment approach against a fixed, human-readable
-reference set. Figure f5 uses it on every `evaluate` run, at zero cost.
-
-The labels are frozen at `fixtures/x-benchmark-29-labels-frozen.json` and there
-is deliberately no generator here to rebuild them. Regenerating would spend
-money to produce a *different* reference, silently invalidating every number
-ever measured against the old one.
-
-The EXTENSION set (`x-benchmark-ext-*.json`, written by `xbench --extend N`)
-grows the reference from posts already ingested into the DB — zero X spend.
-Its rows are seeded by the channel classifier as an audit-time convenience,
-and exactly because that seed shares lineage with a system f5 scores, an
-extension label DOES NOT COUNT until a human audits it: `load_labels()` drops
-unaudited extension rows. No number can ever be an echo of its own seed.
-"""
+"""The frozen X benchmark: 29 labelled posts, an extension set, and scoring."""
 from __future__ import annotations
 
 import json
@@ -24,8 +8,6 @@ from pathlib import Path
 
 from fli.core.paths import FIXTURES_DIR
 
-# The frozen files are authoritative. The unfrozen ones are earlier, larger
-# exports kept only so the freeze is diffable.
 BENCHMARK_PATH = FIXTURES_DIR / "x-benchmark-29-frozen.json"
 LABELS_PATH = FIXTURES_DIR / "x-benchmark-29-labels-frozen.json"
 EXT_POSTS_PATH = FIXTURES_DIR / "x-benchmark-ext-posts.json"
@@ -33,8 +15,7 @@ EXT_LABELS_PATH = FIXTURES_DIR / "x-benchmark-ext-labels.json"
 
 
 def load_benchmark(path: Path | None = None) -> list[dict]:
-    """The frozen 29 plus any extension posts. An explicit `path` loads that
-    one file (the audit walks the files separately)."""
+    """The frozen 29 plus any extension posts. """
     if path is not None:
         if not path.exists():
             return []
@@ -44,8 +25,7 @@ def load_benchmark(path: Path | None = None) -> list[dict]:
 
 def _normalise(rows: list[dict]) -> list[dict]:
     """`audited` and `is_signal` were written as the strings "True"/"False".
-    Normalised here rather than at every call site: a truthy check on the
-    string "False" is a bug that reads as correct."""
+    `audited` and `is_signal` were written as the strings "True"/"False"."""
     out = []
     for r in rows:
         r = dict(r)
@@ -57,13 +37,7 @@ def _normalise(rows: list[dict]) -> list[dict]:
 
 
 def load_labels(path: Path | None = None) -> dict[str, dict]:
-    """Reference labels keyed by post id.
-
-    With no explicit path: the frozen 29, plus extension rows a human has
-    audited. Unaudited extension rows are DROPPED — their seed came from the
-    channel classifier, one of the systems f5 scores, so counting them before
-    a human confirms would score the classifier against its own output.
-    """
+    """Reference labels keyed by post id."""
     if path is not None:
         if not path.exists():
             return {}
@@ -84,25 +58,12 @@ def _prf(tp: int, fp: int, fn: int) -> dict:
 
 
 def channel_scores(posts, labels, policy, channel_fn) -> dict:
-    """Micro-averaged precision/recall/F1 for channel assignment.
-
-    `channel_fn(policy, text) -> channel name or None`. "none" is the negative
-    class, so:
-
-        tp  predicted a channel and it is the labelled one
-        fp  predicted a channel that is wrong, INCLUDING predicting one where
-            the label says none
-        fn  labelled a channel and we predicted none, or predicted the wrong one
-
-    A wrong-channel prediction counts once as fp and once as fn. That strict
-    reading is deliberate: naming the wrong transmission channel is not a
-    partial success, since the channel exists to say which position it touches.
-    """
+    """Micro-averaged precision/recall/F1 for channel assignment."""
     tp = fp = fn = 0
     for post in posts:
         label = labels.get(str(post["id"]))
         if label is None:
-            continue                       # unlabelled posts are not scored
+            continue
         truth = label.get("channel") or "none"
         truth = None if truth == "none" else truth
         pred = channel_fn(policy, post.get("text", "")) or None
@@ -131,8 +92,7 @@ def summary() -> dict:
 
 
 def _post_from_document(url: str, body: str, published_at: str | None) -> dict | None:
-    """Rebuild the API post shape from the stored document. `as_document`
-    writes '@handle\\nurl\\n\\ntext', so the inverse is mechanical."""
+    """Rebuild the API post shape from the stored document. """
     m = re.match(r"https://x\.com/([^/]+)/status/(\d+)$", url)
     if not m:
         return None
@@ -142,15 +102,7 @@ def _post_from_document(url: str, body: str, published_at: str | None) -> dict |
 
 
 def extend(conn, n: int = 71, seed: int = 29) -> dict:
-    """Grow the reference set from posts already in the DB — zero X spend.
-
-    Sampling is round-robin across handles (seeded, reproducible) so no one
-    account dominates the reference. Each new row is seeded with the channel
-    classifier's verdict purely as an audit-time convenience; the row carries
-    `audited: false` and is INVISIBLE to scoring until `xbench --audit`
-    confirms or corrects it (see `load_labels`). Idempotent: already-sampled
-    ids are never re-added, so re-running tops the set up to `n` new rows.
-    """
+    """Grow the reference set from posts already in the DB — zero X spend."""
     have = {str(p["id"]) for p in load_benchmark()}
     by_handle: dict[str, list[dict]] = {}
     for r in conn.execute(
@@ -206,19 +158,7 @@ def extend(conn, n: int = 71, seed: int = 29) -> dict:
 
 def audit(posts_path: Path = BENCHMARK_PATH,
           labels_path: Path = LABELS_PATH) -> dict:
-    """Human audit pass over one labels file — the tier upgrade.
-
-    Every number measured against an unaudited row reads "agreement with a
-    stated labeler". Confirming or correcting each channel turns the row into
-    a human reference: figure f5's caption upgrades itself the moment
-    `audited` flips, because `summary()` counts it — and for extension rows,
-    the audit is what makes them count at all (see `load_labels`).
-
-    The POSTS stay frozen — only the label rows change, and only two fields:
-    `channel` (if corrected) and `audited` (set true once a human has looked).
-    Skipped posts keep `audited: false`, so a partial pass is stated, not
-    hidden. Resumable: already-audited labels are not re-asked.
-    """
+    """Human audit pass over one labels file — the tier upgrade."""
     from fli.core.policy import load_policy
     posts = {str(p["id"]): p for p in load_benchmark(posts_path)}
     raw = json.loads(labels_path.read_text()) if labels_path.exists() else []
@@ -269,8 +209,7 @@ def audit(posts_path: Path = BENCHMARK_PATH,
 
 
 def audit_all() -> dict:
-    """Audit the frozen set, then the extension set. Quitting mid-file saves
-    progress; the next run resumes exactly where the human stopped."""
+    """Audit the frozen set, then the extension set. """
     totals = {"audited": 0, "corrected": 0}
     for posts_path, labels_path in ((BENCHMARK_PATH, LABELS_PATH),
                                     (EXT_POSTS_PATH, EXT_LABELS_PATH)):

@@ -1,94 +1,35 @@
-"""Every tunable knob in one module.
+"""Every tunable knob in one module."""
 
-Rationale: anyone asking "what threshold produced this number?" should have
-exactly one file to open. Values that are *protocol* constants (XML namespaces,
-OpenInference span attribute names, API URLs) deliberately stay next to the code
-that speaks that protocol - they are not tuning knobs.
-
-Any value changed here changes behaviour, so each one carries how it was chosen.
-"""
-
-# --- ingestion (L1) -------------------------------------------------------
 HTTP_TIMEOUT_S = 20
-# Transient transport failures (timeouts, connection resets, HTTP 5xx) are
-# retried with exponential backoff: attempt n waits HTTP_BACKOFF_S * 2^(n-1).
-# Client errors (4xx, including 429) are NOT retried: a 404 will not heal in
-# two seconds, and X's rate windows are 15 minutes, so a short backoff would
-# just spend the budget guard's patience. 2 retries * max 3s keeps the worst
-# case per URL under one timeout's worth of extra wall clock.
 HTTP_RETRIES = 2
 HTTP_BACKOFF_S = 1.0
-# After this many CONSECUTIVE transport failures (retries exhausted) against
-# one host, the circuit opens and every further request to that host in this
-# process fails fast instead of eating a 20s timeout each. Chosen so a dead
-# sitemap host costs 3 timeouts, not MAX_SITEMAP_PAGES of them; one success
-# resets the count. Process-scoped on purpose: the next pipeline run retries.
 BREAKER_THRESHOLD = 3
-MAX_ENTRIES_PER_FEED = 25       # per-run politeness cap
+MAX_ENTRIES_PER_FEED = 25
 MAX_SITEMAP_PAGES = 8
-ARXIV_DELAY_S = 3               # arXiv API politeness (their published guidance)
-# Below this, the feed served a teaser, so hydrate the body from the article
-# page (measured: OpenAI/DeepMind blogs ~250-430 chars vs Meta's full 27k).
+ARXIV_DELAY_S = 3
 BLOG_BODY_MIN = 1500
-# Domains whose article pages render the body client-side, so a direct fetch
-# returns a shell (measured 2026-07-29: 27 openai.com blog docs averaged 286
-# visible chars against Anthropic's 228KB; 14 of them died in stage 2 as
-# low_substance). For these, and only these, a thin direct fetch falls back to
-# a text-rendering proxy. Mistral is NOT listed: its newsroom arrives full via
-# sitemap (avg 292KB, measured the same day).
 JS_WALLED_DOMAINS = {"openai.com"}
 
-# --- stage-1 filter (L2) --------------------------------------------------
-# Per source type: arXiv abstracts are short but dense, GitHub releases are long
-# but often boilerplate. Lowered twice from observed false rejections. A post is
-# capped at 280 characters, so the 400-char fallback floor would reject every
-# tweet as too_short — 'social' needs its own entry.
 MIN_CHARS = {"blog": 100, "newsroom": 100, "github": 400, "arxiv": 150,
              "social": 60}
-# A release tag is signal regardless of length (DeepSeek-V3 v1.0.0 at 164 chars
-# was being rejected). Commit feeds keep the higher github floor.
 RELEASE_FEED_MIN_CHARS = 50
 
-# --- X / social (L1) ------------------------------------------------------
-# Pay-per-use, billed per RESOURCE RETURNED. Rates read from
-# docs.x.com/x-api/getting-started/pricing on 2026-07-26. Resources are
-# deduplicated within a 24h UTC window, so re-running the same day is free.
-X_POST_COST_USD = 0.005         # Posts: Read
-X_USER_COST_USD = 0.010         # User: Read (handle -> id, cached after once)
-# These are a SPENDING control, not a tuning knob. The run stops when it hits
-# them, so a pagination bug cannot drain the balance.
+X_POST_COST_USD = 0.005
+X_USER_COST_USD = 0.010
 X_MAX_POSTS_PER_ACCOUNT = 20
-# Raised from 400/$3.00 when researcher handles took the account list from 8 to
-# ~50: at the old ceiling the post cap bound after roughly 20 accounts, silently
-# skipping every researcher after that.
-#   worst case: 50 users x $0.010 + 1000 posts x $0.005 = $5.50
-X_MAX_POSTS_PER_RUN = 1000      # ceiling of $5.00 of posts in any single run
-X_RUN_BUDGET_USD = 8.00         # abort before starting if projected spend exceeds this
-X_MAX_USER_LOOKUPS = 60         # register seeding: one User: Read per candidate
-# Bio re-observation cadence: an identity's bio is re-fetched at most once per
-# this many days no matter how often the pipeline runs. Bios are where moves
-# are announced, and 7 days bounds the steady-state spend at
-# ~41 identities x $0.010 / week = $0.41 while keeping detection latency well
-# inside the mobility pairing window.
+X_MAX_POSTS_PER_RUN = 1000
+X_RUN_BUDGET_USD = 8.00
+X_MAX_USER_LOOKUPS = 60
 X_BIO_REOBSERVE_DAYS = 7
 
-# --- extraction (L2) ------------------------------------------------------
-MAX_INSIGHTS_PER_DOC = 5        # length-proportional cap; fixed arXiv over-extraction
+MAX_INSIGHTS_PER_DOC = 5
 
-# --- register (L2) --------------------------------------------------------
-# NOTE: slate_k moved to config/policy.yml (register.slate_k). How broadly to
-# watch each lab is a business decision, not an engineering constant.
-EXPANSION_WINDOW_DAYS = 365     # co-author discovery lookback
+EXPANSION_WINDOW_DAYS = 365
 
-# --- clustering (L3) ------------------------------------------------------
-# Jaccard on claim tokens, read off the similarity distribution rather than
-# guessed — see `cluster --histogram`.
 CLUSTER_THETA = 0.4
 
-# --- features (L3) --------------------------------------------------------
-RECENCY_SCALE_DAYS = 30.0       # exponential decay scale; documented, not tuned to labels
-NEUTRAL_RECENCY = 0.5           # for documents with no published_at
+RECENCY_SCALE_DAYS = 30.0
+NEUTRAL_RECENCY = 0.5
 
-# --- scoring (L3) ---------------------------------------------------------
-TEST_FRAC = 0.30                # held-out fraction for the bake-off
-RANDOM_SEED = 42                # every sampling/split in the repo uses this
+TEST_FRAC = 0.30
+RANDOM_SEED = 42

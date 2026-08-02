@@ -1,33 +1,4 @@
-"""Event -> holding edges: which position an event touches, and how.
-
-THE PROBLEM THIS SOLVES. Most frontier labs are private,
-"so part of the judgment is connecting lab developments to where they actually
-land for a public-equity investor". A ranked list of lab events is not that
-connection. This module makes it explicit and checkable: one row per
-(event, ticker), each carrying the quote a PM can verify it against.
-
-TWO INDEPENDENT QUESTIONS, kept apart on purpose:
-
-    exposure   does this text touch something the fund owns?  Topical, and
-               keyword matching is genuinely good at it — `positions_for()`.
-    mechanism  through which transmission channel does it reach the position?
-               Semantic, and keywords are bad at it, which is why the channel
-               comes from the classifier rather than a lexicon.
-
-`event_positions.channel` is NULLABLE and that is the point: "exposure found,
-mechanism not established" is a real and common state. Forcing a channel would
-manufacture a causal story the evidence does not support.
-
-DIRECTION IS DELIBERATELY CONSERVATIVE. `unclear` is the default and the most
-common answer. A threat/tailwind call is only made where the channel implies
-one — a capability that displaces a product is a threat to the incumbent; new
-compute or datacenter demand is a tailwind to the suppliers. Everything else
-stays `unclear` rather than guessing a direction a reader would act on.
-
-Deterministic and free: no LLM call, no network. Re-running is idempotent.
-
-Run:  python3 -m fli.cli positions
-"""
+"""Event -> holding edges: which position an event touches, and how."""
 from __future__ import annotations
 
 import argparse
@@ -37,48 +8,20 @@ from pathlib import Path
 from fli import storage
 from fli.core.policy import load_policy
 
-# A CHANNEL ESTABLISHES THE MECHANISM, NOT THE SIGN. That distinction cost two
-# wrong calls before it was made explicit:
-#
-#   "Mistral is building a 10 MW data center"       demand UP   -> tailwind
-#   "Meta's scheduler saved 3.28 megawatts"         demand DOWN -> headwind
-#   "Gemma 4 12B matches a 26B model while smaller" demand DOWN -> headwind
-#
-# All three are `energy_datacenter` or `compute_memory`. The channel is right
-# every time; the direction is opposite. Reading it correctly means knowing
-# whether the quantity went up or down, which is a judgement about the sentence
-# and not a property of the channel — so it is left to the persona layer, which
-# reads the claim.
-#
-# Only `competitive_displacement` carries an inherent sign: a lab entering a
-# market the fund is invested in is bad for the incumbent, whichever way the
-# numbers move. That is the one direction stated deterministically.
 _DIRECTION_BY_CHANNEL = {
     "competitive_displacement": "threat",
-    "compute_memory": "unclear",       # demand up or down — persona decides
-    "energy_datacenter": "unclear",    # same
-    "data_economics": "unclear",       # revenue for the holder, cost for the lab
-    "talent_movement": "unclear",      # says nothing about a public position
+    "compute_memory": "unclear",
+    "energy_datacenter": "unclear",
+    "data_economics": "unclear",
+    "talent_movement": "unclear",
 }
 
-# Suppliers benefit from demand; the others are exposed to displacement. Used
-# only to sanity-check the channel-implied direction against WHAT the holding
-# is, so "Micron is threatened by more GPU demand" cannot be emitted.
 _SUPPLIERS = {"MU", "TSM", "IREN", "RDDT"}
 
 
 def channel_for_event(text: str, quote: str, policy) -> tuple[str | None, str]:
     """(channel, provenance) where provenance is 'classifier' | 'lexicon' | ''.
-
-    The provenance is load-bearing, not bookkeeping. Measured on the frozen
-    reference set, the keyword lexicon scores F1 0.195 against the classifier's
-    0.571 — and the difference shows up exactly here. Asked which events reach
-    a datacenter position, the lexicon returned a phone codec that "increased
-    power usage by 14%", a Ray-Ban battery cell, and an API access announcement,
-    because `power` and `capacity` are ambient words in this corpus.
-
-    The classifier is read from cache only and never spends.
-    """
+    (channel, provenance) where provenance is 'classifier' | 'lexicon' | ''."""
     try:
         from fli.knowledge.channels import _key, _load_cache
         from fli.ops.llm import MODEL_FOR_TASK
@@ -87,39 +30,20 @@ def channel_for_event(text: str, quote: str, policy) -> tuple[str | None, str]:
     except Exception:
         v = None
     if v is not None:
-        # A verdict of "none" is an ANSWER, not a gap: the classifier read the
-        # text and found no mechanism. Falling through to the lexicon here
-        # overrode 16 explicit negatives with keyword guesses — which is the
-        # precise failure this module claims to avoid.
         ch = v.get("channel")
         return (None, "classifier") if ch in (None, "none") else (ch, "classifier")
-    # No verdict at all (event added since the last `channels` run). The
-    # lexicon is the only thing left, and its channel is recorded but never
-    # allowed to imply a direction.
     lex = policy.channel_for(text)
     return (lex, "lexicon") if lex else (None, "")
 
 
 def direction_for(ticker: str, channel: str | None,
                   provenance: str = "classifier") -> str:
-    """threat | tailwind | unclear.
-
-    A DIRECTION IS ONLY STATED FROM A SEMANTIC VERDICT. A keyword hit says the
-    text contains the word "power"; it does not say a megawatt commitment was
-    made. Telling a PM that a holding faces a tailwind on that basis is the
-    kind of confident wrongness this system exists to avoid, so a
-    lexicon-derived channel is recorded and left `unclear`.
-
-    Without any mechanism there is no direction either — exposure alone means
-    the text mentions something we own, which is a candidate, not a signal.
-    """
+    """threat | tailwind | unclear."""
     if not channel or provenance != "classifier":
         return "unclear"
     implied = _DIRECTION_BY_CHANNEL.get(channel, "unclear")
     if implied == "unclear":
         return "unclear"
-    # A supplier does not get "threatened" by demand, and an incumbent does not
-    # get a "tailwind" from someone entering its market.
     if implied == "tailwind" and ticker not in _SUPPLIERS:
         return "unclear"
     if implied == "threat" and ticker in _SUPPLIERS:
@@ -150,9 +74,6 @@ def build(conn: sqlite3.Connection, rubric: str | None = None,
     by_direction: dict[str, int] = {}
     by_prov: dict[str, int] = {}
     for r in rows:
-        # Match on claim AND quote: the claim is the model's paraphrase, the
-        # quote is the source's own words, and either may carry the exposure
-        # term the other dropped.
         text = f"{r['claim']}\n{r['quote']}"
         tickers = policy.positions_for(text)
         if not tickers:
@@ -161,9 +82,6 @@ def build(conn: sqlite3.Connection, rubric: str | None = None,
         for t in tickers:
             d = direction_for(t, channel, prov)
             holding = next(h for h in policy.positions if h.ticker == t)
-            # Order matters: a classifier verdict of "none" leaves `channel`
-            # NULL, and reading provenance first produced the nonsense
-            # "Reaches the position via None".
             if channel is None and prov == "classifier":
                 how = ("The classifier examined this text and found no "
                        "transmission channel. Exposure without a mechanism — "

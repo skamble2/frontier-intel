@@ -21,50 +21,26 @@ LOCK_TIMEOUT_S = 30.0
 
 
 def connect(db_path: Path = DEFAULT_DB) -> sqlite3.Connection:
-    """Open the database, waiting rather than failing on a lock.
-
-    `timeout` matters here because the long-running commands are the expensive
-    ones. sqlite3 defaults to 5 seconds and then raises "database is locked" —
-    which killed a judge run at pair 117 of 300 when another reader held the
-    file, discarding a verdict that had already been paid for. Thirty seconds
-    covers any read this project performs; anything longer is a real deadlock
-    and should surface rather than hang.
-    """
+    """Open the database, waiting rather than failing on a lock."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path, timeout=LOCK_TIMEOUT_S)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    # WAL lets readers and one writer coexist, so opening the DB in another
-    # shell to inspect it can no longer block a paid run mid-flight.
     try:
         conn.execute("PRAGMA journal_mode = WAL")
     except sqlite3.DatabaseError:
-        pass          # some filesystems refuse WAL; the timeout still applies
+        pass
     return conn
 
 
-# Additive column migrations: `CREATE TABLE IF NOT EXISTS` cannot add a column
-# to an existing table. No framework — single-user project, one database.
-# To retire one, delete the row and its schema.sql column default together.
 _MIGRATIONS = [
-    # (table, column, DDL fragment)
     ("event_scores", "policy_version", "INTEGER NOT NULL DEFAULT 0"),
-    # Reasoning models bill thinking as output tokens. Without this column the
-    # cost table can say what a call cost but not what it bought.
     ("llm_calls", "reasoning_tokens", "INTEGER"),
-    # Prompt-cache accounting: cache tokens are billed at 1.25x / 0.10x the
-    # input rate and are NOT inside input_tokens, so without these columns the
-    # tokenomics table would silently under-report what a cached run cost —
-    # and could not prove that caching saved anything.
     ("llm_calls", "cache_write_tokens", "INTEGER"),
     ("llm_calls", "cache_read_tokens", "INTEGER"),
 ]
 
-# Tables whose SHAPE changed. SQLite cannot alter a UNIQUE constraint in place,
-# so the table is rebuilt — but only while empty, so no collected data is ever
-# destroyed. A non-empty one is left alone and reported.
 _REBUILD_IF_EMPTY = [
-    # (table, a column the NEW shape has)
     ("pairwise_labels", "labeler"),
 ]
 
@@ -80,7 +56,7 @@ def _rebuild_empty_tables(conn: sqlite3.Connection) -> list[str]:
             continue
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if new_column in cols:
-            continue                                   # already the new shape
+            continue
         rows = conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
         if rows:
             notes.append(f"WARNING {table} has an outdated shape and {rows} row(s); "
@@ -100,7 +76,7 @@ def _apply_migrations(conn: sqlite3.Connection) -> list[str]:
             "SELECT count(*) c FROM sqlite_master WHERE type='table' AND name=?",
             (table,)).fetchone()[0]
         if not exists:
-            continue                      # schema.sql just created it, correctly
+            continue
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if column not in cols:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
@@ -111,13 +87,11 @@ def _apply_migrations(conn: sqlite3.Connection) -> list[str]:
 
 
 def init_db(conn: sqlite3.Connection) -> None:
-    notes = _rebuild_empty_tables(conn)      # must precede schema.sql
+    notes = _rebuild_empty_tables(conn)
     conn.executescript(SCHEMA_PATH.read_text())
     conn.commit()
     notes += [f"added column {m}" for m in _apply_migrations(conn)]
     for n in notes:
-        # Never silent: a schema change to a database holding measured results
-        # is something the operator should see happen.
         print(f"migrated: {n}")
 
 
@@ -137,8 +111,7 @@ def upsert_source(conn, source_type: str, name: str, url: str,
 
 def store_document(conn, source_id: int, source_type: str, url: str,
                    raw_content: str, published_at: str | None) -> tuple[int, bool]:
-    """Insert a document unless its content hash already exists.
-    Returns (document_id, is_new)."""
+    """Insert a document unless its content hash already exists. """
     h = content_hash(raw_content)
     row = conn.execute("SELECT id FROM raw_documents WHERE content_hash = ?", (h,)).fetchone()
     if row:
@@ -153,10 +126,9 @@ def store_document(conn, source_id: int, source_type: str, url: str,
 
 def store_page(conn, source_id: int, source_type: str, url: str,
                html: str, published_at: str | None) -> tuple[int, bool]:
-    """store_document for HTML pages, deduped on extracted TEXT: dynamic
-    sites (build hashes, nonces) change bytes on every fetch, so raw-hash
-    dedup never fires and versions pile up. If the visible text equals the
-    URL's latest stored version, nothing is stored."""
+    """store_document for HTML pages, deduped on extracted TEXT: dynamic sites
+    (build hashes, nonces) change bytes on every fetch, so raw-hash dedup never
+    fires and versions pile up."""
     from fli.core.text import html_to_text
     last = conn.execute("SELECT raw_content FROM latest_documents WHERE url=?",
                         (url,)).fetchone()
@@ -197,11 +169,7 @@ def insert_evidence(conn, document_id: int, locator: str, verbatim_content: str,
 def insert_event_entity(conn, event_id: int, entity_kind: str, entity_id: int,
                         role: str, evidence_id: int,
                         basis: str = "model_asserted", commit: bool = True) -> int:
-    """One attributed entity of an event, independently cited. entity_kind
-    ('person'|'lab') selects which FK the id fills (XOR, enforced by schema).
-    basis records confidence: 'model_asserted' vs 'source_inferred'.
-    commit=False lets a caller batch this into one transaction with related
-    rows a checks invariant spans (e.g. the insight it mirrors)."""
+    """One attributed entity of an event, independently cited. """
     cur = conn.execute(
         "INSERT INTO event_entities (event_id, entity_kind, person_id, lab_id,"
         " role, basis, evidence_id) VALUES (?,?,?,?,?,?,?)",
@@ -218,10 +186,6 @@ def insert_insight(conn, evidence_id: int, event_type: str, claim: str,
                    attributed_lab_id: int | None = None,
                    attributed_person_id: int | None = None,
                    basis: str = "model_asserted") -> int:
-    # The insight and its event_entities mirror are one logical write that C11
-    # spans, so they share a transaction — a crash can't leave an attributed
-    # insight without its cited mirror. `basis` records how the lab was resolved,
-    # so a publisher default is never scored as a verbatim one.
     cur = conn.execute(
         "INSERT INTO insights (evidence_id, attributed_person_id, attributed_lab_id,"
         " event_type, claim, created_at) VALUES (?,?,?,?,?,?)",
@@ -231,7 +195,6 @@ def insert_insight(conn, evidence_id: int, event_type: str, claim: str,
         insert_event_entity(conn, event_id, "lab", attributed_lab_id, "subject",
                             evidence_id, basis, commit=False)
     if attributed_person_id is not None:
-        # always model_asserted: no publisher fallback exists for people
         insert_event_entity(conn, event_id, "person", attributed_person_id, "subject",
                             evidence_id, "model_asserted", commit=False)
     conn.commit()
@@ -240,8 +203,7 @@ def insert_insight(conn, evidence_id: int, event_type: str, claim: str,
 
 def backfill_event_entities(conn) -> int:
     """One-time, idempotent: mirror existing insights' denormalized attributed_*
-    caches into event_entities (same rule as insert_insight). Safe to re-run —
-    NOT EXISTS skips events already carrying the entity. Returns rows inserted."""
+    caches into event_entities (same rule as insert_insight)."""
     before = conn.execute("SELECT count(*) c FROM event_entities").fetchone()["c"]
     conn.execute(
         "INSERT INTO event_entities (event_id, entity_kind, person_id, lab_id, role, evidence_id)"
@@ -263,9 +225,7 @@ def backfill_event_entities(conn) -> int:
 def backfill_attribution_from_source(conn) -> int:
     """One-time, idempotent: insights the extractor left unattributed adopt the
     document's publisher lab on official first-party channels (same fallback
-    run_stage2 now applies inline), then re-mirror into event_entities. For
-    events written before that fallback existed. Returns insights newly
-    attributed."""
+    run_stage2 now applies inline), then re-mirror into event_entities."""
     rows = conn.execute(
         "SELECT i.id, i.evidence_id, s.lab_id FROM insights i"
         " JOIN evidence e ON e.id = i.evidence_id"
@@ -289,23 +249,7 @@ def log_llm_call(conn, task: str, model: str, input_tokens: int, output_tokens: 
                  cost_usd: float, reasoning_tokens: int | None = None,
                  cache_write_tokens: int | None = None,
                  cache_read_tokens: int | None = None) -> None:
-    """Cost telemetry. NEVER fatal.
-
-    `reasoning_tokens` is a subset of output_tokens, not an addition: models
-    bill thinking as output, so adding it would overstate spend. Recorded
-    separately only so the split is reportable.
-
-    WHY THE EXCEPTION IS SWALLOWED, against this project's usual policy: by the
-    time this runs the API call has completed and BEEN PAID FOR, and the caller
-    is holding a verdict. A locked database killed a judge run on this line at
-    pair 117 of 300, discarding that verdict and every one after it. Losing the
-    accounting for a call is a small, visible harm; losing the result you bought
-    is a larger one.
-
-    The warning fires once, so a systematically failing log cannot pass
-    unnoticed. Only sqlite errors are caught — a bug in the arguments still
-    raises.
-    """
+    """Cost telemetry. """
     global _llm_log_warned
     try:
         conn.execute(

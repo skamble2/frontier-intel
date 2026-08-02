@@ -1,49 +1,35 @@
-"""Single entry point: `python -m fli.cli <layer> [options]`.
-
-Deliberately a thin dispatcher. Each layer keeps its own `main()` and its own
-flags, and stays runnable on its own (`python -m fli.intelligence.clustering`)
-- that independence is the point of the layering, and a facade that re-declared
-every flag here would quietly become a second source of truth.
-
-Layer order below is pipeline order, so `--help` doubles as the data flow.
-"""
+"""Single entry point: `python -m fli.cli <layer> [options]`."""
 from __future__ import annotations
 
 import importlib
 import sys
 
-# command -> module providing main()
 COMMANDS = {
-    # LAYER 1 - raw sources
     "ingest": "fli.ingestion.feeds",
-    "x": "fli.ingestion.x_api",          # paid source; --dry-run first
-    # LAYER 2 - knowledge
+    "x": "fli.ingestion.x_api",
     "filter": "fli.knowledge.filtering",
-    "extract": "fli.knowledge.extraction",        # stage 2 (SPENDS)
+    "extract": "fli.knowledge.extraction",
     "register": "fli.knowledge.register.cli",
     "expand": "fli.knowledge.expansion",
-    # LAYER 3 - intelligence
     "cluster": "fli.intelligence.clustering",
     "features": "fli.intelligence.features",
     "label": "fli.intelligence.labeling",
-    "judge": "fli.intelligence.judge",             # LLM pairwise judge (SPENDS)
-    "channels": "fli.knowledge.channels",          # LLM channel classifier
+    "judge": "fli.intelligence.judge",
+    "channels": "fli.knowledge.channels",
     "score": "fli.intelligence.scoring",
-    "contributors": "fli.intelligence.contributors",  # people ranked by their events
-    # validation + orchestration
-    "evaluate": "fli.validation.evaluation",       # figures + report
-    "verify": "fli.validation.entailment",         # claim faithfulness (SPENDS)
-    "faithfulness": "fli.validation.faithfulness", # persona notes + digests (SPENDS)
+    "contributors": "fli.intelligence.contributors",
+    "evaluate": "fli.validation.evaluation",
+    "verify": "fli.validation.entailment",
+    "faithfulness": "fli.validation.faithfulness",
     "checks": "fli.validation.checks",
     "xbench": "fli.validation.x_benchmark",
     "pipeline": "fli.orchestration.pipeline",
-    # LAYER 4 - delivery, the reader-facing surface
     "positions": "fli.delivery.positions",
-    "personas": "fli.delivery.personas",          # LLM reading (SPENDS)
+    "personas": "fli.delivery.personas",
     "digest": "fli.delivery.digest",
     "alerts": "fli.delivery.alerts",
     "skeleton": "fli.orchestration.skeleton",
-    "web": "fli.web.app",                     # browse UI + candidate review
+    "web": "fli.web.app",
 }
 
 USAGE = "usage: python -m fli.cli {" + "|".join(COMMANDS) + "} [options]"

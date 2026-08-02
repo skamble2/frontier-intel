@@ -1,40 +1,4 @@
-"""Validation battery. Pure function of the database — no network, no LLM,
-no randomness. Exit 0 = green.
-
-C1  document immutability   sha256(raw_content) == content_hash
-C2  evidence re-verifies    every evidence row re-matches its document
-C3  people are evidenced    every person has an identity
-C4  identity hygiene        tier/method consistent, evidence present
-C5  affiliations evidenced  dated, and the evidence re-verifies
-C6  insights evidenced      every insight's evidence row exists
-C7  fetch coverage          every source has a fetch_log row
-C8  candidates evidenced    every queue row's evidence re-verifies
-C9  people name hygiene     no promoted person has a malformed name
-C10 no orphan evidence      every evidence row is referenced by something
-C11 event entities cited     every event_entities attribution re-verifies
-C12 inferred basis is official  source_inferred attributions trace to an official channel
-(register balance per lab is PRINTED, not checked: it has no failing
- condition, so it is reported as evidence rather than enforced as a gate)
-C14 clusters well-formed     clustering absent-or-complete; no cluster spans event_type
-C15 scored events have features  every event in event_scores has an insight_features row
-C16 bake-off covers identical set  every model in event_scores scores the same event set
-C17 scores cite a known policy     every event_scores row names the current policy version,
-                                   and every event type in the corpus is ranked by it
-C18 dates are the page's own       published_at agrees with the date the page itself
-                                   declares (a sitemap lastmod is when the page last
-                                   changed, not when the story happened)
-C19 insights quote at exact tier   every insight's evidence is verification='exact'
-                                   (structural is the register's tier for author-name
-                                   spans in structured documents; a claim shown to a
-                                   reader must rest on a byte-verbatim quote)
-C20 one name, one person           person_candidates.name is UNIQUE, so two same-named
-                                   researchers would silently merge. The collision
-                                   signature: one name seeded from 3+ labs' co-authors,
-                                   or a person "observed" at 3+ labs inside 90 days —
-                                   more likely two people than one polymath
-
-Run:  python -m fli.cli checks [--db PATH]
-"""
+"""Validation battery. """
 from __future__ import annotations
 
 import argparse
@@ -50,9 +14,6 @@ from fli.core.policy import PolicyError, describe, load_policy
 from fli.knowledge.register import valid_candidate_name
 from fli.knowledge.register.x_identities import TIER_FOR_METHOD
 
-# A page's byline and its stored published_at may legitimately disagree by a
-# little (timezones, edits shortly after publication). Beyond this many days
-# the stored date is describing a different event than the page is.
 DATE_DRIFT_MAX_DAYS = 14
 
 
@@ -67,8 +28,7 @@ def check(name: str, failures: list[str], all_failures: list[str]) -> None:
 
 
 def evidence_reverifies(conn: sqlite3.Connection, ev_row: sqlite3.Row) -> bool:
-    """Re-match an evidence row against its stored document.
-    exact: verbatim in raw or extracted text; structural: verbatim in raw."""
+    """Re-match an evidence row against its stored document. """
     doc = conn.execute("SELECT raw_content FROM raw_documents WHERE id=?",
                        (ev_row["document_id"],)).fetchone()
     raw = doc["raw_content"]
@@ -79,20 +39,13 @@ def evidence_reverifies(conn: sqlite3.Connection, ev_row: sqlite3.Row) -> bool:
 
 
 def policy_attribution_failures(conn: sqlite3.Connection, policy) -> list[str]:
-    """C17 — every ranking must trace back to an editorial policy version.
-
-    Vacuous while `event_scores` is empty, so a green C17 is not evidence that
-    the bake-off has been run (C15/C16 share that property).
-    """
+    """C17 — every ranking must trace back to an editorial policy version."""
     failures = []
     for r in conn.execute("SELECT DISTINCT policy_version v FROM event_scores"):
         if r["v"] != policy.version:
             failures.append(
                 f"event_scores cites policy v{r['v']}, but config/policy.yml is "
                 f"v{policy.version} (re-run the bake-off, or restore that version)")
-    # An event type the policy has not ranked silently gets the lowest prior.
-    # The schema's CHECK constraint bounds the set; this catches drift where a
-    # type is added there but not to the policy.
     unranked = [r["t"] for r in conn.execute(
         "SELECT DISTINCT event_type t FROM insights WHERE event_type IS NOT NULL")
         if r["t"] not in policy.event_type_prior]
@@ -195,15 +148,12 @@ def run(conn: sqlite3.Connection) -> int:
            if r["channel"] != "official"]
     check("C12 inferred basis is official", bad, all_failures)
 
-    # Register balance. Printed, not checked: it has no failing
-    # condition, but the de-skew claim must be read off measured numbers.
     print("\nregister balance (candidates / approved / insights per lab):")
     from fli.knowledge.register import balance_by_lab
     for lab, d in sorted(balance_by_lab(conn).items(), key=lambda x: -x[1]["insights"]):
         print(f"  {lab:<16} cand={d['candidates']:<4} approved={d['approved']:<3}"
               f" insights={d['insights']}")
 
-    # --- Scoring. Each enforces only once its artifact exists. ---
     cc = conn.execute("SELECT count(cluster_id) c, count(*) t FROM insights").fetchone()
     bad = []
     if 0 < cc["c"] < cc["t"]:
@@ -258,11 +208,6 @@ def run(conn: sqlite3.Connection) -> int:
                " WHERE e.verification != 'exact'")]
     check("C19 insights quote at exact tier", bad, all_failures)
 
-    # C20 — the UNIQUE(name) merge is accepted at this scale (schema.sql says
-    # so), which makes it a liability the checks must watch, not a fact to
-    # forget. A genuine collision shows up as impossible breadth: one arXiv
-    # name co-authoring with seeds at 3+ labs, or one promoted person with
-    # affiliation evidence at 3+ labs inside a quarter.
     import json as _json
     bad = []
     for r in conn.execute("SELECT name, seed_lab_ids FROM person_candidates"):

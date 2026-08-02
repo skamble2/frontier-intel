@@ -1,20 +1,4 @@
-"""Web surface over the existing database.
-
-Browse the register, see scored insights and why they were flagged (including
-each claim's entailment verdict), read past digests, and view the tracked-
-universe config. Deliberately thin: every list it renders comes from the same
-calls the CLI uses (`scoring.top_events` for the slate), so the web view can
-never disagree with the digest.
-
-Writes are limited to the one human decision the system already models:
-approving or rejecting a discovered person candidate. The buttons call the
-same `approval.review` the CLI calls, so a web approve lands in
-register_overrides.yml and survives DB rebuilds exactly like a CLI approve.
-Everything else stays read-only; universe changes remain YAML edits
-(config/register_seeds.yml), which the config page mirrors.
-
-Run:  python -m fli.cli web            # http://127.0.0.1:5000
-"""
+"""Web surface over the existing database."""
 from __future__ import annotations
 
 import argparse
@@ -160,9 +144,6 @@ def create_app():
         pending = [dict(row) for row in conn.execute(
             "SELECT * FROM person_candidates WHERE status='pending'")]
 
-        # Same review slate the CLI shows (top-K per lab by paper_count,
-        # valid name) — the web buttons and `register review` are two doors
-        # to the identical decision, so neither can see a different queue.
         from fli.knowledge.register.approval import _candidate_lab_ids, _slate
         slate_ids = _slate(conn, pending)
         lab_by_id = {r["id"]: r["name"] for r in labs}
@@ -196,9 +177,6 @@ def create_app():
 
     @app.post("/register/candidates/<int:cid>/<decision>")
     def review_candidate(cid: int, decision: str):
-        # The one write this surface performs. It goes through the same
-        # approval.review as the CLI: overrides file first, then promotion,
-        # name-hygiene gate enforced on approve.
         from fli.knowledge.register.approval import review
         verdict = {"approve": "approved", "reject": "rejected"}.get(decision)
         if verdict is None:
@@ -216,9 +194,6 @@ def create_app():
         from fli.ops.llm import MODEL_FOR_TASK
         conn = db()
         items, dropped = top_events(conn, k=25, rubric=primary_rubric())
-        # one verdict per claim from the standing entailment check (f15);
-        # the slate filter already drops not_entailed, so this shows
-        # entailed vs partial — i.e. how much of the claim the quote carries
         verdicts = dict(conn.execute(
             "SELECT insight_id, verdict FROM claim_checks WHERE model=?",
             (MODEL_FOR_TASK["verify"],)).fetchall())
@@ -346,8 +321,9 @@ def create_app():
         files = sorted(DIGEST_DIR.glob("*.md"), reverse=True)
         items = "".join(f"<li><a href='/reports/{_e(p.stem)}'>{_e(p.stem)}</a></li>"
                         for p in files)
-        return _page("Reports", f"<ul>{items or '<li>none yet — run '
-                     '<code>python -m fli.cli digest --all</code></li>'}</ul>")
+        none_yet = ("<li>none yet — run "
+                    "<code>python -m fli.cli digest --all</code></li>")
+        return _page("Reports", f"<ul>{items or none_yet}</ul>")
 
     @app.get("/reports/<name>")
     def report(name: str):

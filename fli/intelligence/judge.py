@@ -1,31 +1,4 @@
-"""LLM pairwise judge.
-
-Fills `pairwise_labels` with `llm:<model>/<rubric>/r<version>` rows so the
-bake-off has something to train on. Until this runs, scoring has nothing to
-learn from.
-
-This is not ground truth. The judge applies a rubric from `config/rubrics/`,
-and its reliability is estimated from disagreement with other labelers rather
-than assumed — see `fli/intelligence/weak_supervision.py`.
-
-Three properties of the prompt are load-bearing:
-
-1. The lab name is withheld. Rubrics ban lab identity as a reason and per-lab
-   precision@10 is the fairness check, so a judge primed by lab prestige would
-   invalidate it. It sees claim, type, date and the verified quote.
-2. A rule number is required. A verdict that cannot cite the ordering rule that
-   decided it is rejected and retried once, which keeps the reasoning auditable.
-3. Presentation order is randomised per pair (deterministically) and un-swapped
-   on store, so position and content are not confounded.
-
-Model and rubric are both part of the labeler id, so a methodology change lands
-as a new labeler instead of mixing into the old one.
-
-Run:  python3 -m fli.cli judge --n 200                # SPENDS
-      python3 -m fli.cli judge --n 5 --dry-run        # prompt preview, $0
-      python3 -m fli.cli judge --consistency 40       # flip rate (2N calls)
-      python3 -m fli.cli judge --agreement A B        # Cohen's kappa, $0
-"""
+"""LLM pairwise judge."""
 from __future__ import annotations
 
 import argparse
@@ -37,10 +10,6 @@ from fli import storage
 from fli.core.policy import load_policy
 from fli.intelligence.labeling import record_label, sample_pairs
 
-# The rubric-driven prompt: one format, always binary with a mandatory
-# confidence. Of 615 investment verdicts, 274 came back `low` and were excluded
-# from training, which raised held-out accuracy — a silent coin flip could not
-# have been excluded at all.
 _BINARY_TAIL = """
 YOU MUST CHOOSE "a" OR "b". "tie" is not an available answer.
 
@@ -57,11 +26,7 @@ two events in the opposite order, that is "low".
 
 
 def build_rubric_system(rubric, channels: list[str] | None = None) -> str:
-    """Compose the judge prompt from a rubric file.
-
-    Everything audience-specific comes from the YAML. Only the reply contract
-    and confidence semantics are fixed here, since the parser depends on them.
-    """
+    """Compose the judge prompt from a rubric file."""
     parts = [f"You rank frontier-AI-lab events for: {rubric.audience}.",
              "",
              f"THE ONLY QUESTION: {rubric.question}",
@@ -102,15 +67,7 @@ def _event_block(conn, event_id: int, letter: str) -> str:
 
 
 def presentation_order(a: int, b: int) -> bool:
-    """True if the pair should be shown swapped (b as A).
-
-    `sample_pairs` stores pairs as (min(id), max(id)), so without this the lower
-    insight id is always event A. Ids follow extraction order, which correlates
-    with quote length, so position and content would be confounded.
-
-    Deterministic in the pair: a re-run never re-asks the same pair in the
-    other order.
-    """
+    """True if the pair should be shown swapped (b as A)."""
     return ((a * 31 + b * 17) % 2) == 1
 
 
@@ -127,13 +84,7 @@ def unswap(a: int, b: int, winner: str) -> str:
 
 
 def _parse(raw: str, max_rule: int = 6) -> dict | None:
-    """Verdict, or None if unusable.
-
-    A verdict with no rule number is unusable: the citation is what makes the
-    judgement auditable. A missing confidence is also unusable, since it is the
-    only thing separating a forced choice from undetectable noise — the prompt
-    is always binary, so every verdict must say how forced it was.
-    """
+    """Verdict, or None if unusable."""
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
@@ -142,7 +93,7 @@ def _parse(raw: str, max_rule: int = 6) -> dict | None:
         v = json.loads(text)
     except json.JSONDecodeError:
         return None
-    if v.get("winner") not in ("a", "b"):     # "tie" is not on offer; retry
+    if v.get("winner") not in ("a", "b"):
         return None
     if not isinstance(v.get("rule"), int) or not 1 <= v["rule"] <= max_rule:
         return None
@@ -155,19 +106,7 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
                 model: str | None = None,
                 rubric_name: str | None = None,
                 batch: bool = False) -> dict:
-    """Judge pairs under one rubric with one model.
-
-    Both are part of the labeler id (`llm:<model>/<rubric>/r<v>`), and
-    `pairwise_labels` is UNIQUE (event_a, event_b, labeler), so:
-
-      - a second model lands as its own labeler over the identical seeded
-        pairs, which is what makes an inter-family kappa possible; and
-      - a second rubric lands as its own labeler too, so investment and
-        technical judgements are never pooled into one training set.
-
-    Two audiences disagreeing about which event matters is the point; averaging
-    them would produce a ranking that serves neither.
-    """
+    """Judge pairs under one rubric with one model."""
     from fli.ops.llm import LLM, MODEL_FOR_TASK
     from fli.core.rubric import load_rubric
 
@@ -181,14 +120,10 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
     done = {(r["event_a"], r["event_b"]) for r in conn.execute(
         "SELECT event_a, event_b FROM pairwise_labels WHERE labeler = ?", (labeler,))}
     todo = [p for p in pairs if p not in done]
-    # A per-pair cache breakpoint was trialled here and rolled back: sampled
-    # pairs almost never share a shown-first event (0/6, 0/15, 2/30 measured),
-    # so the 1.25x cache-write premium was paid and never repaid.
 
     print(f"pairwise judge — {labeler}")
     print(f"  {len(pairs)} sampled, {len(done)} already judged, {len(todo)} to do")
 
-    # Key + price + projected spend, checked before anything is sent.
     from fli.ops.llm import preflight
     preflight(model, len(todo))
 
@@ -200,13 +135,9 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
         print("\nDRY RUN — nothing sent, nothing spent.")
         return {"dry_run": True, "todo": len(todo)}
 
-    llm = LLM(conn)                      # key/price already verified above
+    llm = LLM(conn)
     nrules = len(rubric.rules)
 
-    # Batch mode: everything through the Batch API at 50%, then the shared
-    # parse/record loop below. Anything the batch failed to answer (errored
-    # item, unusable verdict) falls through to the synchronous path — a batch
-    # problem degrades to full price, never to a lost verdict.
     from fli.ops.llm import provider_for
     batch_results: dict[str, str | None] = {}
     if batch and todo:
@@ -227,7 +158,6 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
                            max_tokens=300, model=model)
         verdict = _parse(raw, max_rule=nrules)
         if verdict is None:
-            # one retry with an explicit correction, then give up and COUNT it
             verdict = _parse(llm.call(
                 "judge", system,
                 user + f"\n\nYour previous reply was unusable. Reply with ONLY "
@@ -240,7 +170,7 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
             stats["unparseable"] += 1
             print(f"  [{i:>3}/{len(todo)}] {a} vs {b}  UNPARSEABLE (counted, not skipped)")
             continue
-        winner = unswap(a, b, verdict["winner"])   # back to stored (a, b) order
+        winner = unswap(a, b, verdict["winner"])
         record_label(conn, a, b, winner, labeler,
                      thesis_channel=verdict.get("thesis_channel"),
                      reason=(f"rule {verdict['rule']}"
@@ -258,7 +188,6 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
     total = stats["a"] + stats["b"] + stats["tie"]
     print(f"\njudged {total}, unparseable {stats['unparseable']}")
     if total:
-        # Position bias is measurable because A/B order is stable per pair.
         decided = stats['a'] + stats['b']
         print(f"  winner distribution: a={stats['a']} b={stats['b']} tie={stats['tie']}")
         print(f"  ties are {stats['tie'] / total:.0%} of judgements — only "
@@ -273,21 +202,7 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
 
 
 def consistency_check(conn, n: int = 40, rubric_name: str | None = None) -> dict:
-    """Judge each pair both ways and count how often the answer flips.
-
-    Removing the tie option makes the judge decisive, not reproducible. Asking
-    the same pair in both presentation orders is what turns determinism into a
-    measurement:
-
-        agree -> the verdict is a property of the events
-        flip  -> the verdict is a property of the order; an empirical tie
-
-    Costs 2 calls per pair, so it runs on a small sample. A judge that flips on
-    30% of pairs caps effective accuracy at 85%, whatever the ranker does.
-
-    Uses the SAME rubric prompt `judge --n` runs, so the flip rate describes
-    the judge that actually produced the labels.
-    """
+    """Judge each pair both ways and count how often the answer flips."""
     from fli.ops.llm import LLM, preflight, MODEL_FOR_TASK
     from fli.core.rubric import load_rubric
     model = MODEL_FOR_TASK["judge"]
@@ -314,7 +229,6 @@ def consistency_check(conn, n: int = 40, rubric_name: str | None = None) -> dict
             if v is None:
                 out = None
                 break
-            # normalise to "which stored id won", independent of display order
             win = v["winner"]
             out[swapped] = (first if win == "a" else second if win == "b" else "tie",
                             v.get("confidence"))
@@ -346,19 +260,7 @@ def consistency_check(conn, n: int = 40, rubric_name: str | None = None) -> dict
 
 
 def agreement(conn, labeler_a: str, labeler_b: str) -> dict:
-    """Cohen's kappa between two labelers on the pairs they both judged.
-
-    Raw agreement alone is misleading: the verdict is binary, so two labelers
-    that each answered 'a' 60% of the time agree ~52% by chance while sharing
-    no judgement at all. Kappa subtracts that expectation.
-
-    Most useful across model families. Dawid-Skene assumes labelers are
-    conditionally independent, and prompt variants of one model are not —
-    measured at 92-100% agreement, which rated all of them ~0.99. Two families
-    disagreeing gives the reliability estimate something real to work with.
-
-    Reads only. Costs nothing.
-    """
+    """Cohen's kappa between two labelers on the pairs they both judged."""
     rows = {}
     for lab in (labeler_a, labeler_b):
         rows[lab] = {(r["event_a"], r["event_b"]): r["winner"] for r in conn.execute(

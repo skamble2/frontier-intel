@@ -1,6 +1,5 @@
-"""Affiliation currency: re-observe who is where, at most once per
-person/lab/day, so a stale affiliation is visibly stale rather than
-silently wrong."""
+"""Affiliation currency: re-observe who is where, at most once per person/lab/day,
+so a stale affiliation is visibly stale rather than silently wrong."""
 import json
 import sqlite3
 
@@ -11,15 +10,9 @@ from fli.knowledge.register.seeding import (LAB_PAGES, PERSON_PAGES,
 
 
 def observe(conn: sqlite3.Connection) -> None:
-    """Re-verify each EXISTING (person, lab) affiliation against a fresh
-    fetch of that lab's pages, appending a new dated observation on success.
-    Strictly re-observation: a name appearing on some other lab's page is a
-    mention, not an affiliation, and never creates a link here — new links
-    come only from seeding or candidate approval. One observation per
-    person/lab per day; failures to re-verify are reported, not deleted."""
+    """Re-verify each EXISTING (person, lab) affiliation against a fresh fetch of
+    that lab's pages, appending a new dated observation on success."""
     today = storage.now_utc()[:10]
-    # only page-verbatim links are page-re-verifiable; inferred links are
-    # re-examined when new corroborating evidence arrives, not by page scan
     pairs = conn.execute(
         "SELECT DISTINCT a.person_id, a.lab_id, p.canonical_name, l.name AS lab_name"
         " FROM affiliations a JOIN people p ON p.id=a.person_id"
@@ -42,10 +35,6 @@ def observe(conn: sqlite3.Connection) -> None:
         hit = next(((d, u, t) for d, u, t in candidates
                     if contains_verbatim(t, pair["canonical_name"])), None)
         if hit is None:
-            # Two different states; conflating them manufactures attrition.
-            # A person registered from an X bio was never on a lab page, so not
-            # finding them there is expected. Only the other case is a
-            # candidate mobility signal.
             never_on_a_page = not conn.execute(
                 "SELECT 1 FROM identities WHERE person_id=? AND platform='lab_page'",
                 (pair["person_id"],)).fetchone()

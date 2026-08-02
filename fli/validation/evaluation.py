@@ -1,26 +1,4 @@
-"""Report figures and tables.
-
-Writes `docs/evaluation-report.md` and PNGs to `docs/figures/`. One command
-regenerates every number and chart in the report, so nothing in it is
-hand-copied.
-
-Two rules this module enforces:
-
-1. Metrics are tiered by what ground truth exists. F1/precision/recall are only
-   reported where truth is known by construction or against a stated human
-   reference; on real data with no gold standard the module reports AGREEMENT,
-   never "accuracy". Every caption carries its tier.
-
-2. A missing figure says why it is missing. This runs before the pipeline is
-   fully populated, so a chart with no data states the command that would
-   produce it rather than crashing or drawing an empty axis that looks like a
-   result.
-
-Figures read the database; they never write to it. matplotlib and seaborn are
-imported lazily, so the pipeline runs without them.
-
-Run:  python3 -m fli.cli evaluate
-"""
+"""Report figures and tables."""
 from __future__ import annotations
 
 import argparse
@@ -33,7 +11,6 @@ from fli.core.paths import ROOT
 FIG_DIR = ROOT / "docs" / "figures"
 REPORT_PATH = ROOT / "docs" / "evaluation-report.md"
 
-# Tier labels, printed on every figure so the distinction survives copy-paste.
 SYNTHETIC = "SYNTHETIC — ground truth known by construction"
 REFERENCE = "vs HUMAN REFERENCE — agreement, not accuracy"
 MECHANICAL = "MECHANICAL — arithmetic over the database, no labels needed"
@@ -42,7 +19,7 @@ JUDGED = "JUDGED — against an unaudited LLM reference; treat as provisional"
 
 def _style():
     import matplotlib
-    matplotlib.use("Agg")                       # headless; no display needed
+    matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import seaborn as sns
     sns.set_theme(style="whitegrid", context="talk", palette="deep")
@@ -52,23 +29,12 @@ def _style():
     return plt, sns
 
 
-# Which tier each PNG was produced under. The tier is NOT drawn on the image
-# any more — it overlapped rotated axis labels, and a figure destined for a
-# report should be clean. It is emitted in the report text beside every figure
-# instead, so the guarantee survives: no reader sees "F1 = 0.571" without also
-# seeing that it is agreement against an unaudited reference, not accuracy.
-#
-# The tier is recorded here rather than dropped because a figure lifted into a
-# slide deck loses its caption, and the honest move is to make the caption
-# impossible to separate from the number in the source document.
 FIGURE_TIERS: dict[str, str] = {}
 
 
 def _save(plt, fig, name: str, tier: str) -> str:
     FIG_DIR.mkdir(parents=True, exist_ok=True)
     FIGURE_TIERS[name] = tier
-    # Room for rotated tick labels; without it a 25-degree x-label runs off the
-    # canvas on the per-lab and divergence charts.
     fig.subplots_adjust(bottom=0.24)
     path = FIG_DIR / f"{name}.png"
     fig.savefig(path, bbox_inches="tight", pad_inches=0.25)
@@ -80,18 +46,8 @@ class Skipped(Exception):
     """Raised with the command that would produce the missing data."""
 
 
-# --------------------------------------------------------------------------
-# MECHANICAL — available now, no labels required
-# --------------------------------------------------------------------------
-
 def fig_funnel(conn) -> tuple[str, str]:
-    """Firehose -> signal: the whole filtering funnel in one picture.
-
-    Register documents (GitHub profiles, arXiv author pages fetched to prove
-    an identity) are excluded from every bar: they are fetched to justify a
-    register row, not to yield insights, so counting them deflates the
-    survival rate of the CONTENT pipeline this figure describes. The exclusion
-    is stated in the caption rather than silent."""
+    """Firehose -> signal: the whole filtering funnel in one picture."""
     plt, _ = _style()
     total = conn.execute("SELECT count(*) FROM raw_documents").fetchone()[0]
     docs = conn.execute(
@@ -106,10 +62,6 @@ def fig_funnel(conn) -> tuple[str, str]:
         " WHERE COALESCE(s.purpose,'content') = 'content'"
         " GROUP BY 1").fetchall())
     insights = conn.execute("SELECT count(*) FROM insights").fetchone()[0]
-    # A funnel must stay a funnel: the last bar has to be a subset of the first.
-    # One document yields several events, so plotting the insight count makes
-    # the output exceed the input. Count surviving DOCUMENTS and carry the event
-    # count as an annotation.
     surviving = conn.execute(
         "SELECT count(DISTINCT ev.document_id) FROM insights i"
         " JOIN evidence ev ON ev.id = i.evidence_id").fetchone()[0]
@@ -140,8 +92,7 @@ def fig_funnel(conn) -> tuple[str, str]:
 
 def fig_feature_correlation(conn) -> tuple[str, str]:
     """Redundant features inflate a model's apparent confidence, and correlated
-    labeling functions violate the Dawid-Skene independence assumption. Both
-    are visible here."""
+    labeling functions violate the Dawid-Skene independence assumption."""
     import pandas as pd
     plt, sns = _style()
     rows = conn.execute(
@@ -156,7 +107,6 @@ def fig_feature_correlation(conn) -> tuple[str, str]:
                 vmin=-1, vmax=1, square=True, cbar_kws={"shrink": .7},
                 annot_kws={"size": 7}, ax=ax)
     ax.set_title("Feature correlation")
-    # mask the self-correlation diagonal before taking the strongest pair
     worst = corr.mask(corr.eq(1.0)).abs().stack().idxmax()
     return _save(plt, fig, "f2_feature_correlation", MECHANICAL), (
         f"{len(df.columns)} features over {len(df)} events; "
@@ -210,10 +160,6 @@ def fig_cost(conn) -> tuple[str, str]:
     return _save(plt, fig, "f4_cost_by_task", MECHANICAL), (
         f"${total:.2f} total across {sum(r['n'] for r in rows)} calls.")
 
-
-# --------------------------------------------------------------------------
-# JUDGED — against the X reference labels
-# --------------------------------------------------------------------------
 
 def fig_lexicon_vs_classifier(conn) -> tuple[str, str]:
     """Does the LLM channel classifier beat the keyword lexicon it replaced?"""
@@ -274,52 +220,23 @@ def fig_lexicon_vs_classifier(conn) -> tuple[str, str]:
     return _save(plt, fig, "f5_lexicon_vs_classifier", tier), note
 
 
-# --------------------------------------------------------------------------
-# JUDGED — labelers and their estimated reliability
-# --------------------------------------------------------------------------
-
 def _labeler_family(labeler: str) -> str:
-    """The part of a labeler id that decides whether two labelers are
-    independent: `llm:claude-sonnet-5/investment/r1` -> `llm:claude-sonnet-5`.
-
-    Two prompt versions of one model are the same family — they share weights,
-    training data and failure modes, so their agreement says nothing about
-    whether either is right.
-    """
+    """The part of a labeler id that decides whether two labelers are independent:
+    `llm:claude-sonnet-5/investment/r1` -> `llm:claude-sonnet-5`."""
     if labeler.startswith("llm:"):
         return "llm:" + labeler[4:].split("/")[0]
     if labeler.startswith("human:"):
-        # One person is one family, and the most independent one available:
-        # they share no weights or training data with any model.
         return "human:" + labeler[6:].split("/")[0]
     return labeler.split(":")[0]
 
 
 def fig_labeler_reliability(conn) -> tuple[str, str]:
-    """Dawid-Skene accuracy per labeler, estimated with no gold data.
-
-    Refuses to report a number from a single labeler family. Dawid-Skene infers
-    reliability from disagreement under an assumption of conditional
-    independence; with one family there is no disagreement to read and the
-    algorithm just returns its prior. Prompt variants of one model agreed
-    92-100% and were all rated ~0.99, which is why independence is checked at
-    the family level rather than per labeler id.
-    """
+    """Dawid-Skene accuracy per labeler, estimated with no gold data."""
     from fli.intelligence.weak_supervision import dawid_skene
     from fli.intelligence.scoring import primary_rubric
     import numpy as np
     plt, _ = _style()
     rubric = primary_rubric()
-    # ONE RUBRIC ONLY. Dawid-Skene assumes every labeler is estimating the SAME
-    # latent truth, and rubrics estimate different ones by design. Pooling them
-    # scored the technical labeler at 0.523 — barely above chance — not because
-    # it judges badly but because it answers a different question from the three
-    # investment labelers it was compared against. That is the same pooling
-    # error the bake-off had, in a different figure.
-    # Any labeler working THIS rubric, human included. A human audit is the most
-    # independent labeler available — outside both model families — so excluding
-    # it threw away the one vote that can reveal two models being confidently
-    # wrong together.
     rows = conn.execute(
         "SELECT event_a, event_b, winner, labeler FROM pairwise_labels"
         " WHERE winner != 'tie' AND (labeler LIKE ? OR labeler LIKE ?)",
@@ -374,10 +291,6 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
         f"difficulty scale.")
 
 
-# --------------------------------------------------------------------------
-# JUDGED — the bake-off
-# --------------------------------------------------------------------------
-
 def fig_bakeoff(conn) -> tuple[str, str]:
     plt, _ = _style()
     rows = conn.execute(
@@ -385,7 +298,6 @@ def fig_bakeoff(conn) -> tuple[str, str]:
     if not rows:
         raise Skipped("python3 -m fli.cli score --bakeoff")
     from fli.intelligence import scoring
-    # persist=False: a figure must not rewrite the scores it is describing.
     res = scoring.bakeoff(conn, rubric=scoring.primary_rubric(), persist=False)
     models = sorted(res["report"], key=lambda m: -(res["report"][m]["heldout_acc"] or 0))
     accs = [res["report"][m]["heldout_acc"] for m in models]
@@ -429,15 +341,8 @@ def fig_ablation(conn) -> tuple[str, str]:
 
 
 def fig_per_lab_fairness(conn) -> tuple[str, str]:
-    """Lab identity is never a feature, so precision@10 should not
-    depend on which lab published the event.
-
-    Raw p@10 alone misleads here: each lab's number sits on a different BASE
-    RATE (its share of relevant events), so a lab whose corpus is 62% relevant
-    scores 1.00 without the ranking doing anything. The fair comparison is
-    LIFT: p@10 minus base rate — what the ranking adds over picking at random
-    within that lab.
-    """
+    """Lab identity is never a feature, so precision@10 should not depend on which
+    lab published the event."""
     plt, _ = _style()
     if not conn.execute("SELECT count(*) FROM event_scores").fetchone()[0]:
         raise Skipped("python3 -m fli.cli score --bakeoff")
@@ -469,10 +374,6 @@ def fig_per_lab_fairness(conn) -> tuple[str, str]:
     w = detail[worst]
     miss = ", ".join(f"{k} x{v}" for k, v in
                      sorted(w["miss_types"].items(), key=lambda kv: -kv[1]))
-    # Lift is bounded above by 1-base: a lab whose corpus is already half
-    # relevant leaves the ranking half as much room to add. Normalizing by
-    # that ceiling is what separates "the ranking works less well here" from
-    # "there was less work available".
     ceil = {l: lifts[l] / (1 - detail[l]["base"]) if detail[l]["base"] < 1
             else float("nan") for l in labs}
     spread = max(per_lab.values()) - min(per_lab.values())
@@ -491,13 +392,7 @@ def fig_per_lab_fairness(conn) -> tuple[str, str]:
 
 
 def fig_overfitting(conn) -> tuple[str, str]:
-    """Train minus held-out accuracy.
-
-    The bake-off reports held-out accuracy only, so a model that memorised the
-    training pairs looks identical to one that generalised. The gap is the
-    diagnosis: a large positive gap means the model is fitting noise, which at a
-    few hundred pairs over 19 features is the default expectation.
-    """
+    """Train minus held-out accuracy."""
     import numpy as np
     plt, _ = _style()
     from fli.intelligence import scoring
@@ -507,8 +402,6 @@ def fig_overfitting(conn) -> tuple[str, str]:
     ids, names, X = feature_matrix(conn)
     row = {i: k for k, i in enumerate(ids)}
     Xz, _, _ = scoring._standardize(X)
-    # One rubric only: pooling labels from audiences that disagree by design
-    # would give a train/test gap describing no ranking that ships.
     pairs = scoring.load_pairs(conn, rubric=scoring.primary_rubric())
     tr, te = scoring._split(pairs)
     Xtr, ytr = scoring._pair_xy(tr, Xz, row)
@@ -543,10 +436,6 @@ def fig_overfitting(conn) -> tuple[str, str]:
     ax.set_title("Overfitting check — train vs held-out")
     worst = max(gaps, key=lambda m: gaps[m][0] - gaps[m][1])
     g = gaps[worst][0] - gaps[worst][1]
-    # A NEGATIVE gap — held-out beating train — is not a better result than a
-    # small positive one, and calling it "trustworthy" hides that. On a few
-    # dozen held-out pairs it usually means the split happened to be easier,
-    # so the number is noisy in BOTH directions.
     if g > 0.1:
         verdict = ("MEMORISING: held-out accuracy is not evidence of "
                    "generalisation.")
@@ -562,8 +451,7 @@ def fig_overfitting(conn) -> tuple[str, str]:
 
 
 def fig_learning_curve(conn) -> tuple[str, str]:
-    """Accuracy vs number of training pairs. Answers ONE question directly:
-    would labelling more pairs help, or has it plateaued?"""
+    """Accuracy vs number of training pairs. """
     import numpy as np
     plt, _ = _style()
     from fli.intelligence import scoring
@@ -581,7 +469,7 @@ def fig_learning_curve(conn) -> tuple[str, str]:
     curve = []
     for n in sizes:
         accs = []
-        for _ in range(5):                      # average over subsamples
+        for _ in range(5):
             sub = [tr_all[i] for i in rng.choice(len(tr_all), n, replace=False)]
             Xtr, ytr = scoring._pair_xy(sub, Xz, row)
             if len(set(ytr)) < 2:
@@ -608,12 +496,7 @@ def fig_learning_curve(conn) -> tuple[str, str]:
 
 
 def fig_rank_skew(conn) -> tuple[str, str]:
-    """Does a lab's share of the top ranks match its share of the corpus?
-
-    Per-lab precision@10 measures accuracy; this measures exposure. A lab with
-    8% of events holding 40% of the top 50 is a skew the reader notices even
-    when the ranking is accurate.
-    """
+    """Does a lab's share of the top ranks match its share of the corpus?"""
     import pandas as pd
     plt, _ = _style()
     rows = conn.execute(
@@ -633,10 +516,6 @@ def fig_rank_skew(conn) -> tuple[str, str]:
     ax.set_ylabel("share"); ax.set_xlabel("")
     ax.set_title("Rank skew — top-50 share vs corpus share")
     ax.tick_params(axis="x", rotation=25); ax.legend(fontsize=9)
-    # A ratio needs a denominator worth dividing by. xAI has 2 events of 734, so
-    # one top-50 placement reads as "11.1x over-represented" next to labs with
-    # 150 events — a number produced by n=2, not by skew. Small-n labs are
-    # counted and named, never given a multiplier.
     from fli.intelligence.scoring import MIN_FAIRNESS_N
     counts = df.groupby("lab").size()
     big = comp.loc[counts[counts >= MIN_FAIRNESS_N].index.intersection(comp.index)]
@@ -655,24 +534,8 @@ def fig_rank_skew(conn) -> tuple[str, str]:
         f"{big.loc[over,'top-50 share']:.0%} of the top 50).{note_small}")
 
 
-# (title, builder, png stem). The stem is listed rather than derived from the
-# title so a figure that fails to build can have its previous image deleted:
-# an out-of-date chart is worse than a missing one, because nothing on the
-# image says how old it is.
 def fig_rubric_divergence(conn) -> tuple[str, str]:
-    """Do the two audiences actually get different intelligence?
-
-    This is the claim the whole two-rubric design rests on, so it is measured
-    rather than asserted. If the rankings largely agreed, one of them would be
-    redundant and the persona split would be decoration.
-
-    Two measurements, because they answer different objections:
-
-      overlap@k   what a READER sees. A PM and an engineer opening their
-                  respective top 10 — how many items appear in both?
-      Kendall tau whether the ORDERING is related at all, across every scored
-                  event rather than just the head.
-    """
+    """Do the two audiences actually get different intelligence?"""
     import numpy as np
     from fli.core.rubric import available
     plt, _ = _style()
@@ -695,8 +558,6 @@ def fig_rubric_divergence(conn) -> tuple[str, str]:
     ks = [5, 10, 25, 50, 100]
     overlap = [len(set(A[:k]) & set(B[:k])) / k for k in ks]
 
-    # Kendall tau on a seeded sample: O(n^2) over 556 events is fine, but the
-    # sample keeps the figure fast and the seed keeps it reproducible.
     rng = np.random.RandomState(0)
     samp = list(rng.permutation(common)[:300])
     conc = disc = 0
@@ -719,7 +580,6 @@ def fig_rubric_divergence(conn) -> tuple[str, str]:
     ax1.axhline(1.0, ls="--", c="#94a3b8", lw=1)
     ax1.text(0.05, 1.01, "identical rankings", fontsize=8, color="#64748b")
 
-    # event-type mix side by side — WHY they diverge, not just that they do
     meta = {r["id"]: r["event_type"] for r in
             conn.execute("SELECT id, event_type FROM insights")}
     from collections import Counter
@@ -746,19 +606,7 @@ def fig_rubric_divergence(conn) -> tuple[str, str]:
 
 def fig_mobility(conn) -> tuple[str, str]:
     """Talent movement is the marquee signal and the corpus is thinnest on it.
-
-    Two panels, deliberately separate from every other figure so synthesized
-    events never blend into the extraction statistics:
-
-        left   what the personnel channel has PRODUCED — LLM-extracted events
-               vs moves synthesized from affiliation history (tagged
-               mobility_synthesis in their evidence locator)
-        right  whether the mechanism is ARMED — how much of the register is
-               re-observable, on what surfaces, and how fresh the observations
-               are. Zero synthesized events with an armed register means no
-               move has happened yet; zero with a dark register would mean the
-               mechanism cannot fire. The distinction is the figure.
-    """
+    Talent movement is the marquee signal and the corpus is thinnest on it."""
     plt, _ = _style()
     q = lambda s, *a: conn.execute(s, a).fetchone()[0]
     synthesized = q("SELECT count(*) FROM insights i JOIN evidence e"
@@ -797,11 +645,6 @@ def fig_mobility(conn) -> tuple[str, str]:
 
     detectable = q("SELECT count(DISTINCT person_id) FROM affiliations"
                    " WHERE basis='page_verbatim'")
-    # A synthesized move needs the same person observed at a NEW lab in a
-    # later run, and profile re-observation runs on a 7-day cadence. The date
-    # arithmetic below makes the zero explainable: until the cadence has
-    # lapped the latest observation a live move CANNOT fire, so a zero is
-    # the cadence talking, not a broken mechanism.
     last_obs = q("SELECT max(date(observed_at)) FROM affiliations")
     earliest = ""
     if last_obs:
@@ -832,12 +675,7 @@ def fig_mobility(conn) -> tuple[str, str]:
 
 
 def fig_faithfulness(conn) -> tuple[str, str]:
-    """Claim<->quote entailment: does the claim follow from the quote alone?
-
-    C2 guarantees every quote is verbatim from its source; this figure covers
-    the remaining gap — whether the CLAIM written above the quote is licensed
-    by it. One bar per verdict, split by judge model if more than one has run.
-    """
+    """Claim<->quote entailment: does the claim follow from the quote alone?"""
     plt, _ = _style()
     rows = conn.execute(
         "SELECT model, verdict, count(*) n FROM claim_checks"
@@ -892,11 +730,6 @@ def fig_faithfulness(conn) -> tuple[str, str]:
               f"{other.get('structural', 0)} structural rows carry no claims \u2014 "
               "they are the register's author-name spans in structured "
               "documents, where structural IS the designed tier.")
-    # The REJECTED quotes, characterized rather than just counted. Each
-    # quote_unverified row is re-diffed against its source: a >=80% contiguous
-    # match is the verifier being stricter than the normalization (truncation,
-    # markup seams), a high word-overlap is a paraphrase, and anything else is
-    # a fabrication — the only class that is actually a hallucinated quote.
     import difflib
     from fli.core.text import html_to_text, norm
     rej = {"near_miss": 0, "paraphrase": 0, "fabrication": 0}
@@ -940,11 +773,7 @@ def fig_faithfulness(conn) -> tuple[str, str]:
 
 def fig_slate_precision(conn) -> tuple[str, str]:
     """precision@k of the delivered digest slate against a human keep/cut read.
-
-    The one question the case for this system rests on — "did this surface
-    something we'd genuinely want to know?" — answered per persona by the
-    reader marking each delivered item keep or cut (`digest --review`).
-    """
+    precision@k of the delivered digest slate against a human keep/cut read."""
     plt, _ = _style()
     rows = conn.execute(
         "SELECT persona, verdict, count(*) n FROM slate_reviews"
@@ -984,14 +813,7 @@ def fig_slate_precision(conn) -> tuple[str, str]:
 
 def fig_synthetic_recovery(conn) -> tuple[str, str]:
     """Recovery of four planted policies — the one figure where F1 is honest.
-
-    Everything else in this report is capped at agreement, because no gold
-    standard for event importance exists. Here relevance is known by
-    construction: a known weight vector is planted over the REAL feature
-    matrix, noisy pairwise labels are generated from it the way the judge
-    produces them, and the bake-off's own training path is asked for the
-    ranking back.
-    """
+    Recovery of four planted policies — the one figure where F1 is honest."""
     from fli.validation.synthetic import NOISE, N_PAIRS, run_synthetic
     plt, _ = _style()
     results = run_synthetic(conn)
@@ -1060,10 +882,6 @@ FIGURES = [
 ]
 
 
-# --------------------------------------------------------------------------
-# tables
-# --------------------------------------------------------------------------
-
 def corpus_table(conn) -> str:
     q = lambda s: conn.execute(s).fetchone()[0]
     rows = [
@@ -1094,27 +912,14 @@ def labeler_table(conn) -> str:
     return "\n".join(out)
 
 
-# --------------------------------------------------------------------------
-# report
-# --------------------------------------------------------------------------
-
 def _discard_stale(stem: str) -> None:
-    """Delete the PNG of a figure that did not regenerate this run.
-
-    A figure is either current or absent. Leaving the previous image behind let
-    `f6_labeler_reliability.png` survive for a day showing a reliability
-    estimate the figure now refuses to compute — and nothing on the image said
-    how old it was.
-    """
+    """Delete the PNG of a figure that did not regenerate this run."""
     png = FIG_DIR / f"{stem}.png"
     if png.exists():
         try:
             png.unlink()
             print(f"        discarded stale {png.name}")
         except OSError as e:
-            # A filesystem that forbids unlink (some network/overlay mounts do)
-            # must not kill the whole report over a leftover image. Warn loudly
-            # instead — the report text already states the figure was skipped.
             print(f"        WARNING could not delete stale {png.name} ({e}); "
                   f"it is out of date — regenerate on a writable filesystem")
 
@@ -1131,7 +936,7 @@ def build(conn) -> int:
             skipped.append((title, str(e)))
             print(f"  SKIP  {title}  (needs: {e})")
             _discard_stale(stem)
-        except Exception as e:                       # never let one chart kill the run
+        except Exception as e:
             skipped.append((title, f"ERROR: {type(e).__name__}: {e}"))
             print(f"  FAIL  {title}  {type(e).__name__}: {e}")
             _discard_stale(stem)
@@ -1156,8 +961,6 @@ def build(conn) -> int:
         tier = FIGURE_TIERS.get(stem)
         lines += [f"### {title}", "", f"![{title}]({Path(path).name})", ""]
         if tier:
-            # Immediately under the image, before the finding — a reader cannot
-            # reach the number without passing the caveat.
             lines += [f"*{tier}*", ""]
         lines += [f"{note}", ""]
     if skipped:

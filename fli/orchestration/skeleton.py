@@ -1,8 +1,4 @@
-"""End-to-end walking skeleton: one document -> one cited insight.
-
-Run:  python -m fli.cli skeleton [--db PATH]
-Needs ANTHROPIC_API_KEY in env or in .env next to the package.
-"""
+"""End-to-end walking skeleton: one document -> one cited insight."""
 from __future__ import annotations
 
 import argparse

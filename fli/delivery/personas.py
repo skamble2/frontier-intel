@@ -1,44 +1,4 @@
-"""What an event MEANS, written for one audience at a time.
-
-The test for this layer: "'Actionable' means a reader knows what it
-means and what to do, not just a summary of what happened." A ranked claim with
-a citation is still a summary. This is where the system commits to a reading.
-
-WHY AN LLM DOES THIS AND THE DETERMINISTIC LAYER DOES NOT.
-
-`positions.py` establishes which holding an event touches and through what
-mechanism, and it deliberately refuses to state a direction for a demand
-channel. The reason is measured: these three events share two channels and
-point opposite ways —
-
-    "Mistral is building a 10 MW data center"        demand UP
-    "Meta's scheduler saved 3.28 megawatts"          demand DOWN
-    "Gemma 4 12B matches a 26B model while smaller"  demand DOWN
-
-Getting that right means reading whether the quantity rose or fell, which is a
-judgement about a sentence, not a property of a channel. So the sign is decided
-here, by something that reads the claim, and `reasoning` is NOT NULL in the
-schema so the reader can always check the working.
-
-TWO AUDIENCES, TWO QUESTIONS, and the fields mean different things:
-
-    investment  "what does this mean for our positions?"
-                direction = threat | tailwind | unclear
-    ai_team     "what should we adopt or investigate?"
-                direction = adopt | investigate | monitor
-
-THE PROMPT IS CONSTRAINED TO THE EVIDENCE. The model sees the claim, the
-verified verbatim quote and the date — the same material a reader can check —
-and is told that a hypothesis resting on anything else is a failure. It is not
-given the lab name, for the same reason the judge is not: a reading driven by
-who published it is not a reading of the event.
-
-Cost: one call per (event, persona). At the default k=10 that is ~20 calls,
-roughly $0.20. Idempotent — an event already rendered for a persona is skipped.
-
-Run:  python3 -m fli.cli personas --dry-run     # prompt + cost, spends nothing
-      python3 -m fli.cli personas --k 10
-"""
+"""What an event MEANS, written for one audience at a time."""
 from __future__ import annotations
 
 import argparse
@@ -51,10 +11,6 @@ from fli.core.policy import load_policy
 
 PERSONAS = ("investment", "ai_team")
 
-# A hypothesis plus its reasoning is several times longer than a judge verdict,
-# and sonnet-5 spends part of the budget on adaptive thinking before writing a
-# character. At 500 the two most nuanced events — both "efficiency means less
-# demand" readings, which need the longest chain — were cut off mid-JSON.
 MAX_TOKENS = 1200
 
 _SHARED = """You will be given ONE event extracted from a frontier AI lab's own
@@ -158,15 +114,7 @@ def build_prompt(conn, event_id: int, persona: str) -> str:
 
 
 def parse(raw: str, persona: str) -> tuple[dict | None, str]:
-    """(verdict, why_it_failed). The reason is returned, not swallowed.
-
-    An earlier version printed a bare "UNUSABLE", which said nothing about
-    whether the model had answered the wrong question, omitted its working, or
-    simply been cut off. Two events failed that way and the cause — a reply
-    truncated at max_tokens mid-JSON — was invisible until the payload was
-    inspected by hand. A failure that cannot be diagnosed from the log is a
-    failure that gets ignored.
-    """
+    """(verdict, why_it_failed). """
     text = raw.strip()
     if text.startswith("```"):
         text = text.split("```")[1]
@@ -176,8 +124,6 @@ def parse(raw: str, persona: str) -> tuple[dict | None, str]:
     try:
         v = json.loads(text)
     except json.JSONDecodeError as e:
-        # An unterminated string or object almost always means the reply hit
-        # the token ceiling rather than that the model wrote bad JSON.
         hint = ("reply appears TRUNCATED (raise max_tokens)"
                 if text.rstrip()[-1:] not in "}]" else f"bad JSON: {e}")
         return None, f"{hint}; {len(text)} chars received"
@@ -193,8 +139,7 @@ def parse(raw: str, persona: str) -> tuple[dict | None, str]:
 
 
 def _parse(raw: str, persona: str) -> dict | None:
-    """Verdict only. Kept because the tests exercise the decision, not the
-    diagnostics."""
+    """Verdict only. """
     return parse(raw, persona)[0]
 
 
@@ -203,52 +148,15 @@ RUBRIC_FOR_PERSONA = {"investment": "investment", "ai_team": "technical"}
 
 def _candidates(conn, persona: str, k: int) -> list[int]:
     """Which events this persona renders — THE SAME EVENTS THE DIGEST PUBLISHES.
-
-    An earlier version read the raw ranking straight out of `event_scores`,
-    which is the scorer's ordering before any editorial rule is applied. The
-    digest applies those rules — the 90-day window, one item per story, a cap
-    per lab — so the two lists came apart completely: of the ten events the
-    engineering persona had been rendered for, ZERO appeared in the technical
-    digest at any window, and only 3 of 10 did on the investment side. Every
-    one of those calls described an event no reader would ever be shown, while
-    every item in the digest arrived with no reading attached.
-
-    So the slate is the single source of truth for what gets published, and it
-    is computed here by the same call the digest makes.
-
-    The investment reader additionally gets anything with an established
-    position edge, because an event touching a holding is relevant whatever its
-    global rank — but still only inside the window, since a digest is a report
-    on a period.
-    """
-    from fli.intelligence.scoring import top_events   # layer 3 -> layer 2
+    Which events this persona renders — THE SAME EVENTS THE DIGEST PUBLISHES."""
+    from fli.intelligence.scoring import top_events
     rubric = RUBRIC_FOR_PERSONA[persona]
     top = [r["id"] for r in top_events(conn, k=k, rubric=rubric)[0]]
-    # The digest reports on a PERIOD (default a week), and its weekly slate is
-    # not a prefix of the policy-window slate: dedupe and per-lab caps admit
-    # different items when the window shrinks. Rendering only the 90-day list
-    # left the weekly digest printing "no reading" for items this loop had
-    # never seen — so the weekly slate is a candidate set in its own right.
     week = [r["id"] for r in top_events(conn, k=k, window_days=7,
                                         rubric=rubric)[0]]
     top = week + [e for e in top if e not in set(week)]
     if persona != "investment":
         return top
-    # EVERY event with position exposure, not only the ones already signed.
-    #
-    # This filtered on `direction != 'unclear'` and so fed the model only the
-    # events the deterministic layer had already decided — 1 of 54. The three
-    # cases that justified building this layer (a 10 MW datacenter, Project
-    # Camellia, Gemma 4 needing less memory) are all `unclear` by design,
-    # because a demand channel carries no sign. Those are precisely the events
-    # that need a reader, and they were the ones excluded.
-    #
-    # An established channel comes first: exposure with a mechanism is a
-    # candidate worth a judgement, exposure without one usually is not.
-    #
-    # The window applies here too. Nine of the ten exposed events are inside
-    # 90 days; the tenth is a 2024 post, and putting a two-year-old event at the
-    # head of this week's report would be a bug the reader would catch first.
     touching = [r["event_id"] for r in conn.execute(
         "SELECT DISTINCT ep.event_id FROM event_positions ep"
         " JOIN insights i ON i.id = ep.event_id"
@@ -259,7 +167,7 @@ def _candidates(conn, persona: str, k: int) -> list[int]:
         "   AND julianday('now') - julianday(d.published_at) <= ?"
         " ORDER BY i.score DESC", (load_policy().window_days,))]
     seen, out = set(), []
-    for e in touching + top:                 # position hits lead the list
+    for e in touching + top:
         if e not in seen:
             seen.add(e)
             out.append(e)

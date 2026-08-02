@@ -1,38 +1,9 @@
-"""A PDF writer with no dependencies, for the exported digest.
-
-WHY THIS EXISTS RATHER THAN A LIBRARY. The digest has to leave the system as
-something a PM can forward, which means exportable as PDF. Every obvious way to do that adds an install step to a repo whose entire
-runtime today is the standard library plus what scoring needs — reportlab is a
-new dependency, weasyprint pulls in system libraries, and a pandoc/LaTeX route
-means the export works on the author's machine and nowhere else.
-
-What the digest actually needs from a PDF is small and fixed: left-aligned
-text in two weights, wrapped to a measured width, with page breaks and
-clickable source links. That is about two hundred lines of PDF 1.4, and the
-format has been stable since 2001. So it is written out directly.
-
-WHAT IS DELIBERATELY NOT SUPPORTED: images, tables, colour beyond a
-foreground, embedded fonts, and any encoding beyond WinAnsi. The three
-standard Helvetica faces are guaranteed present in every conforming viewer,
-which is why no font file is embedded and why the metrics below are hard-coded
-— those widths are Adobe's published core-font metrics, fixed by the spec, not
-values sampled from one machine's font.
-
-Text that cannot be represented in WinAnsi (CJK, most emoji) degrades to '?'
-rather than corrupting the file. Source quotes are English-language lab
-publications, so what actually shows up is typographic punctuation, which is
-mapped exactly.
-
-Verified by round-trip: `tests/delivery/test_pdf.py` renders a document and
-reads the text back out with an independent parser.
-"""
+"""A PDF writer with no dependencies, for the exported digest."""
 from __future__ import annotations
 
 import zlib
 from pathlib import Path
 
-# Adobe core-font metrics, 1/1000 em, for ASCII 32..126. Helvetica-Oblique has
-# the same advance widths as Helvetica, so it shares the table.
 _W_REG = (278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333,
           278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278,
           584, 584, 584, 556, 1015, 667, 667, 722, 722, 667, 611, 778, 722, 278,
@@ -48,9 +19,6 @@ _W_BOLD = (278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333,
            333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556,
            333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584)
 
-# Unicode the corpus actually contains -> (WinAnsi byte, width in both faces).
-# Lab posts are full of typographic dashes and curly quotes; dropping them to
-# '?' would mangle every second quotation.
 _WINANSI = {"—": (0x97, 1000), "–": (0x96, 556), "‘": (0x91, 222),
             "’": (0x92, 222), "“": (0x93, 333), "”": (0x94, 333),
             "…": (0x85, 1000), "•": (0x95, 350), " ": (0x20, 278),
@@ -61,11 +29,10 @@ _WINANSI = {"—": (0x97, 1000), "–": (0x96, 556), "‘": (0x91, 222),
 FONTS = {"reg": "F1", "bold": "F2", "obl": "F3"}
 _BASE = {"F1": "Helvetica", "F2": "Helvetica-Bold", "F3": "Helvetica-Oblique"}
 
-PAGE_W, PAGE_H = 595.28, 841.89          # A4 in points
+PAGE_W, PAGE_H = 595.28, 841.89
 MARGIN_X, MARGIN_TOP, MARGIN_BOT = 56.0, 64.0, 56.0
 TEXT_W = PAGE_W - 2 * MARGIN_X
 
-# (font, size, leading, space_before, indent, grey)
 STYLES = {
     "h1":     ("bold", 17.0, 21.0, 0.0, 0.0, 0.0),
     "h2":     ("bold", 12.5, 16.0, 16.0, 0.0, 0.0),
@@ -89,12 +56,12 @@ def _encode(s: str) -> tuple[bytes, list[int]]:
         elif ch in _WINANSI:
             b, _ = _WINANSI[ch]
             out.append(b)
-            idx.append(-ord(ch))          # negative: look up in _WINANSI
+            idx.append(-ord(ch))
         elif ch == "\t":
             out.extend(b"    ")
             idx.extend([0, 0, 0, 0])
         else:
-            out.append(0x3f)              # '?'
+            out.append(0x3f)
             idx.append(0x3f - 32)
     return bytes(out), idx
 
@@ -109,8 +76,7 @@ def width_of(s: str, font: str, size: float) -> float:
 
 
 def wrap(text: str, font: str, size: float, width: float) -> list[str]:
-    """Greedy wrap on measured widths. A word longer than the line (a URL) is
-    broken rather than allowed to run off the page."""
+    """Greedy wrap on measured widths. """
     lines: list[str] = []
     for para in text.split("\n"):
         if not para.strip():
@@ -160,11 +126,7 @@ class _Page:
 
 
 def render(path: Path, blocks, footer: str = "") -> Path:
-    """blocks: iterable of (style, payload).
-
-    payload is a string, except for "link" where it is (label, url) and for
-    "rule"/"pagebreak" where it is ignored.
-    """
+    """blocks: iterable of (style, payload)."""
     pages = [_Page()]
     y = PAGE_H - MARGIN_TOP
 
@@ -193,8 +155,6 @@ def render(path: Path, blocks, footer: str = "") -> Path:
             y -= lead
             x = MARGIN_X + indent
             if style == "quote":
-                # A rule down the left of every quoted line, so a verbatim
-                # source quote is never mistaken for the system's own words.
                 pages[-1].line(MARGIN_X + 5, y - 2.5, MARGIN_X + 5,
                                y + lead - 3.5, grey=0.6, w=1.2)
             pages[-1].text(x, y, ln, font, size, 0.20 if style == "link" else grey)
@@ -211,7 +171,7 @@ def render(path: Path, blocks, footer: str = "") -> Path:
 
 
 def _serialize(path: Path, pages: list[_Page]) -> Path:
-    objs: list[bytes] = []               # 1-indexed on write
+    objs: list[bytes] = []
 
     def add(body: bytes) -> int:
         objs.append(body)
@@ -224,7 +184,7 @@ def _serialize(path: Path, pages: list[_Page]) -> Path:
     res = (b"<< /Font << " + b" ".join(
         b"/%s %d 0 R" % (k.encode(), v) for k, v in font_ids.items()) + b" >> >>")
 
-    pages_id = add(b"")                  # placeholder, patched below
+    pages_id = add(b"")
     page_ids, page_objs = [], []
     for pg in pages:
         stream = zlib.compress(b"\n".join(pg.ops))

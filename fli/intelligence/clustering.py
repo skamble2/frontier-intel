@@ -1,20 +1,4 @@
-"""Populate insights.cluster_id — near-duplicate event clustering.
-
-Corroboration ("how many independent sources reported this event") is a scoring
-feature. No embeddings and no vector DB: Jaccard overlap on normalized claim
-tokens, reusing the shared norm(). Clusters never span event_type, so
-within-document splits and cross-document restatements of one event merge, while
-distinct events of the same type that merely share vocabulary stay apart.
-
-theta is read off the distribution rather than guessed — see `histogram()`. The
-Jaccard distribution over same-type pairs collapses after 0.2: 14,320 pairs at
-<=0.1, then 408 (0.2), 29 (0.3), 11 (0.4) and at most 1 above. The ~10 pairs
->=0.4 are the genuine near-duplicates, and 0.4 is the conservative cut, since
-under-clustering beats merging distinct events.
-
-Run:  python -m fli.cli cluster              # assign cluster_id
-      python -m fli.cli cluster --histogram  # print the Jaccard distribution
-"""
+"""Populate insights.cluster_id — near-duplicate event clustering."""
 from __future__ import annotations
 
 import argparse
@@ -51,7 +35,7 @@ class _UnionFind:
     def union(self, a, b):
         ra, rb = self.find(a), self.find(b)
         if ra != rb:
-            self.parent[max(ra, rb)] = min(ra, rb)  # keep the smaller root (stable)
+            self.parent[max(ra, rb)] = min(ra, rb)
 
 
 def _rows(conn):
@@ -61,16 +45,13 @@ def _rows(conn):
 
 
 def cluster_all(conn: sqlite3.Connection, theta: float = CLUSTER_THETA) -> dict:
-    """Assign a stable cluster_id to every insight. Deterministic and idempotent:
-    same corpus -> same clusters. Clusters are numbered 1..N ordered by their
-    smallest member id, so ids don't churn on re-run."""
+    """Assign a stable cluster_id to every insight. """
     rows = _rows(conn)
     toks = {r["id"]: _tokens(r["claim"]) for r in rows}
     uf = _UnionFind([r["id"] for r in rows])
     by_type: dict[str, list] = defaultdict(list)
     for r in rows:
         by_type[r["event_type"]].append(r)
-    # edges only within an event_type -> clusters never span types (C14)
     for group in by_type.values():
         for a, b in combinations(group, 2):
             if jaccard(toks[a["id"]], toks[b["id"]]) >= theta:
@@ -91,7 +72,7 @@ def cluster_all(conn: sqlite3.Connection, theta: float = CLUSTER_THETA) -> dict:
 
 def histogram(conn: sqlite3.Connection) -> None:
     """Print the Jaccard distribution over same-type pairs — the evidence behind
-    the theta choice. Pure measurement, writes nothing."""
+    the theta choice."""
     rows = _rows(conn)
     toks = {r["id"]: _tokens(r["claim"]) for r in rows}
     by_type: dict[str, list] = defaultdict(list)
