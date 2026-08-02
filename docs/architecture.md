@@ -38,7 +38,7 @@ storage           1   SQLite persistence — no domain logic
 ingestion         2   raw sources: feeds, the paid X source
 knowledge         2   filtering, extraction, the researcher register
 intelligence      3   clustering, features, judge labels, scoring
-validation        3   the C1–C18 invariant battery (reads every layer)
+validation        3   the C1–C20 invariant battery (reads every layer)
 delivery          4   positions, personas, digest, alerts
 orchestration     4   the pipeline (composition only)
 ```
@@ -123,12 +123,14 @@ reported as a fairness check.
 
 ### Validation (layer 3)
 
-A battery of eighteen invariant checks (C1–C18) reads every layer and asserts
+A battery of twenty invariant checks (C1–C20) reads every layer and asserts
 the properties the rest of the system depends on: quotes re-verify (C1/C2),
 every person is evidenced (C3) and passes name hygiene (C9), affiliations are
 dated and evidenced (C5), every source was fetched (C7), no evidence is orphaned
 (C10), scores cite the current policy version and every event type is ranked
-(C17), published dates are the page's own rather than a sitemap timestamp (C18).
+(C17), published dates are the page's own rather than a sitemap timestamp (C18),
+every insight quote verifies at the strictest `exact` tier (C19), and one name
+resolves to one person (C20).
 The battery is a pure function of the database, so a green run is a strong
 statement: the committed DB is internally consistent, end to end.
 
@@ -180,12 +182,13 @@ trains its own model on its own labels; labels are tagged
 lands as a new labeler rather than mixing into the old one.
 
 This is not decoration, and the system measures whether it is real. The two
-rankings share **2 of their top 10** and correlate at a Kendall τ near zero
-(≈ +0.04).
+rankings share **0 of their top 10** (8% of the top 25) and correlate at a
+Kendall τ of **+0.064** — near zero, i.e. close to unrelated orderings.
 Same events, same features — only the definition of "important" differs, and it
-differs enough that one ranking demonstrably cannot serve both readers. A paper
-with released weights and a reproducible method is the top of the engineering
-ranking and near the bottom of the investment one, exactly as it should be.
+differs enough that one ranking demonstrably cannot serve both readers. The
+investment top 10 is commercial and infrastructure — government cloud
+commitments, token pricing, datacenter power. The engineering top 10 is eight
+open-weight releases. Neither list would serve the other reader at all.
 
 ## Connecting private labs to public equities
 
@@ -197,9 +200,10 @@ apart. `positions.py` answers two independent sub-questions:
   keyword matching is genuinely good at it.
 - **Mechanism** — through which transmission channel does it reach the holding?
   Semantic, and keywords are bad at it, which is why the channel comes from an
-  LLM classifier rather than a lexicon (measured: keyword F1 0.33 vs classifier
-  F1 0.57, and the lexicon's failures are confident ones — it once returned a
-  phone codec that "increased power usage" as a datacenter signal).
+  LLM classifier rather than a lexicon (measured against a 100-post
+  human-audited reference: keyword F1 0.267 vs classifier F1 0.444, and the
+  lexicon's failures are confident ones — it once returned a phone codec that
+  "increased power usage" as a datacenter signal).
 
 The channel column is nullable and that is the point: "exposure found, mechanism
 not established" is a real and common state, and forcing a channel would
@@ -242,6 +246,103 @@ key means each fires exactly once. A channel that repeats itself every run
 trains its reader to ignore it, so once-only is enforced in the schema, not left
 to the caller.
 
+## The stack, and model selection per task
+
+The stack is deliberately small: **Python 3, SQLite, scikit-learn, the Anthropic
+and OpenAI SDKs, Flask for the web surface, matplotlib/seaborn for figures.**
+There is no vector store, no embeddings, no second database, no orchestration
+framework. Scoring is SQL plus scikit-learn over a few hundred rows; a vector
+store would be infrastructure carrying no measurement. SQLite is the right size
+for a single-writer daily pipeline, and it makes the deliverable a file a
+reviewer can open.
+
+Model routing is one dictionary — `MODEL_FOR_TASK` in `fli/ops/llm.py` — so the
+cost-quality trade-off for the whole system is legible in eight lines.
+
+| task | model | why |
+|---|---|---|
+| `classify` | Haiku 4.5 | Binary substantive/not over a 6k-char prefix. A cheap gate in front of an expensive step; a wrong answer costs one skipped document, not a wrong claim. |
+| `extract` | Sonnet 5 | The one step that must not be wrong — it emits the claim *and* the verbatim quote that has to re-match the source. Quote fidelity is where cheap models fail. |
+| `repair` | Sonnet 5 | Rewrites a claim down to what its quote supports. Same fidelity requirement. |
+| `judge` | Sonnet 5 **+ GPT-5.2** | Pairwise ranking under a rubric. Two independent *families*, not two prompts of one model — Dawid–Skene needs conditionally independent labelers. |
+| `persona` | Sonnet 5 | The reader-facing "what this means / what to do". Judgment and tone; 92 calls, so price is irrelevant. |
+| `channel` | Haiku 4.5 | Closed-set pick from five transmission channels. |
+| `verify` | Haiku 4.5 | Claim↔quote entailment, three-way verdict. Closed set. |
+| `faithfulness` | Haiku 4.5 | Same shape, over persona notes. |
+
+The rule underneath: **Sonnet where a wrong answer enters the database as a
+fact; Haiku where a wrong answer only costs a re-check.** Every closed-set
+classification runs on Haiku; every open-ended generation that produces a stored
+claim runs on Sonnet.
+
+One measured wrinkle, recorded because it contradicts the routing: on the judge
+task the *cheaper* model is at least as good. GPT-5.2 costs 6.5× less per usable
+label than Sonnet (\$0.0028 vs \$0.0182), returns fewer low-confidence verdicts
+(22.0% vs 27.5%), and its Dawid–Skene reliability is marginally *higher* (0.874
+vs 0.864). The next tranche of labels should be bought from it. Full working in
+[tokenomics.md](tokenomics.md).
+
+## Fallback strategies
+
+Every external dependency has a defined degradation path, and each one fails
+toward *less output*, never toward unverified output.
+
+**No API key → the system still runs, and still passes.** `have_api_key()` is
+checked at each paid entry point (`fli/orchestration/pipeline.py`,
+`fli/knowledge/extraction.py`, `fli/knowledge/channels.py`,
+`fli/validation/faithfulness.py`, `fli/validation/entailment.py`). Without one,
+ingestion, filtering, the register, clustering, features, scoring, the check
+battery, the digest and the web UI all run normally on the committed corpus —
+only new LLM extraction is skipped. A reviewer with no key gets a green
+`checks` run and a readable digest.
+
+**Unknown model price → refuse, do not guess.** `cost_usd()` raises `KeyError`
+for a model absent from `PRICES`. A silent default of zero would make an
+expensive model look free in the very table used to make routing decisions, so
+the system declines to price what it has not been told the price of.
+`preflight` checks the key *and* the price before any paid run starts.
+
+**HTTP failure → bounded retry, then an open circuit.** `fli/core/http.py`
+retries twice with a 1-second backoff on a 20-second timeout, and counts
+consecutive failures per host. After three, the circuit opens for that host and
+the remaining fetches skip it rather than spending the run's budget on a dead
+endpoint. Every outcome is written to `fetch_log` (`ok` / `empty` / `error` /
+`rate_limited`), so a degraded source is a queryable fact — the committed log
+carries 733 `ok`, 148 `error` and 16 `empty`, and check C7 fails if a
+registered source has never been fetched at all.
+
+**JavaScript-walled pages → a rendering proxy, then manual capture.** When a
+feed entry's own HTML yields less text than a rendering proxy does
+(`http_get_rendered`, `fli/ingestion/feeds.py`), the rendered text wins. Pages
+that defeat both are captured manually and stored under the *same* immutability
+and verification rules — the evidence invariant is never weakened to accommodate
+a hard source.
+
+**Missing GBM library → a three-step ladder.** `_fit_gbm` tries LightGBM, then
+XGBoost, then falls back to scikit-learn's `HistGradientBoostingClassifier`,
+which is already a hard dependency. The bake-off therefore always has a
+gradient-boosted contender, on any install. The shipped winner names which one
+ran (`gbm_sklearn` in the committed results), so the fallback is visible in the
+output rather than hidden.
+
+**Missing plotting or web libraries → the pipeline is unaffected.**
+matplotlib/seaborn/pandas are imported only inside `fli/validation/evaluation.py`
+and Flask only inside `fli/web/app.py`, both lazily. The daily pipeline runs
+without any of them installed.
+
+**Provider outage → the second family.** The OpenAI SDK is an optional
+dependency imported lazily, and only when a task is routed to an OpenAI model.
+It exists for Dawid–Skene's independence requirement, but it doubles as the
+fallback path if one vendor is unavailable.
+
+**Parse failure → a rejection row, not a guess.** `validate_json` strips code
+fences and recovers a JSON object from surrounding prose before giving up; a
+reply that still will not parse is written to `rejections`
+(`classify_parse_error`, 10 rows in the committed corpus) rather than being
+retried until it says something usable. A reply that omits its working, or
+answers the wrong audience's question, is rejected by the parser for the same
+reason.
+
 ## What runs automatically, and what costs money
 
 The daily pipeline runs every deterministic, free stage — ingest, filter,
@@ -250,8 +351,12 @@ exits on the validation battery's verdict. The three paid steps stay manual and
 explicit: `judge` (new pairwise labels), `x` (the paid source), and `personas`
 (the written reading). Each previews its projected spend before sending, checks
 the API key and the price table, and refuses to start a run it cannot afford.
-Cost is logged per call to `llm_calls`; the whole system to date has spent about
-$25 (the exact per-task split is in `docs/metrics-out.txt`, section M5a).
+Cost is logged per call to `llm_calls`; the whole system to date has spent
+**$25.18 across 7,423 calls**. Extraction — the part that produces what a reader
+sees — is 19.7% of that; judging and labeling, which exist only to validate the
+ranking, are 64.8%. The full breakdown, the unit economics and the three places
+cost changed a design decision are in [tokenomics.md](tokenomics.md); the raw
+per-task split is `docs/metrics-out.txt`, section M5a.
 
 ## Data discipline
 

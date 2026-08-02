@@ -14,25 +14,44 @@ Meta AI, Mistral, DeepSeek, Qwen, xAI) and the people inside them. It has
 ingested 1,541 documents from official channels, extracted **734 evidence-backed
 events** from them, resolved **285 researchers across 322 identities** on arXiv,
 GitHub, X and lab pages, and ranks every event twice — once for an investment
-reader, once for an engineering reader — from 2,159 pairwise labels (1,732 from
+reader, once for an engineering reader — from 2,165 pairwise labels (1,738 from
 two model-judge families, 427 from a human). It then
 connects lab events to public-equity holdings, writes a per-audience reading of
 each, and delivers a cited digest and an alert path. Total LLM spend to date is
-about $25 — including a $1.05 claim-repair pass that lifted claim↔quote
-entailment from 52% to 95.2% (699/734 entailed).
+**$25.18 across 7,423 calls** — including a $1.05 claim-repair pass that lifted
+claim↔quote entailment from 52.0% to 95.2% (699/734 entailed).
 
 ## The headline finding: one ranking cannot serve two readers
 
 The most important structural result is not any single event — it is that
 "important" is not one thing. The same 734 events, the same features, the same
 clustering, ranked under two audience rubrics, produce two orderings that share
-**2 of their top 10** and correlate at a Kendall τ of ≈ +0.04 — near zero. A model with
-released weights and a reproducible method sits at the *top* of the engineering
-ranking (DiffusionGemma, Qwen-AgentWorld) and near the *bottom* of the
-investment one, while a token-price change sits high for the investor and
-nowhere for the engineer. This is measured, not asserted, and it is the
-justification for the entire two-persona design: a single "importance score"
-would have quietly served one audience and mis-served the other.
+**0 of their top 10** (8% of the top 25) and correlate at a Kendall τ of
+**+0.064** — near zero. Read the two lists side by side and the reason is
+obvious:
+
+| rank | investment ranking | rank | engineering ranking |
+|---:|---|---:|---|
+| 1 | Meta: 3.28 MW datacenter power saved via kernel scheduler | 1 | Mistral: Devstral 2 (123B) + Small 2 (24B) open weights |
+| 2 | Google: Gemini for Government, tens of thousands of seats | 2 | DeepSeek: V3.2 + V3.2-Speciale open source |
+| 3 | Google: $40M in tokens/credits to the DOE Genesis Mission | 3 | Qwen: six dense models open-weighted (32B→1.7B) |
+| 6 | Google: DiffusionGemma, 3.8B active of 26B, fits in 18 GB | 4 | Mistral: paper + public weights + live playground |
+| 8 | Google: Gemini Omni Flash at $0.10/second of video | 5 | Mistral: text LLM powers Kyutai's open-source Unmute |
+| 10 | OpenAI: Health in ChatGPT | 6 | Qwen3: multilingual support from 29 → 119 languages |
+
+Eight of the engineering top 10 are `open_source` events; the investment top 10
+is `commercial` and `infrastructure` — government cloud commitments, token
+pricing, datacenter power. Neither list would serve the other reader at all.
+This is measured, not asserted, and it is the justification for the entire
+two-persona design: a single "importance score" would have quietly served one
+audience and mis-served the other.
+
+*(The investment ranks skip numbers because the raw corpus ranking does not
+collapse clusters: ranks 3/4/5 are three near-identical reports of the same $40M
+commitment, 6/7 one DiffusionGemma story, 8/9 one pricing story. Distinct
+stories are shown. The engineering top 10 has no such duplicates. The reader
+never sees them either — the delivered slate suppresses them — but it is a real
+defect in the diagnostic, discussed under the honest negatives below.)*
 
 ## Insight 1 (investment) — OpenAI's Health launch is a direct threat to two holdings
 
@@ -50,10 +69,17 @@ medical records for personalized health" — not on a keyword. It is rated
 *medium* confidence over *quarters*, which is the honest calibration: the feature
 has shipped, but its effect on either holding's funnel is a plausible mechanism,
 not a measured one. This is exactly the kind of private-lab-to-public-equity
-connection the system exists to surface, and notably this event scores *below the median*
-on the investment ranking — the rubric rewards specificity and shipped-ness, not
-portfolio consequence — which is why the alert path triggers on the *signed
-direction*, not the score.
+connection the system exists to surface.
+
+It also fired the alert path twice (`signed_position` and `signed_reading`, both
+on 2026-07-30), and **neither trigger was the score.** That is deliberate, and
+this event shows why: its rank on the investment ranking is not stable across
+the bake-off contenders — 10th under the shipped GBM, 15th under logistic, 26th
+under hand-weights, 84th under the recency baseline. A top-decile alert rule
+would have fired or not fired depending on which model won a bake-off, which is
+no basis for waking a PM. So an alert fires on a *signed direction* — a
+classifier-established position edge, or a persona reading at medium-or-better
+confidence — and the `alerts` table's UNIQUE key means it fires exactly once.
 
 ## Insight 2 (investment) — the same channel points in opposite directions, and the system refuses to average them
 
@@ -82,10 +108,13 @@ dashboard.
 ## Insight 3 (engineering) — the actionable frontier is efficiency and open weights, not benchmark records
 
 For the engineering reader, the top of the ranking is dominated by *usable* and
-*reproducible* work, exactly as the technical rubric intends. The top items are
-DiffusionGemma (an open 26B text-diffusion model under a permissive licence),
-Qwen-AgentWorld-35B-A3B (open-source MoE for agentic workloads), and Meta's
-Content Seal provenance signal. The system's readings are correspondingly
+*reproducible* work, exactly as the technical rubric intends — **8 of the top 10
+are `open_source` events**: Mistral's Devstral 2 (123B) and Devstral Small 2
+(24B) open-weight release, DeepSeek V3.2 and V3.2-Speciale with a technical
+report, Qwen open-weighting six dense models from 32B down to 1.7B, and
+DeepSeek-V4 Preview at a 1M-token context. Corpus-wide, `open_source` is only 44
+of 734 events (6%), so the technical ranking is concentrating on a thin slice of
+the corpus rather than following volume. The system's readings are correspondingly
 restrained: the dominant verdict is *investigate* ("spike it in a sandbox,
 benchmark against what we run"), with *adopt* reserved for the rare case of
 released weights plus a clear reason to switch. This restraint is the honest
@@ -117,13 +146,14 @@ DeepSeek publishes almost nothing on official channels (37 events in the
 corpus); Google DeepMind publishes constantly (232). A volume-following score
 would read that 6× coverage gap as a 6× importance gap. The measured result
 is the opposite: in the investment top-50, **DeepSeek is over-represented at
-2.8× its corpus share** (5% of events, 14% of the top 50) — the ranking
+2.4× its corpus share** (5% of events, 12% of the top 50) — the ranking
 treats scarcity of publication as orthogonal to importance, so the quiet
 lab's rare disclosures rank on their content. Two design choices produce
 this: scoring is pairwise (an event competes against events, never against a
 lab's volume), and the digest caps per-lab slate seats. The per-lab fairness
-figure closes the loop — DeepSeek's ranking lift (+0.41 over its base rate)
-is among the highest despite the thinnest coverage.
+figure closes the loop — DeepSeek reaches p@10 = 0.90 on 29 scored events, and
+normalized by the headroom its high base rate leaves (lift/ceiling 76%) it is
+second only to Google DeepMind, despite the thinnest coverage in the corpus.
 
 ## The honest negatives
 
@@ -145,6 +175,19 @@ without an established direction. This is the correct default for a fund that
 cannot trade the labs themselves, but it means the investment product is a small
 number of high-conviction connections surrounded by an honest majority of "we
 see it, we can't sign it", not a dense signal.
+
+**The corpus ranking does not collapse clusters; only the delivered slate does.**
+Clustering correctly groups near-duplicate claims — the three reports of Google's
+$40M Genesis commitment all carry `cluster_id` 32 — but `event_scores.rank`
+orders all 734 events without consulting that grouping, so the raw investment
+top 10 contains only **6 distinct stories**. A reader never sees this: the slate
+builder (`fli/intelligence/scoring.py`, `seen_clusters`) enforces one item per
+cluster and reports what it suppressed, and the committed investment digest says
+so in as many words: *"669 no mechanism, 21 lab cap, 14 outside window, 11 not
+entailed, 4 duplicate cluster, 4 same story, 3 undated."* So the product is correct and
+the diagnostic is not — but the divergence figure above is computed on raw
+ranks, which means its "top 10" is really a top 6. The fix is to rank on cluster
+representatives rather than events, and it is the first thing on the next list.
 
 **The two model judges agree with each other more than with the human.** On the
 363 investment pairs a human has now labelled, the two models (Claude and GPT)
@@ -170,9 +213,11 @@ the human to be. The practical reading: the models
 are a usable ranking signal (κ 0.35 with a human on typical pairs is real
 agreement, not noise), but they are not ground truth, and the highest-value
 labels to buy next are human ones. The winner model's ranking decisions now
-agree with 0.678 of the 323 decided human investment pairs — reported in the
-bake-off as a fully out-of-sample audit, since human labels never train the
-model.
+agree with **0.703 of the 323 decided human investment pairs** (and 0.811 of the
+53 technical ones) — reported in the bake-off as a fully out-of-sample audit,
+since human labels never train the model. That it sits below the 0.835 measured
+against the LLM reference is the expected and correct direction: agreeing with
+the judge that trained you is easier than agreeing with a person.
 
 **The talent-mobility path is built but unwitnessed.** The system can synthesize
 a personnel event from a researcher observed at two labs in succession, and the
@@ -183,7 +228,7 @@ is real; the data is not there yet, and the report distinguishes the two.
 **The lab with the weakest ranking lift was investigated, and the gap is
 composition, not bias.** An earlier bake-off showed Meta AI with the lowest
 per-lab lift (+0.05 on a 0.55 base rate), which looks like the ranking
-treating one lab worse. Three measured checks say otherwise. First, judge
+treating one lab worse. Three measured checks said otherwise. First, judge
 quality is *better* on Meta pairs, not worse: on pairs a human also labelled,
 human–judge agreement is 0.761 when the pair touches a Meta event versus
 0.696 when it does not — the labels are not the problem. Second, the gap is
@@ -192,23 +237,35 @@ composition: 44% of Meta's events are `infrastructure` engineering posts
 specificity, no market mechanism — that the investment rubric tells judges to
 rank low but that the feature surface used to reward. Third, the fix worked:
 after adding a `mechanism_channel` feature (does the event's own quote
-establish a market mechanism?) and ~320 more judge labels, Meta's lift
-recovered to +0.26 and its top-10 misses fell from four to two. The remaining
-spread is mostly ceiling arithmetic — lift is bounded by 1−base, and Meta's
-0.54 base is the second-highest — so normalized by headroom Meta sits at 56%,
-statistically indistinguishable from Anthropic's 57%. Lab identity is never a
-feature; the figure now reports both lift and lift-over-ceiling so this class
-of question can be answered by reading, not re-investigating.
+establish a market mechanism?) — now the largest positive weight in the fitted
+model at +0.989 — and ~320 more judge labels, **Meta's lift recovered from +0.05
+to +0.257** and it is no longer the weakest lab.
+
+The current weakest is Mistral (+0.243 on a 0.357 base, n=28), and the diagnosis
+reads the same: its top-10 misses are `release` ×2 and `infrastructure` ×2 —
+the identical official-channel-engineering-post shape. That the same diagnosis
+now lands on a different lab is the useful result. It says this is a *feature
+surface* limitation that moves around with corpus composition, not a lab the
+model dislikes — and lab identity is never a feature, so it structurally cannot
+be. Most of the remaining spread is ceiling arithmetic: lift is bounded by
+1−base, so the figure reports both lift and lift-over-ceiling (Google DeepMind
+100%, DeepSeek 76%, Qwen 71%, OpenAI 68%, Meta AI 56%, Anthropic 43%, Mistral
+38%) and this class of question can be answered by reading rather than
+re-investigating.
 
 ## Where the signal is strongest, and what it would take to deepen it
 
-The learning curve is still climbing — the last 80→160 pairs of judge labels
-moved held-out accuracy by ~7 points — so more labels are worth buying, and the
-human audit shows the highest-value labels are human ones. One honest wrinkle:
-as the label set grew from 260 to 580 investment pairs, headline held-out
-accuracy *fell* from 0.879 to 0.844 — not because the model got worse, but
-because the newer labels deliberately cover harder, more diverse pairs; the
-early number was flattered by an easier test set. The investment
+The learning curve is still climbing — the last step, 160→320 pairs, moved
+held-out accuracy +0.025 — so more labels are worth buying, and the human audit
+shows the highest-value labels are human ones. One honest wrinkle: headline
+held-out accuracy has not risen monotonically as labels were added. It has been
+as high as 0.879 on an earlier, smaller label set and currently sits at 0.835 on
+581 — not because the model got worse, but because newer labels deliberately
+cover harder, more diverse pairs; the early number was flattered by an easier
+test set. Cost points the same way: GPT-5.2 produces a usable label for
+$0.0028 against Sonnet's $0.0182 with marginally *higher* estimated reliability,
+so the same budget already spent on judging would buy roughly 4,600 more labels
+instead of 708. The investment
 product is sharpest where a lab enters a market a holding occupies
 (displacement, which carries an inherent sign) and weakest on demand channels
 (where the sign needs a per-event reading). The engineering product is already

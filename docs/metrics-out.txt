@@ -7,7 +7,7 @@
     (was: DeepSeek 87.1% source_inferred because "DeepSeek-AI"/"DeepSeek-V4"
      tokenised as one hyphenated token and never matched "DeepSeek")
 ┌─────────────────┬──────────┬────────────────┬─────────────────┬──────────────┐
-│ lab             │ insights │ model_asserted │ source_inferred │ pct_inferred │
+│       lab       │ insights │ model_asserted │ source_inferred │ pct_inferred │
 ├─────────────────┼──────────┼────────────────┼─────────────────┼──────────────┤
 │ Google DeepMind │ 232      │ 219            │ 13              │ 5.6          │
 │ Qwen            │ 140      │ 123            │ 17              │ 12.1         │
@@ -23,7 +23,7 @@
     (was: failed quotes silently `continue`d, so D1 read 99.8% because
      failures were no longer counted, not because they stopped happening)
 ┌──────────────┬─────────────────────┬─────┐
-│ stage        │ reason              │ n   │
+│    stage     │       reason        │  n  │
 ├──────────────┼─────────────────────┼─────┤
 │ verification │ claim_rewritten     │ 338 │
 │ verification │ quote_unverified    │ 43  │
@@ -87,7 +87,7 @@
 
 ================ M1b · REJECTION REASONS (noise-floor appendix) ================
 ┌──────────────┬────────────────────────────┬─────┐
-│ stage        │ reason                     │ n   │
+│    stage     │           reason           │  n  │
 ├──────────────┼────────────────────────────┼─────┤
 │ stage1       │ no_tracked_entity          │ 523 │
 │ verification │ claim_rewritten            │ 338 │
@@ -140,7 +140,7 @@
 
 ================ M2b · VERIFICATION METHOD, BY POPULATION ================
 ┌──────────────────────┬──────────────┬──────┐
-│ population           │ verification │ n    │
+│      population      │ verification │  n   │
 ├──────────────────────┼──────────────┼──────┤
 │ insight (extraction) │ exact        │ 734  │
 │ register (entity)    │ exact        │ 305  │
@@ -160,7 +160,7 @@
 
 ================ M3b · QUOTE LENGTH IN WORDS — EXTRACTION ONLY (spec: 10-60) ================
 ┌──────────────────────────┬─────┬──────┐
-│ bucket                   │ n   │ pct  │
+│          bucket          │  n  │ pct  │
 ├──────────────────────────┼─────┼──────┤
 │ 1. under 10 (under-spec) │ 48  │ 6.5  │
 │ 2. 10-19                 │ 159 │ 21.7 │
@@ -187,7 +187,7 @@
 
 ================ M3d · RECENCY PROFILE (docs per month) ================
 ┌─────────┬──────┐
-│ month   │ docs │
+│  month  │ docs │
 ├─────────┼──────┤
 │ 2026-07 │ 486  │
 │ 2026-06 │ 152  │
@@ -205,7 +205,7 @@
 
 ================ M3e · EVENT TYPE DISTRIBUTION (D2) ================
 ┌────────────────┬─────┬──────┐
-│ event_type     │ n   │ pct  │
+│   event_type   │  n  │ pct  │
 ├────────────────┼─────┼──────┤
 │ release        │ 221 │ 30.1 │
 │ research       │ 140 │ 19.1 │
@@ -219,7 +219,7 @@
 
 ================ M4b · REGISTER BALANCE (seeds / layer-below / insights per lab) ================
 ┌─────────────────┬───────┬─────────────┬──────────┐
-│ lab             │ seeds │ layer_below │ insights │
+│       lab       │ seeds │ layer_below │ insights │
 ├─────────────────┼───────┼─────────────┼──────────┤
 │ Google DeepMind │ 54    │ 15          │ 232      │
 │ Qwen            │ 10    │ 15          │ 140      │
@@ -242,7 +242,7 @@
 
 ================ M4d · ENTITY RESOLUTION BY TIER / METHOD ================
 ┌──────────┬─────────────────┬───────────────────┬─────┐
-│ platform │ confidence_tier │ resolution_method │ n   │
+│ platform │ confidence_tier │ resolution_method │  n  │
 ├──────────┼─────────────────┼───────────────────┼─────┤
 │ github   │ verbatim        │ self_link         │ 145 │
 │ arxiv    │ corroborated    │ coauthor_overlap  │ 105 │
@@ -255,7 +255,7 @@
 
 ================ M4e · EVENT ENTITIES BY KIND / ROLE / BASIS ================
 ┌─────────────┬─────────┬─────────────────┬─────┐
-│ entity_kind │ role    │ basis           │ n   │
+│ entity_kind │  role   │      basis      │  n  │
 ├─────────────┼─────────┼─────────────────┼─────┤
 │ lab         │ subject │ model_asserted  │ 703 │
 │ person      │ author  │ source_inferred │ 346 │
@@ -264,34 +264,35 @@
 └─────────────┴─────────┴─────────────────┴─────┘
 
 ================ M5a · TOKENOMICS BY TASK ================
-┌──────────┬───────────────────────────┬───────┬─────────┬─────────┬────────┬──────────────┐
-│ task     │ model                     │ calls │ tok_in  │ tok_out │ usd    │ usd_per_call │
-├──────────┼───────────────────────────┼───────┼─────────┼─────────┼────────┼──────────────┤
-│ judge    │ claude-sonnet-5           │ 2665  │ 2917605 │ 271614  │ 12.827 │ 0.00481      │
-│ extract  │ claude-sonnet-5           │ 350   │ 760384  │ 178246  │ 4.9548 │ 0.01416      │
-│ label    │ claude-sonnet-5           │ 385   │ 369625  │ 44768   │ 1.7804 │ 0.00462      │
-│ judge    │ gpt-5.2                   │ 762   │ 574996  │ 46537   │ 1.6578 │ 0.00218      │
-│ repair   │ claude-sonnet-5           │ 341   │ 171544  │ 35538   │ 1.0477 │ 0.00307      │
-│ verify   │ claude-haiku-4-5-20251001 │ 1241  │ 430100  │ 79101   │ 0.8256 │ 0.00067      │
-│ channel  │ claude-haiku-4-5-20251001 │ 1016  │ 457612  │ 68495   │ 0.8001 │ 0.00079      │
-│ persona  │ claude-sonnet-5           │ 92    │ 85448   │ 26339   │ 0.6514 │ 0.00708      │
-│ classify │ claude-haiku-4-5-20251001 │ 433   │ 328715  │ 29045   │ 0.4739 │ 0.00109      │
-└──────────┴───────────────────────────┴───────┴─────────┴─────────┴────────┴──────────────┘
+┌──────────────┬───────────────────────────┬───────┬─────────┬─────────┬─────────┬──────────────┐
+│     task     │           model           │ calls │ tok_in  │ tok_out │   usd   │ usd_per_call │
+├──────────────┼───────────────────────────┼───────┼─────────┼─────────┼─────────┼──────────────┤
+│ judge        │ claude-sonnet-5           │ 2673  │ 2924907 │ 272338  │ 12.8676 │ 0.00481      │
+│ extract      │ claude-sonnet-5           │ 350   │ 760384  │ 178246  │ 4.9548  │ 0.01416      │
+│ label        │ claude-sonnet-5           │ 385   │ 369625  │ 44768   │ 1.7804  │ 0.00462      │
+│ judge        │ gpt-5.2                   │ 762   │ 574996  │ 46537   │ 1.6578  │ 0.00218      │
+│ repair       │ claude-sonnet-5           │ 341   │ 171544  │ 35538   │ 1.0477  │ 0.00307      │
+│ verify       │ claude-haiku-4-5-20251001 │ 1241  │ 430100  │ 79101   │ 0.8256  │ 0.00067      │
+│ channel      │ claude-haiku-4-5-20251001 │ 1016  │ 457612  │ 68495   │ 0.8001  │ 0.00079      │
+│ persona      │ claude-sonnet-5           │ 92    │ 85448   │ 26339   │ 0.6514  │ 0.00708      │
+│ classify     │ claude-haiku-4-5-20251001 │ 433   │ 328715  │ 29045   │ 0.4739  │ 0.00109      │
+│ faithfulness │ claude-haiku-4-5-20251001 │ 130   │ 64558   │ 36097   │ 0.1225  │ 0.00094      │
+└──────────────┴───────────────────────────┴───────┴─────────┴─────────┴─────────┴──────────────┘
 
 ================ M5a2 · REASONING TOKENS (billed as output) ================
-┌───────────────────────────┬───────┬─────────┬───────────────┬──────────────────────────────┬─────────┐
-│ model                     │ calls │ tok_out │ tok_reasoning │ pct_output_that_was_thinking │ usd     │
-├───────────────────────────┼───────┼─────────┼───────────────┼──────────────────────────────┼─────────┤
-│ claude-sonnet-5           │ 3833  │ 556505  │ 0             │ 0.0                          │ 21.2614 │
-│ claude-haiku-4-5-20251001 │ 2690  │ 176641  │ 0             │ 0.0                          │ 2.0996  │
-│ gpt-5.2                   │ 762   │ 46537   │ 0             │ 0.0                          │ 1.6578  │
-└───────────────────────────┴───────┴─────────┴───────────────┴──────────────────────────────┴─────────┘
+┌───────────────────────────┬───────┬─────────┬───────────────┬──────────────────────────────┬────────┐
+│           model           │ calls │ tok_out │ tok_reasoning │ pct_output_that_was_thinking │  usd   │
+├───────────────────────────┼───────┼─────────┼───────────────┼──────────────────────────────┼────────┤
+│ claude-sonnet-5           │ 3841  │ 557229  │ 0             │ 0.0                          │ 21.302 │
+│ claude-haiku-4-5-20251001 │ 2820  │ 212738  │ 0             │ 0.0                          │ 2.2222 │
+│ gpt-5.2                   │ 762   │ 46537   │ 0             │ 0.0                          │ 1.6578 │
+└───────────────────────────┴───────┴─────────┴───────────────┴──────────────────────────────┴────────┘
 
 ================ M5a3 · JUDGE COST PER USABLE LABEL, BY MODEL ================
 ┌─────────────────┬────────┬────────┬──────────────┐
-│ judge_model     │ judged │ usable │ pct_low_conf │
+│   judge_model   │ judged │ usable │ pct_low_conf │
 ├─────────────────┼────────┼────────┼──────────────┤
-│ claude-sonnet-5 │ 970    │ 707    │ 27.1         │
+│ claude-sonnet-5 │ 976    │ 708    │ 27.5         │
 │ gpt-5.2         │ 762    │ 594    │ 22.0         │
 └─────────────────┴────────┴────────┴──────────────┘
 
@@ -299,7 +300,7 @@
 ┌───────────┬──────────┬─────────────────┬──────────────────────┬─────────────────────┐
 │ total_usd │ insights │ usd_per_insight │ killed_by_haiku_gate │ pct_cost_in_extract │
 ├───────────┼──────────┼─────────────────┼──────────────────────┼─────────────────────┤
-│ 25.0188   │ 734      │ 0.03409         │ 102                  │ 19.8                │
+│ 25.1819   │ 734      │ 0.03431         │ 102                  │ 19.7                │
 └───────────┴──────────┴─────────────────┴──────────────────────┴─────────────────────┘
 
 ================ M6a · FETCH STATUS ================
@@ -307,7 +308,7 @@
     ok, the error-handling paths are no longer *demonstrated* in the committed DB —
     keep a prior DB or a log excerpt as the artifact.
 ┌────────┬─────┐
-│ status │ n   │
+│ status │  n  │
 ├────────┼─────┤
 │ empty  │ 16  │
 │ error  │ 148 │
@@ -316,7 +317,7 @@
 
 ================ M6b · NON-OK FETCHES BY SOURCE ================
 ┌──────────────────────────────┬─────────────┬────────┬───┬───────────────────────────┐
-│ name                         │ source_type │ status │ n │ last_try                  │
+│             name             │ source_type │ status │ n │         last_try          │
 ├──────────────────────────────┼─────────────┼────────┼───┼───────────────────────────┤
 │ xAI blog: x.ai               │ blog        │ error  │ 7 │ 2026-07-30T10:26:27+00:00 │
 │ xAI github: github.com       │ github      │ empty  │ 7 │ 2026-07-30T10:26:27+00:00 │
@@ -360,7 +361,7 @@
 
 ================ M7 · LABS x EVENT TYPE (cross-tab for the report) ================
 ┌─────────────────┬─────────┬──────────┬───────────┬───────┬────────────┬──────────┬───────────┬───────┬───────┐
-│ lab             │ release │ research │ benchmark │ infra │ commercial │ open_src │ personnel │ other │ total │
+│       lab       │ release │ research │ benchmark │ infra │ commercial │ open_src │ personnel │ other │ total │
 ├─────────────────┼─────────┼──────────┼───────────┼───────┼────────────┼──────────┼───────────┼───────┼───────┤
 │ Google DeepMind │ 75      │ 47       │ 11        │ 15    │ 41         │ 8        │ 0         │ 35    │ 232   │
 │ Qwen            │ 47      │ 28       │ 32        │ 3     │ 7          │ 23       │ 0         │ 0     │ 140   │
@@ -378,7 +379,7 @@
 
 ================ S1 · MODELS IN THE BAKE-OFF (identical coverage = C16) ================
 ┌───────────────────────────────────┬────────┬─────────┬───────┐
-│ model                             │ events │ min_s   │ max_s │
+│               model               │ events │  min_s  │ max_s │
 ├───────────────────────────────────┼────────┼─────────┼───────┤
 │ baseline_corroboration            │ 734    │ 1.0     │ 6.0   │
 │ baseline_recency                  │ 734    │ 0.0     │ 0.967 │
@@ -398,24 +399,43 @@
 └───────────────────────────────────┴────────┴─────────┴───────┘
 
 ================ S2 · TOP-10 EVENTS (winning model, from insights.score) ================
-┌───────┬─────────────────┬────────────────┬────────────────────────────────────────────────────────────────────┐
-│ score │ lab             │ event_type     │ claim                                                              │
-├───────┼─────────────────┼────────────────┼────────────────────────────────────────────────────────────────────┤
-│ 5.83  │ Google DeepMind │ commercial     │ Google will provide Gemini for Government seats and tokens for one │
-│ 5.513 │ Meta AI         │ infrastructure │ Meta achieved a 28% reduction in ads retrieval stage tail (99th pe │
-│ 5.203 │ Google DeepMind │ commercial     │ Google is committing $40 million in AI tokens and cloud credits fo │
-│ 5.203 │ Google DeepMind │ commercial     │ Google is committing $40 million in AI tokens and cloud credits fo │
-│ 5.203 │ Google DeepMind │ commercial     │ Google committed $40 million in AI tokens and cloud credits to sup │
-│ 5.148 │ DeepSeek        │ release        │ DeepSeek-AI released DeepSeek-V2, a 236B-parameter Mixture-of-Expe │
-│ 5.135 │ OpenAI          │ infrastructure │ Deutsche Telekom uses AI with various partners to optimize mobile  │
-│ 5.043 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B total parameters dur │
-│ 5.043 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B parameters during in │
-│ 4.953 │ Google DeepMind │ commercial     │ AlphaEvolve is now driving commercial business results, including  │
-└───────┴─────────────────┴────────────────┴────────────────────────────────────────────────────────────────────┘
+┌───────┬─────────────────┬────────────────┬──────────────────────────────────────────────────────────────┐
+│ score │       lab       │   event_type   │                            claim                             │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.83  │ Google DeepMind │ commercial     │ Google will provide Gemini for Government seats and tokens f │
+│       │                 │                │ or one                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.513 │ Meta AI         │ infrastructure │ Meta achieved a 28% reduction in ads retrieval stage tail (9 │
+│       │                 │                │ 9th pe                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.203 │ Google DeepMind │ commercial     │ Google is committing $40 million in AI tokens and cloud cred │
+│       │                 │                │ its fo                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.203 │ Google DeepMind │ commercial     │ Google is committing $40 million in AI tokens and cloud cred │
+│       │                 │                │ its fo                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.203 │ Google DeepMind │ commercial     │ Google committed $40 million in AI tokens and cloud credits  │
+│       │                 │                │ to sup                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.148 │ DeepSeek        │ release        │ DeepSeek-AI released DeepSeek-V2, a 236B-parameter Mixture-o │
+│       │                 │                │ f-Expe                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.135 │ OpenAI          │ infrastructure │ Deutsche Telekom uses AI with various partners to optimize m │
+│       │                 │                │ obile                                                        │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.043 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B total paramete │
+│       │                 │                │ rs dur                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 5.043 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B parameters dur │
+│       │                 │                │ ing in                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 4.953 │ Google DeepMind │ commercial     │ AlphaEvolve is now driving commercial business results, incl │
+│       │                 │                │ uding                                                        │
+└───────┴─────────────────┴────────────────┴──────────────────────────────────────────────────────────────┘
 
 ================ S3 · PER-LAB SHARE OF TOP-30 (ranked-output fairness view) ================
 ┌─────────────────┬──────────┐
-│ lab             │ in_top30 │
+│       lab       │ in_top30 │
 ├─────────────────┼──────────┤
 │ Google DeepMind │ 12       │
 │ OpenAI          │ 9        │
@@ -428,10 +448,10 @@
 
 ================ S4 · PAIRWISE LABELS (ground truth) ================
 ┌────────┬──────┐
-│ winner │ n    │
+│ winner │  n   │
 ├────────┼──────┤
-│ a      │ 1141 │
-│ b      │ 967  │
+│ a      │ 1145 │
+│ b      │ 969  │
 │ tie    │ 51   │
 └────────┴──────┘
 
@@ -442,7 +462,7 @@
     14 days of publication, i.e. those the scheduler caught live — is
     the one that answers "how fresh is the intelligence".
 ┌───────────────────────────┬──────┬──────────┬────────────┐
-│ cohort                    │ docs │ mean_lag │ median_lag │
+│          cohort           │ docs │ mean_lag │ median_lag │
 ├───────────────────────────┼──────┼──────────┼────────────┤
 │ all documents             │ 1189 │ 122.7    │ 38.3       │
 │ steady state (lag <= 14d) │ 425  │ 6.0      │ 4.7        │
