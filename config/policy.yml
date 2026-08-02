@@ -138,6 +138,16 @@ story_days: 7
 # Like every rule here, render-time only — the scorer never sees it.
 require_mechanism: [investment]
 
+# Rubrics whose slate also drops an event when the system's OWN reading found
+# nothing the fund owns: the persona verdict is `unclear` naming no ticker AND
+# the exposure scan drew no event→holding edge. Direct response to the second
+# f16 failure class — two of the 2026-08-02 digest's items carried readings
+# that said, in as many words, "this touches no holding", yet were delivered
+# at the top of the slate. An event without a reading still passes (a missing
+# reading is not evidence about the event); only a reading that positively
+# found no link suppresses. Render-time only — the scorer never sees it.
+require_holding_link: [investment]
+
 # The persona whose ranking also lands in insights.score, and which the
 # evaluation figures describe unless told otherwise. Which audience the fund
 # serves by default is a business decision, so it lives here, not in code.
