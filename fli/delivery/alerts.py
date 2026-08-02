@@ -47,6 +47,8 @@ SINKS = {"stdout": _sink_stdout, "null": _sink_null, "slack": _sink_slack}
 
 def candidates(conn, days: int = 7) -> list[dict]:
     """Everything the rules select, whether or not it has already fired."""
+    from fli.intelligence.scoring import slate_anchor
+    anchor = slate_anchor(conn).isoformat()   # newest doc, not wall clock
     out: list[dict] = []
 
     by_event: dict[int, dict] = {}
@@ -59,8 +61,8 @@ def candidates(conn, days: int = 7) -> list[dict]:
             " JOIN raw_documents d ON d.id = ev.document_id"
             " WHERE ep.direction <> 'unclear'"
             "   AND d.published_at IS NOT NULL"
-            "   AND julianday('now') - julianday(d.published_at) <= ?"
-            " ORDER BY ep.event_id, ep.ticker", (days,)):
+            "   AND julianday(?) - julianday(d.published_at) <= ?"
+            " ORDER BY ep.event_id, ep.ticker", (anchor, days)):
         a = by_event.setdefault(r["event_id"], {
             "event_id": r["event_id"], "persona": "investment",
             "rule": "signed_position", "_hits": [],
@@ -86,9 +88,9 @@ def candidates(conn, days: int = 7) -> list[dict]:
                 f" WHERE h.persona = ? AND h.direction IN ({qs})"
                 f"   AND h.confidence IN ({cs})"
                 f"   AND d.published_at IS NOT NULL"
-                f"   AND julianday('now') - julianday(d.published_at) <= ?"
+                f"   AND julianday(?) - julianday(d.published_at) <= ?"
                 f" ORDER BY h.insight_id",
-                (persona, *dirs, *MIN_CONFIDENCE, days)):
+                (persona, *dirs, *MIN_CONFIDENCE, anchor, days)):
             out.append({
                 "event_id": r["event_id"], "persona": persona,
                 "rule": "signed_reading",
