@@ -200,6 +200,12 @@ class _FakeLLM:
     def call(self, task, system, user, max_tokens=1024):
         return self._c if task == "classify" else self._e
 
+    def call_typed(self, task, system, user, schema, **kw):
+        # Same client-side path the real LLM falls back to, so the salvage
+        # + validation behaviour stays exercised without a network.
+        from fli.ops.llm import validate_json
+        return validate_json(self.call(task, system, user), schema)
+
 
 def _insights(*specs):
     return json.dumps({"insights": [

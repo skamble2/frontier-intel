@@ -35,6 +35,13 @@ class ExtractedInsight(BaseModel):
     attributed_person: str | None = None
 
 
+class ExtractionResult(BaseModel):
+    """The full extract-call answer: what the prompt's JSON contract promises,
+    as one schema — also sent to the API verbatim as the structured-output
+    constraint (see LLM.call_typed)."""
+    insights: list[ExtractedInsight] = []
+
+
 CLASSIFY_SYSTEM = """You classify documents from frontier AI lab channels.
 Return ONLY JSON: {"event_type": one of %s,
 "substantive": true|false, "reason": "<one line>"}.
@@ -70,26 +77,11 @@ def _extract_system(max_insights: int) -> str:
     return _EXTRACT_TEMPLATE % (EVENT_TYPES, max_insights)
 
 
-def _json_of(text: str) -> dict:
-    t = text.strip()
-    if t.startswith("```"):
-        t = t.split("```")[1]
-        t = t[4:] if t.startswith("json") else t
-    try:
-        return json.loads(t)
-    except json.JSONDecodeError:
-        # model wrapped the JSON in prose — take the outermost brace span
-        s, e = t.find("{"), t.rfind("}")
-        if s != -1 and e > s:
-            return json.loads(t[s:e + 1])
-        raise
-
-
 def classify(llm: LLM, content: str) -> Classification:
     """Cheap Haiku gate before the expensive Sonnet extract: it kills
     ~28% of documents, which more than pays for the 6k prefix both stages see."""
-    out = llm.call("classify", CLASSIFY_SYSTEM, content[:6000], max_tokens=200)
-    return Classification(**_json_of(out))
+    return llm.call_typed("classify", CLASSIFY_SYSTEM, content[:6000],
+                          Classification, max_tokens=200)
 
 
 def extract(llm: LLM, content: str) -> list[ExtractedInsight]:
@@ -102,10 +94,9 @@ def extract(llm: LLM, content: str) -> list[ExtractedInsight]:
     document's tail is currently unreachable.
     """
     max_insights = max(1, min(MAX_INSIGHTS_PER_DOC, len(content) // 1000))
-    out = llm.call("extract", _extract_system(max_insights), content[:12000], max_tokens=1500)
-    data = _json_of(out)
-    return [ExtractedInsight(**x)
-            for x in data.get("insights", [])][:max_insights]
+    result = llm.call_typed("extract", _extract_system(max_insights),
+                            content[:12000], ExtractionResult, max_tokens=1500)
+    return result.insights[:max_insights]
 
 
 def resolve_person(conn: sqlite3.Connection, name: str | None) -> int | None:

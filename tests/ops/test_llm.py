@@ -8,6 +8,8 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
+import pydantic as _pyd
+
 from fli.ops import llm as L
 from tests.helpers import memory_db
 
@@ -101,6 +103,95 @@ class CallLoggingTests(unittest.TestCase):
         self.assertEqual(kwargs["system"],
                          [{"type": "text", "text": "the system prompt",
                            "cache_control": {"type": "ephemeral"}}])
+
+
+class _Doc(_pyd.BaseModel):
+    kind: str
+    ok: bool = True
+
+
+class ValidateJsonTests(unittest.TestCase):
+    def test_plain_fenced_and_prose_wrapped_json_all_validate(self):
+        for raw in ['{"kind": "a"}',
+                    '```json\n{"kind": "a"}\n```',
+                    'Sure! Here it is: {"kind": "a"} hope that helps']:
+            with self.subTest(raw=raw[:20]):
+                self.assertEqual(L.validate_json(raw, _Doc).kind, "a")
+
+    def test_unparseable_raises_jsondecodeerror(self):
+        import json
+        with self.assertRaises(json.JSONDecodeError):
+            L.validate_json("no json at all", _Doc)
+
+    def test_schema_mismatch_raises_validationerror(self):
+        with self.assertRaises(_pyd.ValidationError):
+            L.validate_json('{"wrong": 1}', _Doc)
+
+
+class CallTypedTests(unittest.TestCase):
+    def setUp(self):
+        # capability memory is class-level: isolate it per test
+        L.LLM._no_output_config = set()
+
+    def _llm(self, replies):
+        conn = _mem_conn()
+        llm = L.LLM(conn)
+        client = mock.MagicMock()
+        client.messages.create.side_effect = replies
+        llm._clients["anthropic"] = client
+        return llm, client
+
+    def test_anthropic_call_sends_the_pydantic_schema_as_output_config(self):
+        llm, client = self._llm([_message('{"kind": "x"}')])
+        out = llm.call_typed("verify", "sys", "u", _Doc, max_tokens=50)
+        self.assertEqual(out, _Doc(kind="x"))
+        kwargs = client.messages.create.call_args.kwargs
+        sent = kwargs["output_config"]
+        self.assertEqual(sent["format"]["type"], "json_schema")
+        schema = sent["format"]["schema"]
+        self.assertEqual(schema["properties"],
+                         _Doc.model_json_schema()["properties"])
+        # the endpoint 400s without this on every object (measured)
+        self.assertIs(schema["additionalProperties"], False)
+
+    def test_strict_schema_closes_nested_objects_but_not_the_models(self):
+        class Inner(_pyd.BaseModel):
+            a: int
+
+        class Outer(_pyd.BaseModel):
+            items: list[Inner] = []
+
+        s = L._strict_schema(Outer.model_json_schema())
+        self.assertIs(s["additionalProperties"], False)
+        self.assertIs(s["$defs"]["Inner"]["additionalProperties"], False)
+        # the models themselves still ignore extra keys (fallback behaviour)
+        self.assertEqual(Outer.model_validate(
+            {"items": [{"a": 1, "extra": "ok"}]}).items[0].a, 1)
+
+    def test_output_config_rejection_falls_back_and_is_remembered(self):
+        llm, client = self._llm([
+            TypeError("create() got an unexpected keyword argument "
+                      "'output_config'"),
+            _message('{"kind": "x"}'),
+            _message('{"kind": "y"}')])
+        self.assertEqual(llm.call_typed("verify", "s", "u", _Doc).kind, "x")
+        model = L.MODEL_FOR_TASK["verify"]
+        self.assertIn(model, L.LLM._no_output_config)
+        # second call: straight to the plain path, no retried output_config
+        self.assertEqual(llm.call_typed("verify", "s", "u", _Doc).kind, "y")
+        for c in client.messages.create.call_args_list[1:]:
+            self.assertNotIn("output_config", c.kwargs)
+
+    def test_unrelated_api_error_is_not_swallowed(self):
+        llm, _ = self._llm([RuntimeError("overloaded_error")])
+        with self.assertRaises(RuntimeError):
+            llm.call_typed("verify", "s", "u", _Doc)
+        self.assertEqual(L.LLM._no_output_config, set())
+
+    def test_plain_call_never_sends_output_config(self):
+        llm, client = self._llm([_message("hi")])
+        llm.call("verify", "s", "u")
+        self.assertNotIn("output_config", client.messages.create.call_args.kwargs)
 
 
 def _batch_entry(cid, text=None, **usage_kw):

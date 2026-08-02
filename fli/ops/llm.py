@@ -1,12 +1,17 @@
 """LLM client. Every call is cost-logged to llm_calls from call #1."""
 from __future__ import annotations
 
+import json
 import os
 import sqlite3
 import time
-from typing import Any
+from typing import Any, TypeVar
+
+from pydantic import BaseModel
 
 from fli.core.paths import ROOT
+
+T = TypeVar("T", bound=BaseModel)
 
 
 def load_dotenv() -> None:
@@ -142,6 +147,48 @@ def _flatten(user: str | list[dict]) -> str:
     return "".join(b["text"] for b in user)
 
 
+def _strict_schema(schema: dict) -> dict:
+    """Pydantic's model_json_schema, made acceptable to Anthropic structured
+    outputs: the endpoint requires `additionalProperties: false` on every
+    object (measured 2026-08-01: 400 without it). Only the wire copy is
+    tightened — the pydantic models keep their default extra='ignore', so the
+    client-side fallback validates exactly as before."""
+    import copy
+    out = copy.deepcopy(schema)
+
+    def walk(node):
+        if isinstance(node, dict):
+            if node.get("type") == "object" or "properties" in node:
+                node.setdefault("additionalProperties", False)
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(out)
+    return out
+
+
+def validate_json(text: str, schema: type[T]) -> T:
+    """Model output -> validated pydantic instance. Tolerates ``` fences and
+    prose around the outermost JSON object (the same salvage extraction always
+    ran). Raises json.JSONDecodeError on unparseable text and
+    pydantic.ValidationError on a schema mismatch — callers log both."""
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("```")[1]
+        t = t[4:] if t.startswith("json") else t
+    try:
+        data = json.loads(t)
+    except json.JSONDecodeError:
+        s, e = t.find("{"), t.rfind("}")
+        if s == -1 or e <= s:
+            raise
+        data = json.loads(t[s:e + 1])
+    return schema.model_validate(data)
+
+
 def _cached_system(system: str) -> list[dict]:
     """System prompt as a block with a cache mark. Below the provider's cache
     minimum the mark is free and ignored (see CACHE_WRITE_MULT comment); above
@@ -235,7 +282,8 @@ class LLM:
 
     def call(self, task: str, system: str, user: str | list[dict],
              max_tokens: int = 1024, temperature: float = 0.0,
-             model: str | None = None) -> str:
+             model: str | None = None,
+             output_config: dict | None = None) -> str:
         """`model` overrides the task default — that is how a second judge from
         another provider is run over the identical pairs.
 
@@ -244,7 +292,11 @@ class LLM:
         message lets consecutive calls share a prefix (the judge's first event
         block). The concatenated block text is byte-identical to the string a
         caller would otherwise send — callers guarantee that, tests check it —
-        so caching can only change the bill, never the answer."""
+        so caching can only change the bill, never the answer.
+
+        `output_config` is the Anthropic structured-output constraint; only
+        call_typed sets it, and only for Anthropic models (the OpenAI path
+        ignores it)."""
         from fli import storage
         from fli.ops import tracing
         model = model or MODEL_FOR_TASK[task]
@@ -265,6 +317,8 @@ class LLM:
             kwargs = dict(model=model, max_tokens=max_tokens,
                           system=_cached_system(system),
                           messages=[{"role": "user", "content": user}])
+            if output_config is not None:
+                kwargs["output_config"] = output_config
             create = self._client("anthropic").messages.create
             if model in LLM._no_temperature:
                 resp = create(**kwargs)
@@ -295,6 +349,41 @@ class LLM:
                              cache_write_tokens=cw or None,
                              cache_read_tokens=cr or None)
         return text
+
+    # Models whose endpoint rejected `output_config` (older API, non-support).
+    # Learned once per process, like _no_temperature.
+    _no_output_config: set[str] = set()
+
+    def call_typed(self, task: str, system: str, user: str | list[dict],
+                   schema: type[T], max_tokens: int = 1024,
+                   temperature: float = 0.0, model: str | None = None) -> T:
+        """`call`, but the answer comes back as a validated pydantic instance.
+
+        On Anthropic models the schema is ALSO enforced server-side via
+        structured outputs (`output_config.format`), so the model cannot emit
+        fences, prose or missing keys in the first place. The prompt is not
+        changed \u2014 the constraint is additive. If the endpoint rejects
+        `output_config` (or the model is not Anthropic's), the plain `call`
+        path runs and the same schema is enforced client-side by
+        `validate_json`, exactly the pre-existing behaviour."""
+        model = model or MODEL_FOR_TASK[task]
+        if (provider_for(model) == "anthropic"
+                and model not in LLM._no_output_config):
+            oc = {"format": {"type": "json_schema",
+                             "schema": _strict_schema(schema.model_json_schema())}}
+            try:
+                return validate_json(
+                    self.call(task, system, user, max_tokens, temperature,
+                              model, output_config=oc), schema)
+            except Exception as e:
+                if "output_config" not in str(e):
+                    raise
+                LLM._no_output_config.add(model)
+                print(f"  note: {model} rejected output_config; falling back "
+                      f"to client-side validation for the rest of this run.")
+        return validate_json(
+            self.call(task, system, user, max_tokens, temperature, model),
+            schema)
 
     def call_batch(self, task: str, system: str,
                    items: list[tuple[str, str | list[dict]]],
