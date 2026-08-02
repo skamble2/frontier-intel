@@ -181,6 +181,61 @@ that only shows the filtered view cannot audit the filter.
 has a body of its own — each is one call into the layer function the CLI already
 invokes, so there is no parallel code path to drift.
 
+The topology, printed by `graph --mermaid` and pasted here so it renders without a tool:
+
+```mermaid
+graph TD;
+    __start__([__start__])
+    ingest(ingest)
+    stage1(stage1)
+    expand(expand)
+    register(register)
+    extract(extract)
+    authors(authors)
+    observe(observe)
+    mobility(mobility)
+    cluster(cluster)
+    features(features)
+    drift(drift)
+    score(score)
+    verify(verify)
+    personas(personas)
+    evaluate(evaluate)
+    positions(positions)
+    digest(digest)
+    alerts(alerts)
+    digest_parity(digest_parity)
+    faithfulness(faithfulness)
+    checks(checks)
+    approve(approve)
+    __end__([__end__])
+    __start__ --> ingest;
+    alerts --> digest_parity;
+    approve -.-> evaluate;
+    approve -.-> verify;
+    authors --> observe;
+    cluster --> features;
+    digest --> alerts;
+    digest_parity -.-> checks;
+    digest_parity -.-> faithfulness;
+    drift --> score;
+    evaluate --> positions;
+    expand --> register;
+    extract --> authors;
+    faithfulness --> checks;
+    features --> drift;
+    ingest --> stage1;
+    mobility --> cluster;
+    observe --> mobility;
+    personas --> evaluate;
+    positions --> digest;
+    register --> extract;
+    score --> approve;
+    stage1 --> expand;
+    verify --> personas;
+    checks --> __end__;
+```
+
 ```bash
 python -m fli.cli graph                 # free stages only
 python -m fli.cli graph --spend         # offer the paid stages; pauses for approval
