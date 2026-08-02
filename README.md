@@ -266,5 +266,5 @@ in [future scope](docs/final-report.md#future-scope).
 | [storage/schema.sql](storage/schema.sql) | The authoritative schema, commented |
 | [config/policy.yml](config/policy.yml) | The editorial policy — versioned, owned |
 | [config/rubrics/](config/rubrics/) | What *important* means, one file per audience |
-| [docs/digests/](docs/digests/) | Delivered digests, Markdown + PDF, both personas |
+| [docs/digests/](docs/digests/) | Delivered digests, Markdown + PDF — both personas, 7-day and 90-day windows. Named `<window-end>-<span>-<persona>` |
 

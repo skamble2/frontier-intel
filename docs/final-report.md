@@ -142,14 +142,18 @@ motivated.
 
 ## The honest negatives
 
-**The investment digest can be honestly empty, and this week it is.** The most
-recent committed investment digest delivers **zero items**: no in-window event
-both establishes a market mechanism and reaches a tracked holding. The slate
-ledger says where the corpus went — *"839 no mechanism, 42 thin quote, 40
+**The investment digest can be honestly empty, and this week it is.** The
+committed 7-day investment digest delivers **zero items**: no event in that
+window both establishes a market mechanism and reaches a tracked holding. The
+slate ledger says where the corpus went — *"839 no mechanism, 42 thin quote, 40
 outside window, 16 no holding link, 14 not entailed, 3 undated"* — and the
-digest renders that ledger rather than padding. The engineering digest for the
-same date carries 6 items, which is the two-persona design behaving as measured:
-the same week can be news for one reader and noise for the other.
+digest renders that ledger rather than padding it out. The engineering digest
+for the same window carries 6 items, which is the two-persona design behaving as
+measured: the same week can be news for one reader and noise for the other.
+
+Widening to the 90-day standing picture recovers 7 investment items, so the
+emptiness is a property of the week, not of the pipeline — which is why both
+windows are committed side by side under `docs/digests/`.
 
 **Most events reach no public position.** About **5%** of events (54 exposure
 edges across 50 of 954), and **52 of 54 are `unclear`** — exposure without an

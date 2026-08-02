@@ -52,7 +52,8 @@ research/raw/
 pipeline.log
 # Digests are regenerable build output (python3 -m fli.cli digest). Dated
 # sample sets are committed as evidence the delivery layer works, force-added
-# past this rule:  git add -f docs/digests/2026-08-01-*
+# past this rule:  git add -f docs/digests/<window-end>-*
+# Names encode the window they cover, not the render date: <end>-<span>-<persona>.
 docs/digests/*
 
 # --- OS / editor ---------------------------------------------------------

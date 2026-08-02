@@ -1,6 +1,6 @@
 # Frontier Lab Intelligence — Investment digest
 
-*2026-07-25 to 2026-08-01   ·   rubric investment r1   ·   policy v3   ·   generated 2026-08-02T10:27Z*
+*2026-07-25 to 2026-08-01   ·   rubric investment r1   ·   policy v3   ·   generated 2026-08-02T14:14Z*
 
 What frontier labs shipped this period, and what it means for the fund's positions. Every claim below is quoted from the lab's own publication and linked to it.
 

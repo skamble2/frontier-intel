@@ -16,6 +16,7 @@ Register with a client as:  python -m fli.cli mcp [--db PATH]
 from __future__ import annotations
 
 import argparse
+import re
 import sqlite3
 from pathlib import Path
 
@@ -68,10 +69,20 @@ def drift_status(conn: sqlite3.Connection, days: int = 14) -> list[dict]:
 
 def latest_digest(persona: str = "") -> dict:
     """Newest digest markdown, optionally filtered to a persona
-    (e.g. 'ai_team', 'investment'). Digests are dated files, so newest
-    filename sort order == newest digest."""
+    (e.g. 'ai_team', 'investment').
+
+    Filenames are `<window-end>-<span>d-<persona>.md`. Ordering is by end date
+    then by span as an INTEGER — a plain string sort would rank 100d below 30d.
+    Where one end date carries several spans the widest wins, deliberately: an
+    agent asking for "the latest digest" is better served the standing picture
+    than a narrow window that may legitimately be empty."""
     pattern = f"*{persona}*.md" if persona else "*.md"
-    files = sorted(DIGEST_DIR.glob(pattern))
+
+    def order(p: Path) -> tuple:
+        m = re.match(r"(\d{4}-\d{2}-\d{2})-(\d+)d-", p.name)
+        return (m.group(1), int(m.group(2))) if m else (p.name, 0)
+
+    files = sorted(DIGEST_DIR.glob(pattern), key=order)
     if not files:
         return {"error": f"no digest matching {pattern!r} in docs/digests"}
     path = files[-1]

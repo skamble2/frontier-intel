@@ -85,7 +85,8 @@ def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
     start = end - dt.timedelta(days=days)
     covered = sum(1 for r in rows if r["id"] in hyp)
     stats = {"items": len(rows), "with_reading": covered,
-             "window_days": days, "dropped": dropped}
+             "window_days": days, "dropped": dropped,
+             "window_start": start, "window_end": end}
 
     b: list[tuple[str, object]] = [
         ("h1", f"Frontier Lab Intelligence — {PERSONA_TITLE[persona]}"),
@@ -211,7 +212,12 @@ def write(conn, persona: str, days: int = 7, k: int = 10,
           out_dir: Path = OUT_DIR, want_pdf: bool = True,
           verbose: bool = True) -> dict:
     b, stats = blocks(conn, persona, days, k)
-    stem = f"{dt.date.today().isoformat()}-{persona}"
+    # Named for the window it covers, not the day it was rendered: the slate is
+    # anchored to the newest document, so a digest written today can legitimately
+    # end yesterday, and a 7-day and a 90-day digest with the same end date are
+    # different reports. Leading with the end date keeps the directory in
+    # chronological order.
+    stem = f"{stats['window_end'].isoformat()}-{days}d-{persona}"
     out_dir.mkdir(parents=True, exist_ok=True)
     md = out_dir / f"{stem}.md"
     md.write_text(to_markdown(b), encoding="utf-8")
@@ -220,7 +226,8 @@ def write(conn, persona: str, days: int = 7, k: int = 10,
         written.append(pdf_writer.render(
             out_dir / f"{stem}.pdf", _for_pdf(b),
             footer=f"frontier-intel · {PERSONA_TITLE[persona]} · "
-                   f"{dt.date.today().isoformat()}"))
+                   f"{stats['window_start'].isoformat()} to "
+                   f"{stats['window_end'].isoformat()}"))
     if verbose:
         print(f"{persona:<11} {stats['items']:>2} item(s), "
               f"{stats['with_reading']} with a reading  "

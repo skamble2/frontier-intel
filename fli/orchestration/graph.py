@@ -14,7 +14,7 @@ function the CLI commands call, so there is no second implementation of any
 stage to drift. One ordering fix over the CLI habit is deliberate: delivery
 (digest) runs AFTER claim repair and persona notes, because running them in
 the reverse order produced digests citing claims that repair had already
-rewritten (2 stale claims found in docs/digests/2026-07-30-ai_team.md).
+rewritten (2 stale claims, found in a since-superseded digest).
 
 Run:  python -m fli.cli graph [--db PATH] [--spend] [--max-extract N]
       python -m fli.cli graph --mermaid   # print the topology, run nothing
