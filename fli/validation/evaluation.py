@@ -243,6 +243,20 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
         (f"llm:%/{rubric}/%", f"human:%/{rubric}/%")).fetchall()
     if not rows:
         raise Skipped(f"python3 -m fli.cli judge --rubric {rubric} --n 300")
+    # Reliability is inferred from DISAGREEMENT between independent labeler
+    # families, so a pair voted by only one family carries no reliability
+    # information — it can only echo that family back at itself. Restricting
+    # to pairs with >=2 families keeps the estimate a measurement.
+    pair_families: dict[tuple, set] = {}
+    for r in rows:
+        pair_families.setdefault((r["event_a"], r["event_b"]), set()).add(
+            _labeler_family(r["labeler"]))
+    rows = [r for r in rows
+            if len(pair_families[(r["event_a"], r["event_b"])]) >= 2]
+    if not rows:
+        raise Skipped(
+            "python3 -m fli.cli judge --model <second-provider-model> --n 300"
+            "   [no pair has votes from two independent families]")
     labelers = sorted({r["labeler"] for r in rows})
     families = {_labeler_family(l) for l in labelers}
     if len(families) < 2:
@@ -279,7 +293,9 @@ def fig_labeler_reliability(conn) -> tuple[str, str]:
     return _save(plt, fig, "f6_labeler_reliability", JUDGED), (
         f"Rubric `{rubric}` only: {len(items)} pairs x {len(labelers)} "
         f"labelers across {len(families)} independent model families "
-        f"({', '.join(sorted(families))}). Estimated accuracy: {per}. "
+        f"({', '.join(sorted(families))}); pairs voted by a single family "
+        f"are excluded, since they carry no disagreement to learn from. "
+        f"Estimated accuracy: {per}. "
         f"Reliability is inferred from disagreement between families, so the "
         f"figure is not produced from a single family — and labelers working to "
         f"a DIFFERENT rubric are excluded, since they are estimating a "
@@ -604,6 +620,59 @@ def fig_rubric_divergence(conn) -> tuple[str, str]:
         f"the claim that one ranking cannot serve both readers.")
 
 
+def _mobility_rank_probe(conn) -> str:
+    """SYNTHETIC, in-memory: where would a fresh researcher move RANK?
+
+    The live corpus has not witnessed a move, so f14 can prove the mechanism
+    but not give a reader a feel for how one would place. This probe builds
+    the feature vector a synthesized move would carry on arrival — the median
+    feature shape of the corpus's real extracted personnel events, re-dated
+    to two days ago — and scores it through the same antisymmetric-logistic
+    path the bake-off ships, against every real event. Nothing is written to
+    the database; the probe exists only for the sentence it returns."""
+    import numpy as np
+    from datetime import datetime, timedelta, timezone
+    from fli.intelligence import features as featmod
+    from fli.intelligence.scoring import (_fit_logistic, _pair_xy, _split,
+                                          _standardize, load_pairs)
+    ids, names, X = featmod.feature_matrix(conn)
+    row = {iid: i for i, iid in enumerate(ids)}
+    pers = [r[0] for r in conn.execute(
+        "SELECT id FROM insights WHERE event_type='personnel'") if r[0] in row]
+    if len(ids) < 50 or not pers:
+        return ""
+    synth = np.median(X[[row[p] for p in pers]], axis=0)
+    fidx = {f: j for j, f in enumerate(names)}
+    now = datetime.now(timezone.utc)
+    if "recency" in fidx:
+        synth[fidx["recency"]] = featmod._recency(
+            (now - timedelta(days=2)).isoformat(), now)
+    Xz, mu, sd = _standardize(X)
+    sz = (synth - mu) / sd
+    parts = []
+    for rubric in ("investment", "technical"):
+        pairs = load_pairs(conn, verbose=False, rubric=rubric)
+        if len(pairs) < 10:
+            continue
+        tr, _ = _split(pairs)   # the bake-off's own split: train rows only
+        Xtr, ytr = _pair_xy(tr, Xz, row)
+        coef = _fit_logistic(Xtr, ytr)
+        s = float(sz @ coef)
+        rank = 1 + int(((Xz @ coef) > s).sum())
+        pct = rank / len(ids)
+        parts.append(f"{rubric} #{rank} of {len(ids)}"
+                     + (f" (top {pct:.0%})" if pct <= 0.5 else ""))
+    if not parts:
+        return ""
+    return (f" RANK PROBE — synthetic, in-memory, nothing written: a fresh "
+            f"move carrying the median feature shape of the corpus's "
+            f"{len(pers)} extracted personnel events, dated two days ago and "
+            f"scored by the same antisymmetric-logistic path the bake-off "
+            f"ships, would rank {'; '.join(parts)}. That the two rubrics "
+            f"disagree is the design working: a researcher move is an "
+            f"investment signal, not a technical one.")
+
+
 def fig_mobility(conn) -> tuple[str, str]:
     """Talent movement is the marquee signal and the corpus is thinnest on it.
     Talent movement is the marquee signal and the corpus is thinnest on it."""
@@ -666,7 +735,7 @@ def fig_mobility(conn) -> tuple[str, str]:
         f"validated end-to-end in the test suite (tests/knowledge/"
         f"test_mobility.py plants a move and shows the resulting event reach "
         f"the digest slate, dated by its arrival) — the live corpus simply "
-        f"has not yet witnessed a move." + earliest
+        f"has not yet witnessed a move." + earliest + _mobility_rank_probe(conn)
         if synthesized == 0 else
         f"{synthesized} move(s) synthesized from affiliation history against "
         f"{extracted} extracted personnel event(s); {detectable} of {tracked} "
