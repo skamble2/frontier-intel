@@ -591,10 +591,20 @@ per-task split is `docs/metrics-out.txt`, section M5a.
 
 ## Data discipline
 
-The committed database is the clean production state. Validation experiments —
-the second-model judge, the human audit, the bake-off comparison of non-winning
-contenders — have their *results* written into the evaluation report and the
-final report, and the raw experimental runs are snapshotted under
-`data/snapshots/` rather than accumulating in the live DB. A run checkpoints the
-write-ahead log back into the main file before committing, so a committed DB
-never silently misses the writes of the run that produced it.
+The committed database is the clean production state, and it is the *only*
+database in the repository. Validation experiments — the second-model judge, the
+human audit, the bake-off comparison of non-winning contenders — have their
+*results* written into the evaluation report and the final report rather than
+accumulating as extra rows in the live DB.
+
+Where an experiment's evidence could not survive in the live database, it is
+exported as **text** rather than kept as a binary. The ingestion-robustness
+history is the worked example: a truncate-and-rebuild resets `fetch_log` to
+all-ok, so the failure history was exported to
+[ingestion-robustness-evidence.txt](ingestion-robustness-evidence.txt) — every
+failure mode, count and URL — and the multi-megabyte working snapshot it came
+from was discarded. A committed claim should rest on something a reviewer can
+read in a diff, not on a 34 MB file they would have to be sent separately.
+
+A run checkpoints the write-ahead log back into the main file before committing,
+so a committed DB never silently misses the writes of the run that produced it.

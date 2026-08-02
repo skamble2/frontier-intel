@@ -337,10 +337,15 @@ sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
 ```
 
 Regression guards (G1–G5b) sit at the top of the output and answer "did the last
-fix land?" against the previous run's numbers, inline. Snapshots live in
-`data/snapshots/` — `fli-robustness-evidence.db` is the artifact behind the
-ingestion-robustness claim (4 failure modes incl. HTTP 429), since a
-truncate+rebuild resets `fetch_log` to all-ok.
+fix land?" against the previous run's numbers, inline.
+
+`data/fli.db` is the only database in the repo. Where evidence could not survive
+in it — a truncate+rebuild resets `fetch_log` to all-ok, erasing the failure
+history — it is exported as text instead:
+[docs/ingestion-robustness-evidence.txt](docs/ingestion-robustness-evidence.txt)
+carries the four ingestion failure modes (HTTP 429, read timeouts, a blocked
+host, empty feeds) with counts and URLs, so the claim is verifiable from a file
+you can read rather than a binary you would have to be sent.
 
 ## The whole run in one command
 

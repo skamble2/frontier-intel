@@ -14,9 +14,11 @@ __pycache__/
 
 # --- data ----------------------------------------------------------------
 # data/fli.db IS committed: the database with real data ships with the code, so
-# a clone reproduces the reported numbers without re-running the pipeline.
-# Snapshots stay out — 14-35 MB each, and the claims they support are exported
-# as text. To include one deliberately: git add -f data/snapshots/<name>.db
+# a clone reproduces the reported numbers without re-running the pipeline. It is
+# the ONLY database here — working snapshots and pre-change .bak copies are
+# local scratch and are deleted once whatever they evidenced has been exported
+# as text (see docs/ingestion-robustness-evidence.txt). The rules below stay so
+# that scratch can never be committed by accident.
 data/*.db
 !data/fli.db
 data/*.db-journal
