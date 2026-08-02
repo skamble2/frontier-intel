@@ -139,14 +139,20 @@ class TestWhatFires(unittest.TestCase):
 class TestSlackSink(unittest.TestCase):
     def test_refuses_to_run_without_a_webhook_url(self):
         """A silently dropped alert is worse than a crash: the row would say
-        delivered when nothing was."""
+        delivered when nothing was.
+
+        The sink loads .env before reading the variable, so the developer's own
+        .env would otherwise decide whether this test passes. Neutralise the
+        loader as well as the variable."""
         import os
+        from unittest import mock
         old = os.environ.pop("SLACK_WEBHOOK_URL", None)
         try:
-            with self.assertRaises(RuntimeError):
-                alerts._sink_slack({"rule": "signed_reading",
-                                    "persona": "investment", "event_id": 1,
-                                    "reason": "r", "claim": "c", "url": "u"})
+            with mock.patch("fli.ops.llm.load_dotenv", lambda: None):
+                with self.assertRaises(RuntimeError):
+                    alerts._sink_slack({"rule": "signed_reading",
+                                        "persona": "investment", "event_id": 1,
+                                        "reason": "r", "claim": "c", "url": "u"})
         finally:
             if old is not None:
                 os.environ["SLACK_WEBHOOK_URL"] = old

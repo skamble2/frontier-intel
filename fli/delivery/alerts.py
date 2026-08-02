@@ -28,9 +28,14 @@ def _sink_null(alert: dict) -> None:
 
 def _sink_slack(alert: dict) -> None:
     """Post one alert to a Slack incoming webhook."""
+    from fli.ops.llm import load_dotenv
+    load_dotenv()                      # same .env every other credential uses
     url = os.environ.get("SLACK_WEBHOOK_URL")
     if not url:
-        raise RuntimeError("sink 'slack' needs SLACK_WEBHOOK_URL set")
+        raise RuntimeError(
+            "sink 'slack' needs SLACK_WEBHOOK_URL. Add it to .env "
+            "(SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...) "
+            "or export it in the shell.")
     text = (f":rotating_light: *[{alert['rule']}]* {alert['persona']} — "
             f"event {alert['event_id']}\n{alert['reason']}\n"
             f"> {alert['claim'][:300]}\n{alert['url']}")
