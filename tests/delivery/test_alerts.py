@@ -137,17 +137,31 @@ class TestWhatFires(unittest.TestCase):
 
 
 class TestSlackSink(unittest.TestCase):
+    """No test here may reach the network.
+
+    `_sink_slack` loads .env before reading the webhook, so on a machine that
+    has a real SLACK_WEBHOOK_URL these tests would post to a live channel — it
+    happened. Every test in this class therefore stubs `urllib.request.urlopen`
+    with a function that fails the test if it is ever called, so a live post is
+    a red suite rather than a message someone has to go and delete."""
+
+    def setUp(self):
+        from unittest import mock
+        def no_network(req, timeout=None):
+            self.fail("a test tried to POST to a live Slack webhook")
+        self._nonet = mock.patch("urllib.request.urlopen", no_network)
+        self._nonet.start()
+        self.addCleanup(self._nonet.stop)
+
     def test_refuses_to_run_without_a_webhook_url(self):
         """A silently dropped alert is worse than a crash: the row would say
-        delivered when nothing was.
-
-        The sink loads .env before reading the variable, so the developer's own
-        .env would otherwise decide whether this test passes. Neutralise the
-        loader as well as the variable."""
+        delivered when nothing was."""
         import os
         from unittest import mock
         old = os.environ.pop("SLACK_WEBHOOK_URL", None)
         try:
+            # Neutralise the loader too, or the developer's own .env decides
+            # whether this test passes.
             with mock.patch("fli.ops.llm.load_dotenv", lambda: None):
                 with self.assertRaises(RuntimeError):
                     alerts._sink_slack({"rule": "signed_reading",
