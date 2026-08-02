@@ -3,8 +3,11 @@
 `python -m fli.cli pipeline` already chains the free stages but leaves the
 paid ones (`verify --repair`, `personas`, `faithfulness`) as manual CLI steps.
 This graph packages ALL of them behind a single entry point with one explicit
-gate: paid stages run only with `--spend` AND an API key, so the default
-invocation costs exactly what `pipeline` costs.
+gate: paid stages need --spend AND an API key AND an in-run human approval —
+the graph pauses at an interrupt with the work sized (how many unaudited
+claims), and resumes on the operator's answer. `--yes` skips the pause for
+schedulers; declining continues the free path. A default invocation costs
+exactly what `pipeline` costs.
 
 The graph owns ONLY ordering and gating — every node body is the same layer
 function the CLI commands call, so there is no second implementation of any
@@ -49,6 +52,8 @@ class RunState(TypedDict):
     it is bound into the nodes by closure, because state should stay printable
     and the DB is the actual shared medium between stages anyway."""
     spend: bool
+    auto_approve: bool                # --yes: schedulers skip the interrupt
+    approved: bool                    # resolved at the approve gate
     max_extract: int
     report: Annotated[dict, _merge]   # stage name -> that stage's summary
     verdict: int                      # checks battery exit code
@@ -58,11 +63,23 @@ def _spend_ready(state: RunState) -> bool:
     return state["spend"] and have_api_key()
 
 
+def spend_estimate(conn) -> dict:
+    """What the paid stages would actually touch — shown at the interrupt so
+    the approval is informed, not a blind y/N."""
+    unaudited = conn.execute(
+        "SELECT count(1) FROM insights WHERE id NOT IN"
+        " (SELECT insight_id FROM claim_checks)").fetchone()[0]
+    notes = conn.execute("SELECT count(1) FROM hypotheses").fetchone()[0]
+    return {"unaudited_claims": unaudited, "existing_notes": notes}
+
+
 def build(conn):
     """The compiled graph. Node bodies are one call each into the layer that
     already owns the logic; `tolerant` mirrors pipeline.py exactly — a network
     or API failure in an optional stage must not kill the deterministic run."""
     from langgraph.graph import StateGraph, START, END
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import interrupt
 
     def node(name, fn, tolerant=False):
         def run(state: RunState) -> dict:
@@ -127,6 +144,24 @@ def build(conn):
             tracing.annotate(span, {tracing.OUTPUT_VALUE: f"verdict={verdict}"})
         return {"verdict": verdict, "report": {"checks": "ran"}}
 
+    def approve_node(state):
+        """The human gate on spend. --spend states intent at launch; this node
+        confirms it mid-run with the actual work sized (interrupt pauses the
+        graph until the operator resumes it). --yes skips the pause for
+        schedulers. Declining is not an error: the run continues on the free
+        path exactly as if --spend had been absent."""
+        if not _spend_ready(state):
+            return {"approved": False}
+        if state.get("auto_approve"):
+            return {"approved": True,
+                    "report": {"approve": "auto-approved (--yes)"}}
+        answer = interrupt({"question": "run the paid stages"
+                            " (verify+repair, personas, faithfulness)?",
+                            **spend_estimate(conn)})
+        granted = str(answer).strip().lower() in ("y", "yes")
+        return {"approved": granted,
+                "report": {"approve": "granted" if granted else "declined"}}
+
     g = StateGraph(RunState)
     linear = [
         node("ingest", lambda s: feeds.ingest_all(conn)),
@@ -158,6 +193,7 @@ def build(conn):
     for name, fn in linear:
         g.add_node(name, fn)
     g.add_node("checks", checks_node)
+    g.add_node("approve", approve_node)
 
     g.add_edge(START, "ingest")
     order = [n for n, _ in linear]
@@ -165,19 +201,24 @@ def build(conn):
         if b in ("verify", "evaluate", "faithfulness"):
             continue                     # conditional, wired below
         g.add_edge(a, b)
-    # The two spend gates. Without --spend (or without a key) the paid nodes
-    # are simply not on the path, so a default run costs what `pipeline` costs.
+    # The spend gate: one human decision at `approve` (an interrupt unless
+    # --yes), applied to BOTH paid segments. Without --spend or a key the
+    # gate resolves to the free path without pausing, so a default run costs
+    # what `pipeline` costs.
+    g.add_edge("score", "approve")
     g.add_conditional_edges(
-        "score", lambda s: "verify" if _spend_ready(s) else "evaluate",
+        "approve", lambda s: "verify" if s["approved"] else "evaluate",
         ["verify", "evaluate"])
     g.add_edge("personas", "evaluate")
     g.add_conditional_edges(
         "digest_parity",
-        lambda s: "faithfulness" if _spend_ready(s) else "checks",
+        lambda s: "faithfulness" if s["approved"] else "checks",
         ["faithfulness", "checks"])
     g.add_edge("faithfulness", "checks")
     g.add_edge("checks", END)
-    return g.compile()
+    # A checkpointer is what makes interrupt() resumable; in-memory is enough
+    # because the pause and the resume live in one CLI process.
+    return g.compile(checkpointer=InMemorySaver())
 
 
 def main() -> int:
@@ -187,8 +228,12 @@ def main() -> int:
     ap.add_argument("--max-extract", type=int, default=60,
                     help="stage-2 docs per run (cost cap)")
     ap.add_argument("--spend", action="store_true",
-                    help="also run the paid stages (verify+repair, personas, "
-                         "faithfulness). Default off: costs what `pipeline` costs.")
+                    help="offer the paid stages (verify+repair, personas, "
+                         "faithfulness); the run pauses for approval unless "
+                         "--yes. Default off: costs what `pipeline` costs.")
+    ap.add_argument("--yes", action="store_true",
+                    help="with --spend: skip the interactive approval pause "
+                         "(for schedulers)")
     ap.add_argument("--mermaid", action="store_true",
                     help="print the graph topology and exit; runs nothing")
     args = ap.parse_args()
@@ -202,11 +247,26 @@ def main() -> int:
 
     if tracing.setup():
         print("tracing: OpenInference spans -> Phoenix (FLI_TRACING on)")
+    from langgraph.types import Command
+    cfg = {"configurable": {"thread_id": "run"}}
     with tracing.chain_span("graph.run") as root:
         tracing.annotate(root, {tracing.INPUT_VALUE:
                                 f"spend={args.spend} max_extract={args.max_extract}"})
-        final = graph.invoke({"spend": args.spend, "max_extract": args.max_extract,
-                              "report": {}, "verdict": 0})
+        final = graph.invoke({"spend": args.spend, "auto_approve": args.yes,
+                              "approved": False,
+                              "max_extract": args.max_extract,
+                              "report": {}, "verdict": 0}, cfg)
+        while "__interrupt__" in final:      # paused at the approve gate
+            payload = final["__interrupt__"][0].value
+            print(f"\n=== approval required ===")
+            for k, v in payload.items():
+                print(f"  {k}: {v}")
+            try:
+                answer = input("approve spend? [y/N] ")
+            except EOFError:                 # non-interactive without --yes
+                answer = "n"
+                print("no tty — declining (use --yes for schedulers)")
+            final = graph.invoke(Command(resume=answer), cfg)
         tracing.annotate(root, {tracing.OUTPUT_VALUE: f"verdict={final['verdict']}"})
     print("\n=== run summary ===")
     for stage, summary in final["report"].items():

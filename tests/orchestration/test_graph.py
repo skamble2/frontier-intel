@@ -9,6 +9,7 @@ from unittest import mock
 
 HAVE_LANGGRAPH = importlib.util.find_spec("langgraph") is not None
 if HAVE_LANGGRAPH:
+    from langgraph.types import Command
     from fli.orchestration import graph as G
 
 FREE = ["ingest", "stage1", "expand", "register", "extract", "authors",
@@ -19,7 +20,7 @@ PAID = ["verify", "personas", "faithfulness"]
 
 @unittest.skipUnless(HAVE_LANGGRAPH, "langgraph not installed")
 class GraphTests(unittest.TestCase):
-    def _run(self, spend, have_key):
+    def _run(self, spend, have_key, resume=None, auto=False):
         calls = []
 
         def rec(name, ret="ok"):
@@ -57,14 +58,21 @@ class GraphTests(unittest.TestCase):
             mock.patch.object(G.faithfulness, "check_digests", rec("digest_parity")),
             mock.patch.object(G.faithfulness, "score_hypotheses", rec("faithfulness")),
             mock.patch.object(G.checks, "run", rec("checks", 3)),
+            mock.patch.object(G, "spend_estimate",
+                              lambda c: {"unaudited_claims": 1}),
             mock.patch.object(G, "have_api_key", lambda *a: have_key),
             mock.patch.object(G, "LLM", mock.MagicMock()),
         ]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
-        final = G.build(conn=mock.MagicMock()).invoke(
-            {"spend": spend, "max_extract": 5, "report": {}, "verdict": 0})
+        cfg = {"configurable": {"thread_id": "t"}}
+        compiled = G.build(conn=mock.MagicMock())
+        final = compiled.invoke(
+            {"spend": spend, "auto_approve": auto, "approved": False,
+             "max_extract": 5, "report": {}, "verdict": 0}, cfg)
+        if "__interrupt__" in final and resume is not None:
+            final = compiled.invoke(Command(resume=resume), cfg)
         # digest node calls write once per persona; collapse repeats
         dedup = [c for i, c in enumerate(calls) if i == 0 or calls[i - 1] != c]
         return dedup, final
@@ -81,8 +89,21 @@ class GraphTests(unittest.TestCase):
         for stage in PAID:
             self.assertNotIn(stage, calls)
 
+    def test_spend_pauses_at_interrupt_and_decline_stays_free(self):
+        calls, final = self._run(spend=True, have_key=True, resume="n")
+        for stage in PAID:
+            self.assertNotIn(stage, calls)
+        self.assertEqual(final["report"]["approve"], "declined")
+        self.assertEqual(final["verdict"], 3)      # free path still completes
+
+    def test_yes_flag_skips_the_pause(self):
+        calls, final = self._run(spend=True, have_key=True, auto=True)
+        self.assertNotIn("__interrupt__", final)
+        for stage in PAID:
+            self.assertIn(stage, calls)
+
     def test_spend_run_orders_repair_and_notes_before_delivery(self):
-        calls, final = self._run(spend=True, have_key=True)
+        calls, final = self._run(spend=True, have_key=True, resume="y")
         for stage in PAID + ["extract"]:
             self.assertIn(stage, calls)
         # the ordering fix this graph exists for: nothing published is stale
@@ -91,7 +112,8 @@ class GraphTests(unittest.TestCase):
         self.assertLess(calls.index("digest_parity"), calls.index("faithfulness"))
         self.assertEqual(calls[-1], "checks")
         # every stage reported, so the run summary is complete
-        self.assertEqual(set(final["report"]), set(FREE) | set(PAID))
+        self.assertEqual(set(final["report"]),
+                         set(FREE) | set(PAID) | {"approve"})
 
 
 if __name__ == "__main__":
