@@ -40,13 +40,22 @@ git clone <this-repo> && cd frontier-intel
 python3 -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
-cp .env.example .env        # then fill in the keys you actually need
+echo 'ANTHROPIC_API_KEY=sk-...' > .env
 ```
 
-Every variable in `.env.example` is optional except `ANTHROPIC_API_KEY`, and
-even that is only required for the stages that call a model. Without it the
-deterministic pipeline still runs end to end against the committed database and
-`checks` still exits green.
+Everything the pipeline reads from `.env`, all optional:
+
+| var | unlocks | without it |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | classify · extract · repair · judge · persona · verify | those stages skip; the rest runs and `checks` stays green |
+| `OPENAI_API_KEY` | the second judge family | Dawid–Skene falls back to one family and refuses to render |
+| `GITHUB_TOKEN` | 5,000 req/hr instead of 60 | the resolver self-caps under the anonymous limit |
+| `X_BEARER_TOKEN` | the paid X source | skipped entirely; every other source is free |
+| `SLACK_WEBHOOK_URL` | `alerts --sink slack` | the default stdout sink needs nothing |
+| `FLI_TRACING=1` | OpenInference spans → Phoenix | no-op |
+
+The committed database ships with real data, so a clone reproduces every
+reported number with no key and no network.
 
 ## Walking skeleton (one doc → one cited insight)
 

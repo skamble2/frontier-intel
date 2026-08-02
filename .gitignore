@@ -2,7 +2,6 @@
 # NEVER commit: the Anthropic API key lives here.
 .env
 .env.*
-!.env.example
 
 # --- environments --------------------------------------------------------
 .venv/

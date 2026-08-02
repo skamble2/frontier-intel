@@ -138,7 +138,7 @@ system and them is recorded under
 ```bash
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env             # fill in ANTHROPIC_API_KEY; everything else is optional
+echo 'ANTHROPIC_API_KEY=sk-...' > .env   # optional; see RUNNING.md for the rest
 
 python3 -m fli.cli pipeline      # the full daily cycle
 python3 -m fli.cli graph         # the same run as one graph (--spend adds the paid stages)
