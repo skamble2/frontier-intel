@@ -78,7 +78,7 @@ Routing is one dictionary, `MODEL_FOR_TASK` in `fli/ops/llm.py`.
 | task | model | why |
 |---|---|---|
 | `extract`, `repair` | Sonnet 5 | emits the claim *and* the quote that must re-match the source; quote fidelity is where cheap models fail |
-| `judge` | Sonnet 5 **+ GPT-5.2** | two independent *families*, not two prompts — Dawid–Skene needs conditionally independent labelers |
+| `judge` | **two independent model families** | not two prompts of one model — Dawid–Skene needs conditionally independent labelers, and a judge drawn from the same family that extracted the claim shares its priors |
 | `persona` | Sonnet 5 | reader-facing judgment and tone; ~100 calls, so price is irrelevant |
 | `classify`, `channel`, `verify`, `faithfulness` | Haiku 4.5 | closed-set classification, no generation |
 
@@ -86,10 +86,10 @@ The rule: **Sonnet where a wrong answer enters the database as a fact; Haiku
 where a wrong answer only costs a re-check.**
 
 One measured wrinkle, kept because it contradicts the routing: on the judge task
-the cheaper model is at least as good. GPT-5.2 costs **4.6× less per stored
-label** ($0.0022 vs $0.0101), returns fewer low-confidence verdicts (22.0% vs
-27.0%), and its Dawid–Skene reliability is marginally *higher* (0.874 vs 0.864).
-Working in [tokenomics.md](tokenomics.md).
+the cheaper family is at least as good. It costs **4.6× less per stored label**
+($0.0022 vs $0.0101), returns fewer low-confidence verdicts (22.0% vs 27.0%),
+and its Dawid–Skene reliability is marginally *higher* (0.874 vs 0.864). Working
+in [tokenomics.md](tokenomics.md).
 
 **Stack:** Python 3, SQLite, scikit-learn, the Anthropic and OpenAI SDKs,
 Pydantic, LangGraph, Flask, the MCP SDK, matplotlib. No vector store, no
