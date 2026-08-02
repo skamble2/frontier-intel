@@ -196,9 +196,12 @@ a person tweeting is not their employer announcing, and check C12 would
 otherwise let every personal post be attributed to the lab as if it were
 official.
 
-Researcher handles are not yet populated — `identities` has 0 rows with
-`platform='x'`, so a run currently covers the 7 lab accounts only ($0.77 worst
-case). Adding handles is what unlocks personnel-move coverage.
+Researcher handles are populated: `identities` carries **41 rows with
+`platform='x'`**, every one resolved to a person (33 admitted on a verbatim
+self-link, 8 on a corroborated name match). Adding them is what unlocked
+personnel-move coverage — the two xAI co-founder departures and the Mistral
+acquihire were found only after researcher accounts were tracked, and
+`personnel` is still the rarest event type in the corpus at 8 of 734.
 
 ## Observability (optional)
 

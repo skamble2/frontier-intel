@@ -188,10 +188,9 @@ corpus is Gemma 4 12B on 2026-07-01.
 
 Two readings are available and **the system cannot currently distinguish them**:
 either the labs genuinely paused open-weight releases in that window, or the
-mix shifted in a way the extractor is sensitive to. Saying which would need a
-longer window than 14 days and a targeted check of each lab's release feed.
-Stating both is the honest position, and it is a concrete next task rather than
-a shrug.
+mix shifted in a way the extractor is sensitive to. Stating both is the honest
+position, and it is a concrete open question rather than a shrug — what would
+settle it is in future scope, §4.
 
 What is not ambiguous is that the monitor earned its place on its first run. No
 invariant check would ever have flagged this — the database is perfectly
@@ -235,8 +234,7 @@ reason; `drift.py`'s `_DOC_MIX` does not, so it counts a register run as corpus
 drift. The `doc length` KS follows from the same cause — an arXiv abstract page
 is not the size of a tweet. The `event_type` PSI is computed over insights and
 is unaffected, so the finding above stands; but the document-level metrics
-should be restricted to extraction-eligible documents before anyone alarms on
-them.
+should not be alarmed on until they are scoped (future scope, §1).
 
 **The corpus ranking is neither de-duplicated nor windowed; only the delivered
 slate is.**
@@ -260,8 +258,8 @@ So the product is correct and the diagnostic is not: the divergence figure is
 computed on raw ranks, which makes its "top 10" really a top 6, drawn from
 outside the reporting window. Kendall τ and the overlap curve remain valid — they
 measure how differently the two rubrics order the same corpus — but the
-illustrative items are not what ships. Ranking on cluster representatives inside
-the policy window fixes both, and it is the first thing on the next list.
+illustrative items are not what ships. This is the first item in future scope,
+§1.
 
 **The two model judges agree with each other more than with the human.** On the
 363 investment pairs a human has now labelled, the two models (Claude and GPT)
@@ -327,7 +325,7 @@ be. Most of the remaining spread is ceiling arithmetic: lift is bounded by
 38%) and this class of question can be answered by reading rather than
 re-investigating.
 
-## Where the signal is strongest, and what it would take to deepen it
+## Where the signal is strongest
 
 The learning curve is still climbing — the last step, 160→320 pairs, moved
 held-out accuracy +0.025 — so more labels are worth buying, and the human audit
@@ -348,19 +346,62 @@ but the drift monitor is the caveat on that sentence: its supply of
 `open_source` events went to zero in the most recent window, and the ranking
 does not notice because it is not windowed.
 
-**What I would do next, in order.**
+Everything still open is collected in the next section rather than scattered
+through the document.
 
-1. **Rank on cluster representatives inside the policy window.** One change
-   fixes both diagnostic defects above — the duplicate top-10 and the 2024
-   events in a 90-day product — and makes the divergence figure describe what
-   actually ships.
-2. **Buy the next labels from the cheaper judge.** Same money, ~6.5× the
-   labels, marginally better measured reliability. The learning curve says they
-   are still worth buying.
-3. **Then buy human labels on the investment rubric**, where the two models'
-   shared blind spot is largest and where slate precision is weakest (53%).
-4. **Scope the drift metrics to extraction-eligible documents**, so a register
-   expansion run stops reading as corpus drift and the alarm means one thing.
-5. **Resolve the `open_source` question** — pause or artifact — with a longer
-   window and a per-lab release-feed check. It is the one open question in this
-   report that has a direct product consequence.
+## Future scope
+
+Every known gap, deferred decision and unimplemented capability in the system,
+in one place. Nothing here is a surprise found late: each item is the direct
+consequence of a measurement reported above, and each names what it would take.
+
+### 1. Correctness of the ranking diagnostic
+
+| | |
+|---|---|
+| **Rank on cluster representatives, inside the policy window** | The raw ranking neither collapses clusters nor applies the 90-day window, so the investment top 10 is really 6 distinct stories and the engineering top 10 reaches back to 2024-05. The delivered slate corrects both, so the product is right and the diagnostic is wrong. One change fixes both and makes the divergence figure describe what actually ships. **Highest priority — it is the only item that changes a number a reviewer reads.** |
+| **Scope the drift metrics to extraction-eligible documents** | `_DOC_MIX` and `_DOC_LEN` count every `raw_documents` row, including register pages that never yield an event. 121 arXiv expansion documents produced zero insights while driving `source_type` PSI to 0.356, so one of the three MAJOR readings is partly an artifact of the metric. `_EVENT_MIX` and `_SCORE` are over insights and are unaffected. |
+
+### 2. Labels — where the remaining accuracy is
+
+| | |
+|---|---|
+| **Buy the next tranche from the cheaper judge** | GPT-5.2 costs $0.0028 per usable label against Sonnet's $0.0182, returns fewer low-confidence verdicts (22.0% vs 27.5%), and its estimated reliability is marginally *higher* (0.874 vs 0.864). The same $12.87 already spent would buy roughly 4,600 labels instead of 708. The learning curve (last step +0.025) says they are still worth buying. |
+| **Then buy human labels on the investment rubric** | Where the two models' shared blind spot is largest and slate precision is weakest (53% kept, against 86% for `ai_team`). |
+| **Human labels on the technical rubric** | 53 human pairs against 323 for investment, so the technical `human_acc` of 0.811 rests on a much thinner reference than its investment counterpart. |
+| **A human-audited extraction reference** | The single largest evaluation gap. Quote verification is mechanical and entailment is LLM-judged; there is no gold extraction set. Everything in the JUDGED tier stays provisional until there is one. |
+
+### 3. Cost
+
+| | |
+|---|---|
+| **Batch the judge runs** | The `--batch` path exists and is tested but post-dates most of the committed labels. The batch API is a flat 50% off and judge runs are embarrassingly parallel, which would take the $12.87 judge line to about $6.43. |
+| **Stop paying the cache write premium** | Only the judge wrote cache tokens — 2,087 writes, **0 reads** — because the 5-minute ephemeral TTL expired between calls every time. It cost about $0.002 in premium and returned nothing. The fix is batching, above, not more caching. |
+
+### 4. Corpus and coverage
+
+| | |
+|---|---|
+| **Resolve the `open_source` question** | 8.3% of the corpus historically, 0.0% in the last 14 days — and it supplies 8 of the engineering top 10. Genuine pause or extraction-side artifact is not yet decidable; it needs a longer window and a per-lab release-feed check. The one open question here with a direct product consequence. |
+| **Witness a live talent move** | The synthesis path is verified end to end in the suite, but re-observation runs on a 7-day cadence and the first observation landed 2026-07-30, so the earliest a real move can be witnessed is 2026-08-06. Waiting, not building. |
+| **Deepen person attribution** | 58 of 734 events reach a person. The register, expansion and approval machinery works; official channels simply rarely name individuals outside paper bylines. GitHub and arXiv also track disjoint populations — the measured overlap is zero. |
+| **Re-extract the back corpus** | The quote-first prompt revision cut the partial-entailment rate on the 30 hardest documents from 65.6% to 47.9%, but it applies only to new extractions, so the reported corpus figures are the pre-revision audit. |
+| **Grow the channel benchmark** | 100 posts, one annotator, one policy version. |
+
+### 5. Deployment — unblocked, not done
+
+None of the following is implemented. They are listed as *unblocked* because
+nothing in the design prevents them: state is one SQLite file, the runtime is
+plain Python, and model routing is a single dictionary in `fli/ops/llm.py`.
+
+| | |
+|---|---|
+| **Vertex AI / Bedrock inference** | A provider entry in `fli/ops/llm.py` — `KEY_ENV`, `provider_for` and `PRICES` — rather than a rewrite. The OpenAI path already proves the second-provider shape works. |
+| **Containerisation** | A Dockerfile over `requirements.txt`. The pipeline has no system dependencies; even the PDF renderer is dependency-free by design. |
+| **Durable checkpointing** | The graph compiles with an `InMemorySaver`, which is sufficient because the approval pause and its resume happen in one CLI process. A long-running or distributed runner would need a real checkpointer. |
+
+### 6. Governance
+
+| | |
+|---|---|
+| **The policy has no domain owner** | `config/policy.yml` reads `owner: "BIT PM — unassigned"`, and the system prints `[NOT REVIEWED]` on every run rather than hiding it. Every weight in it is provisional until a portfolio manager signs off. This is not an engineering task, and it is the item that most limits what the scoring can claim. |

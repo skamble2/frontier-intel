@@ -109,11 +109,10 @@ GPT-5.2 costs **6.5× less per usable label** and its estimated reliability is
 honest reading is that Sonnet's price is buying nothing measurable on this task —
 the pairwise rubric decision is not hard enough to need it. Sonnet-as-judge
 remains in the system because Dawid–Skene requires a second independent family
-and because it is the incumbent the second family was introduced to check, but
-**the next tranche of labels should be bought from the cheaper judge**, and at
-these rates the same $12.87 would buy roughly 4,600 usable labels instead of 708.
-The learning curve (f11) says more labels are still worth buying, so this is the
-single highest-leverage cost decision left in the system.
+and because it is the incumbent the second family was introduced to check. At
+these rates the same $12.87 would buy roughly 4,600 usable labels instead of
+708, which makes judge routing the single highest-leverage cost decision left —
+carried into [future scope](final-report.md#future-scope).
 
 **3. Spend caps that refuse rather than truncate.** `--max-extract` caps events
 per run; the paid X source is gated behind `--dry-run` with a projected cost;
@@ -159,11 +158,10 @@ between calls in every run, so the caching paid the 1.25× write premium and
 collected none of the 0.10× read discount.
 
 That is a small net loss, honestly reported rather than quietly dropped: on
-judge input alone the premium cost roughly $0.002. The fix is not more caching
-but batching — judge runs are embarrassingly parallel and the batch API is a
-flat 50% off, which would have taken the $12.87 judge line to about $6.43. The
-`--batch` path exists and is tested; it simply post-dates most of the labels in
-the committed DB.
+judge input alone the premium cost roughly $0.002. The remedy is not more
+caching but batching — the `--batch` path exists and is tested, it simply
+post-dates most of the labels in the committed DB. Both are carried into
+[future scope](final-report.md#future-scope).
 
 No reasoning tokens were billed on any model (`M5a2`: 0 across all three), so
 none of the output cost above is invisible thinking.

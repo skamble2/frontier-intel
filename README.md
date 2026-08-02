@@ -128,10 +128,10 @@ file, the runtime is plain Python, and model routing is a single dictionary in
 `fli/ops/llm.py`. Today it runs four ways: as a CLI, as a Flask UI, as an MCP
 server an agent client can call, and as a scheduled
 [GitHub Actions](.github/workflows/pipeline.yml) job that commits the updated
-database and report back to the repository. Moving inference to Vertex
-AI or Bedrock is a provider entry in that one module rather than a rewrite, and
-containerising it is a Dockerfile over `requirements.txt` — neither is
-implemented yet, and both are listed here as *unblocked*, not as done.
+database and report back to the repository. Other targets — Vertex AI or Bedrock
+inference, a container image — are not implemented; what stands between the
+system and them is recorded under
+[future scope](docs/final-report.md#future-scope).
 
 ## Quick start
 
@@ -231,7 +231,8 @@ never pooled, because two audiences disagreeing is the product, not noise.
 ## Stated limitations
 
 Kept here rather than buried, because a system that hides its boundaries is not
-an intelligence system.
+an intelligence system. What it would take to close each of these is collected
+in [future scope](docs/final-report.md#future-scope).
 
 - **Person linkage reaches 58 of 734 events** — 14 attributed to a person as the
   event's subject, plus 44 linked deterministically to tracked arXiv authors

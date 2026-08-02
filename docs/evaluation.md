@@ -449,7 +449,9 @@ Stated here rather than left for a reader to discover.
   makes its top-k *examples* unrepresentative of what ships. The Kendall τ and
   the overlap curve are still valid measures of how differently the two rubrics
   order the same corpus; the illustrative items are not the delivered product.
-  Ranking on cluster representatives inside the window would fix both.
 - **No gold labels exist for extraction.** Quote verification is mechanical and
   entailment is LLM-judged; neither is a human-audited extraction reference.
-  That is the single largest gap, and it is the next thing worth buying.
+  That is the single largest gap in this document.
+
+What it would take to close each of these is collected under
+[future scope](final-report.md#future-scope) rather than repeated here.
