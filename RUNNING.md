@@ -125,6 +125,6 @@ fix land?" against the previous run's numbers.
 
 `data/fli.db` is the only database in the repo. Where evidence could not survive
 in it — a truncate+rebuild resets `fetch_log` to all-ok, erasing the failure
-history — it is exported as text instead:
-[docs/ingestion-robustness-evidence.txt](docs/ingestion-robustness-evidence.txt)
-carries the four ingestion failure modes with counts and URLs.
+history — the finding was written into prose and the working binary discarded.
+The four ingestion failure modes and their counts are in
+[architecture.md](docs/architecture.md#ingestion-layer-2).
