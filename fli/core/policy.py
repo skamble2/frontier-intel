@@ -27,7 +27,7 @@ _KEYS = {"version", "owner", "effective_from", "source", "channels",
 _OPTIONAL_KEYS = {"positions", "window_days", "show_undated",
                   "max_per_lab", "story_rare_df", "story_days",
                   "primary_rubric", "mobility_window_days",
-                  "require_mechanism"}
+                  "require_mechanism", "require_holding_link"}
 _POSITION_KEYS = {"ticker", "name", "weight_pct", "thesis", "exposure_terms"}
 
 
@@ -63,6 +63,7 @@ class Policy:
     story_rare_df: float = 0.0
     story_days: int = 7
     require_mechanism: tuple[str, ...] = ()
+    require_holding_link: tuple[str, ...] = ()
     positions: tuple[Position, ...] = ()
     positions_as_of: str | None = None
     positions_source: str | None = None
@@ -124,6 +125,10 @@ def parse_policy(raw: dict) -> Policy:
     if not isinstance(req_mech, list) or not all(isinstance(r, str) for r in req_mech):
         raise PolicyError("policy.yml: `require_mechanism` must be a list of "
                           "rubric names, e.g. [investment]")
+    req_link = raw.get("require_holding_link") or []
+    if not isinstance(req_link, list) or not all(isinstance(r, str) for r in req_link):
+        raise PolicyError("policy.yml: `require_holding_link` must be a list of "
+                          "rubric names, e.g. [investment]")
 
     channels = {}
     for name, terms in (raw["channels"] or {}).items():
@@ -184,6 +189,7 @@ def parse_policy(raw: dict) -> Policy:
         story_rare_df=float(raw.get("story_rare_df", 0.0)),
         story_days=int(raw.get("story_days", 7)),
         require_mechanism=tuple(r.strip() for r in req_mech),
+        require_holding_link=tuple(r.strip() for r in req_link),
         positions=tuple(positions),
         positions_as_of=pos_block.get("as_of"),
         positions_source=pos_block.get("source"),

@@ -69,7 +69,7 @@ def _mechanism_first(rows, hyp, pos):
 
 def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
     """(blocks, stats). The single content model both renderers consume."""
-    from fli.intelligence.scoring import top_events
+    from fli.intelligence.scoring import slate_anchor, top_events
 
     policy = load_policy()
     rubric = load_rubric(RUBRIC_FOR_PERSONA[persona])
@@ -79,15 +79,17 @@ def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
     pos = _positions(conn) if persona == "investment" else {}
     rows = _mechanism_first(rows, hyp, pos)
 
-    today = dt.date.today()
-    start = today - dt.timedelta(days=days)
+    # The period the header states must be the period the slate enforced:
+    # both end at the newest document, not at the wall clock.
+    end = slate_anchor(conn).date()
+    start = end - dt.timedelta(days=days)
     covered = sum(1 for r in rows if r["id"] in hyp)
     stats = {"items": len(rows), "with_reading": covered,
              "window_days": days, "dropped": dropped}
 
     b: list[tuple[str, object]] = [
         ("h1", f"Frontier Lab Intelligence — {PERSONA_TITLE[persona]}"),
-        ("meta", f"{start.isoformat()} to {today.isoformat()}   ·   "
+        ("meta", f"{start.isoformat()} to {end.isoformat()}   ·   "
                  f"rubric {rubric.name} r{rubric.version}   ·   "
                  f"policy v{policy.version}   ·   generated "
                  f"{storage.now_utc()[:16]}Z"),
@@ -99,10 +101,11 @@ def blocks(conn, persona: str, days: int, k: int = 10) -> tuple[list, dict]:
         b += [("h2", "Nothing to report for this period"),
               ("p", f"No event inside the last {days} days survived the slate "
                     f"rules. That is a statement about the period, not a "
-                    f"failure: {dropped.get('outside_window', 0)} scored "
-                    f"events fell outside the window and "
-                    f"{dropped.get('same_story', 0)} were suppressed as "
-                    f"repeats of a story already selected."),
+                    f"failure — the ledger below says where every scored "
+                    f"event went."),
+              ("meta", "Suppressed by the slate rules — " + ", ".join(
+                  f"{v} {k2.replace('_', ' ')}" for k2, v in sorted(
+                      dropped.items(), key=lambda kv: -kv[1])) + "."),
               ("p", "Widen the period with `--days 30` to see the standing "
                     "picture rather than the week's news.")]
         return b, stats

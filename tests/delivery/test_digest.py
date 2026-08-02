@@ -29,7 +29,8 @@ def _seed(conn, days_ago=(2, 3, 200)):
                      (i, f"https://lab.example/{i}", f"h{i}", pub))
         conn.execute("INSERT INTO evidence (id,document_id,locator,"
                      "verbatim_content,verification) VALUES (?,?,'{}',?,'exact')",
-                     (i, i, f"verbatim quote {i}"))
+                     (i, i, f"verbatim quote {i} copied word for word from the "
+                            f"stored source document"))
         conn.execute("INSERT INTO insights (id,evidence_id,attributed_lab_id,"
                      "event_type,claim,score,created_at)"
                      " VALUES (?,?,?,'release',?,?,'t')",
@@ -63,6 +64,16 @@ class TestThePeriodIsRealNotDecorative(unittest.TestCase):
         self.assertIn("claim 3", digest.to_markdown(b))
 
     def test_an_empty_period_says_so_rather_than_reaching_further_back(self):
+        # The window is anchored to the newest DOCUMENT, so an empty period
+        # requires the corpus to have moved on: a fresh eventless doc (a feed
+        # fetch that yielded nothing scoreable) pushes the anchor past every
+        # scored event.
+        self.conn.execute(
+            "INSERT INTO raw_documents (id,source_id,source_type,url,"
+            "content_hash,raw_content,retrieved_at,published_at)"
+            " VALUES (99,1,'blog','https://lab.example/fresh','h99','x','t',?)",
+            (dt.date.today().isoformat(),))
+        self.conn.commit()
         b, stats = digest.blocks(self.conn, "investment", days=1)
         self.assertEqual(stats["items"], 0)
         self.assertIn("Nothing to report", digest.to_markdown(b))

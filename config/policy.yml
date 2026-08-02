@@ -84,6 +84,13 @@ story_days: 7
 # "adopt this SDK fix" needs no portfolio channel.
 require_mechanism: [investment]
 
+# Rubrics whose slate also drops an event when the system's own reading found
+# nothing the fund owns: the persona verdict is `unclear` naming no ticker AND
+# the exposure scan drew no event→holding edge. An event with no reading still
+# passes — a missing reading is not evidence about the event; only a reading
+# that positively found no link suppresses.
+require_holding_link: [investment]
+
 # The rubric whose ranking lands in insights.score and which the evaluation
 # figures describe by default. Must name a file: config/rubrics/<name>.yml.
 primary_rubric: investment

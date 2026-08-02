@@ -67,8 +67,12 @@ class TestWhatDoesNotFire(unittest.TestCase):
         self.assertEqual(self._rules(), [])
 
     def test_an_old_event_is_not_pushed(self):
-        """A signed reading on a 2024 post is a backfill artifact, not news."""
+        """A signed reading on a 2024 post is a backfill artifact, not news.
+        "Old" is measured against the newest document the corpus holds (the
+        slate anchor), so the corpus must contain a fresher document for the
+        2024 post to be old relative to."""
         _event(self.conn, 1, days_ago=400)
+        _event(self.conn, 2, days_ago=1)
         _edge(self.conn, 1, "threat")
         _reading(self.conn, 1, "investment", "threat", "high")
         self.assertEqual(self._rules(), [])

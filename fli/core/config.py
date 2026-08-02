@@ -24,6 +24,14 @@ X_BIO_REOBSERVE_DAYS = 7
 
 MAX_INSIGHTS_PER_DOC = 5
 
+# The extractor's own contract (see _EXTRACT_TEMPLATE): a quote is 10-60 words,
+# because fewer cannot fully support a decision-relevant claim. Quotes below
+# the floor still exist in the corpus (GitHub release feeds serve one-line
+# changelog fragments); the slate drops them at render time rather than
+# letting "add support for X" top a digest. Engineering constant, not policy:
+# it restates the extraction prompt, it does not define "important".
+QUOTE_MIN_WORDS = 10
+
 EXPANSION_WINDOW_DAYS = 365
 
 CLUSTER_THETA = 0.4

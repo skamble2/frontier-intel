@@ -42,14 +42,24 @@ SITEMAP_PREFIX = {
 
 ARXIV_QUERY_LABS = ["OpenAI", "Anthropic", "DeepMind", "Meta AI",
                     "Mistral", "DeepSeek", "Qwen"]
+# xAI is deliberately absent from both arXiv lists, and the hole is measured,
+# not assumed: x.ai serves 403 to the direct fetch and the rendering proxy,
+# au:"xAI" returned 0 entries on every fetch (the lab has no collective arXiv
+# author name, unlike DeepSeek-AI / Qwen Team / Gemini Team), and a trial
+# abs:"xAI" mention query pulled 20 documents of which 20 were eXplainable-AI
+# acronym collisions — every one rejected not_lab_authored by the filter.
+# The lab's remaining coverage is its org X account, GitHub releases and
+# newsroom mentions; a query that is 100% noise does not earn its fetch cost.
 
+# au: queries match author NAMES, so an org term only works when the lab
+# publishes under a collective author (DeepSeek-AI, Qwen Team, Gemini Team —
+# each of these has yielded documents).
 ARXIV_AUTHOR_QUERIES = [
     ("DeepSeek",        'DeepSeek-AI'),
     ("Qwen",            'Qwen Team'),
     ("Google DeepMind", 'Gemini Team'),
     ("OpenAI",          'OpenAI'),
     ("Mistral",         'Mistral AI'),
-    ("xAI",             'xAI'),
 ]
 
 

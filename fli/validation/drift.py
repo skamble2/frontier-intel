@@ -10,6 +10,12 @@ quietly degrade before any invariant breaks. This module measures the movement:
   KS  (two-sample Kolmogorov-Smirnov) over continuous distributions
       document length, insight score
 
+Document-level metrics are scoped to extraction-eligible documents
+(sources.purpose = 'content'): register pages exist to observe people, never
+yield events, and arrive in bursts on the register's own cadence — counting
+them made the doc-mix alarm fire on the register's schedule rather than on
+the corpus the models actually see.
+
 The current window is the last `--days` anchored to the NEWEST document in the
 DB, not to the wall clock, so the report is reproducible on a static corpus.
 The reference is everything before the window.
@@ -101,16 +107,18 @@ def _values(conn, sql: str, cutoff: str, current: bool) -> list[float]:
     return [r[0] for r in conn.execute(sql.format(op=op), (cutoff,))]
 
 
-_DOC_MIX = ("SELECT source_type, count(1) FROM raw_documents"
-            " WHERE published_at IS NOT NULL AND published_at {op} ?"
-            " GROUP BY source_type")
+_DOC_MIX = ("SELECT d.source_type, count(1) FROM raw_documents d"
+            " JOIN sources s ON s.id = d.source_id AND s.purpose = 'content'"
+            " WHERE d.published_at IS NOT NULL AND d.published_at {op} ?"
+            " GROUP BY d.source_type")
 _EVENT_MIX = ("SELECT i.event_type, count(1) FROM insights i"
               " JOIN evidence e ON e.id = i.evidence_id"
               " JOIN raw_documents d ON d.id = e.document_id"
               " WHERE d.published_at IS NOT NULL AND d.published_at {op} ?"
               " GROUP BY i.event_type")
-_DOC_LEN = ("SELECT length(raw_content) FROM raw_documents"
-            " WHERE published_at IS NOT NULL AND published_at {op} ?")
+_DOC_LEN = ("SELECT length(d.raw_content) FROM raw_documents d"
+            " JOIN sources s ON s.id = d.source_id AND s.purpose = 'content'"
+            " WHERE d.published_at IS NOT NULL AND d.published_at {op} ?")
 _SCORE = ("SELECT i.score FROM insights i"
           " JOIN evidence e ON e.id = i.evidence_id"
           " JOIN raw_documents d ON d.id = e.document_id"

@@ -46,7 +46,8 @@ class WebTestCase(unittest.TestCase):
                      " VALUES (1,1,'blog','u','h','x','t','2026-08-01')")
         conn.execute("INSERT INTO evidence (id,document_id,locator,"
                      "verbatim_content,verification)"
-                     " VALUES (1,1,'{}','the lab shipped','exact')")
+                     " VALUES (1,1,'{}','the lab shipped a new model to every "
+                     "customer in general availability','exact')")
         conn.execute("INSERT INTO insights (id,evidence_id,attributed_lab_id,"
                      "event_type,claim,score,created_at)"
                      " VALUES (7,1,1,'release','a claim',0.9,'t')")

@@ -134,7 +134,7 @@ than a retry storm.
 Those counts come from an earlier run, and deliberately so: a truncate-and-
 rebuild resets `fetch_log`, so a corpus rebuilt since then cannot show the
 failures that shaped these design decisions. The live database carries its own
-current tally (733 ok / 148 error / 16 empty), dominated by a transient
+current tally (771 ok / 164 error / 20 empty), dominated by a transient
 `export.arxiv.org` certificate failure and by `x.ai` returning 403 to both a
 direct fetch and the rendering proxy — the latter being why xAI has almost no
 coverage in the corpus.
@@ -259,12 +259,13 @@ lands as a new labeler rather than mixing into the old one.
 
 This is not decoration, and the system measures whether it is real. The two
 rankings share **0 of their top 10** (8% of the top 25) and correlate at a
-Kendall τ of **+0.064** — near zero, i.e. close to unrelated orderings.
+Kendall τ of **+0.128** — near zero, i.e. close to unrelated orderings.
 Same events, same features — only the definition of "important" differs, and it
 differs enough that one ranking demonstrably cannot serve both readers. The
-investment top 10 is commercial and infrastructure — government cloud
-commitments, token pricing, datacenter power. The engineering top 10 is eight
-open-weight releases. Neither list would serve the other reader at all.
+investment top 10 is personnel, commercial and infrastructure — an acquihire,
+datacenter buildouts, token pricing, enterprise adoption. The engineering top
+10 opens with open-weight releases and fills with shippable tooling. Neither
+list would serve the other reader at all.
 
 ## Connecting private labs to public equities
 
@@ -288,7 +289,7 @@ or tailwind) is only ever stated from a classifier-established mechanism that
 carries an inherent sign — and most channels do not. "Building a 10 MW
 datacenter" and "saving 3.28 megawatts" are the same channel pointing opposite
 ways; reading which way is a judgement about the sentence, so it is deferred to
-the persona layer, which reads the claim. On the live corpus, 57 of 59 exposure
+the persona layer, which reads the claim. On the live corpus, 52 of 54 exposure
 edges are `unclear` by design.
 
 ## Delivery
@@ -312,9 +313,9 @@ reader sees in the repo. Items without a reading are published *as* uncovered
 rather than dropped, so the coverage gap is visible in the committed artifact.
 
 `alerts` is the push path, and its trigger is deliberately not the score. The
-one event the system calls a threat to a holding ranks 10th of 734 under the
-shipped model — but 15th under logistic, 26th under hand-weights and 84th under
-the recency baseline. A top-decile rule would therefore fire or not fire
+one event the system calls a threat to two holdings ranks 22nd of 954 under the
+shipped model — but 14th under logistic, 37th under hand-weights and 506th under
+the recency baseline. A rank-threshold rule would therefore fire or not fire
 depending on which model won a bake-off, which is no basis for waking a PM. So
 an alert fires on a *signed direction* (a classifier-established position edge,
 or a persona reading at medium-or-better confidence), bounded by the reporting
@@ -499,7 +500,7 @@ count of MAJOR drifts) so a scheduler can still alarm on it, and it runs as a
 free node inside the graph, informational only. Making drift an invariant would
 mean the build fails because the world changed, which is not a defect.
 
-On the committed corpus it reports **3 MAJOR of 4 metrics**, and what it caught
+On the committed corpus it reports **4 MAJOR of 4 metrics**, and what it caught
 is discussed in [final-report.md](final-report.md).
 
 ## Fallback strategies
@@ -587,9 +588,9 @@ are not on the graph's path at all.
 Each paid entry point previews its projected spend before sending, checks
 the API key and the price table, and refuses to start a run it cannot afford.
 Cost is logged per call to `llm_calls`; the whole system to date has spent
-**$25.18 across 7,423 calls**. Extraction — the part that produces what a reader
-sees — is 19.7% of that; judging and labeling, which exist only to validate the
-ranking, are 64.8%. The full breakdown, the unit economics and the three places
+**$29.87 across 8,707 calls**. Extraction — the part that produces what a reader
+sees — is 20.5% of that; judging and labeling, which exist only to validate the
+ranking, are 63.8%. The full breakdown, the unit economics and the three places
 cost changed a design decision are in [tokenomics.md](tokenomics.md); the raw
 per-task split is `docs/metrics-out.txt`, section M5a.
 
@@ -1166,7 +1167,7 @@ One content model, two renderers: `blocks()` returns `(style, payload)` pairs an
 markdown and PDF are two functions over that list. Writing the report twice would
 let the exported PDF drift silently from the markdown.
 
-What it refuses to do: `unclear` items are not hidden — 57 of 59 position edges
+What it refuses to do: `unclear` items are not hidden — 52 of 54 position edges
 are `unclear` by design, and showing only the two signed ones would imply the
 system knows more than it does. Coverage is stated in the header, including how
 many items carry no reading at all.
@@ -1177,12 +1178,14 @@ everything interesting — it is "a reader would want to know before the next
 report".
 
 **The trigger is the reading, not the rank.** The obvious rule is a score
-threshold and it is wrong here: the two events carrying a signed reading score
--0.02 and 1.13 against a p90 of 1.59. OpenAI launching Health in ChatGPT — the
-one event in 734 the deterministic layer calls a threat to a named holding —
-sits near the *middle* of the ranking, because the rubric rewards specificity and
-shipped-ness, not portfolio consequence. A p90 rule would have missed it and
-fired on ten model releases instead.
+threshold and it is wrong here, because rank is not stable across the bake-off
+contenders. OpenAI launching Health in ChatGPT — the one event in 954 the
+deterministic layer calls a threat to a named holding — ranks 22nd under the
+shipped GBM but 14th under logistic, 37th under hand-weights and 506th under
+the recency baseline. Any rank threshold makes the alert's firing an accident
+of which model won the last bake-off, which is no basis for interrupting a PM;
+a signed reading means a reader-facing judgment was actually made about a
+position.
 
 Low confidence is excluded: it means the reader flagged the evidence as thin, and
 interrupting on it is how a channel gets muted. One event is one alert even when

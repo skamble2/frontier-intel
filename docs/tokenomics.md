@@ -15,26 +15,26 @@ sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt   # sections M5a�
 
 ## The bill
 
-**$25.18 across 7,423 calls** — 6,167,889 input tokens and 816,504 output
-tokens, over eight days (2026-07-25 to 2026-08-01).
+**$29.87 across 8,707 calls** — 7,344,833 input tokens and 956,824 output
+tokens, over nine days (2026-07-25 to 2026-08-02).
 
 | task | model | calls | input tok | output tok | USD | $/call | share |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `judge` | claude-sonnet-5 | 2,673 | 2,924,907 | 272,338 | 12.868 | 0.00481 | 51.1% |
-| `extract` | claude-sonnet-5 | 350 | 760,384 | 178,246 | 4.955 | 0.01416 | 19.7% |
-| `label` | claude-sonnet-5 | 385 | 369,625 | 44,768 | 1.780 | 0.00462 | 7.1% |
-| `judge` | gpt-5.2 | 762 | 574,996 | 46,537 | 1.658 | 0.00218 | 6.6% |
-| `repair` | claude-sonnet-5 | 341 | 171,544 | 35,538 | 1.048 | 0.00307 | 4.2% |
-| `verify` | claude-haiku-4.5 | 1,241 | 430,100 | 79,101 | 0.826 | 0.00067 | 3.3% |
-| `channel` | claude-haiku-4.5 | 1,016 | 457,612 | 68,495 | 0.800 | 0.00079 | 3.2% |
-| `persona` | claude-sonnet-5 | 92 | 85,448 | 26,339 | 0.651 | 0.00708 | 2.6% |
-| `classify` | claude-haiku-4.5 | 433 | 328,715 | 29,045 | 0.474 | 0.00109 | 1.9% |
-| `faithfulness` | claude-haiku-4.5 | 130 | 64,558 | 36,097 | 0.123 | 0.00094 | 0.5% |
+| `judge` | claude-sonnet-5 | 3,260 | 3,597,966 | 321,458 | 15.624 | 0.00479 | 52.3% |
+| `extract` | claude-sonnet-5 | 408 | 923,343 | 221,857 | 6.136 | 0.01504 | 20.5% |
+| `label` | claude-sonnet-5 | 385 | 369,625 | 44,768 | 1.780 | 0.00462 | 6.0% |
+| `judge` | gpt-5.2 | 762 | 574,996 | 46,537 | 1.658 | 0.00218 | 5.6% |
+| `repair` | claude-sonnet-5 | 449 | 226,127 | 46,719 | 1.379 | 0.00307 | 4.6% |
+| `verify` | claude-haiku-4.5 | 1,568 | 544,068 | 99,882 | 0.970 | 0.00062 | 3.2% |
+| `channel` | claude-haiku-4.5 | 1,128 | 507,239 | 76,187 | 0.844 | 0.00075 | 2.8% |
+| `persona` | claude-sonnet-5 | 109 | 100,083 | 30,292 | 0.755 | 0.00693 | 2.5% |
+| `classify` | claude-haiku-4.5 | 508 | 436,828 | 33,027 | 0.602 | 0.00119 | 2.0% |
+| `faithfulness` | claude-haiku-4.5 | 130 | 64,558 | 36,097 | 0.123 | 0.00095 | 0.4% |
 
 The shape of this table is the main result: **the product costs almost nothing
 to run; the evaluation is what costs money.** Extraction — the thing that
-actually produces the 734 events a reader sees — is 19.7% of spend. Judging and
-human-assisted labeling, which exist only to *validate* the ranking, are 64.8%
+actually produces the 954 events a reader sees — is 20.5% of spend. Judging and
+human-assisted labeling, which exist only to *validate* the ranking, are 63.8%
 between them. That ratio is a deliberate choice, not an accident: a scoring
 system that cannot be defended is worth less than one that is slightly worse and
 measured, so the budget went where the defensibility is.
@@ -86,33 +86,34 @@ changeable in one.
 ## Three places cost actually changed a design decision
 
 **1. The Haiku gate in front of Sonnet.** Stage 1 asks Haiku whether a document
-is substantive at all before Sonnet is allowed to read it. It killed **102
+is substantive at all before Sonnet is allowed to read it. It killed **119
 documents** as `low_substance` — marketing, event promotion, job posts. The gate
-itself cost $0.47. Running those same classification tokens on Sonnet would have
-cost $1.42, and running the killed documents through Sonnet extraction would
+itself cost $0.60. Running those same classification tokens on Sonnet would have
+cost $1.81, and running the killed documents through Sonnet extraction would
 have cost more again. Counting only the routing decision (not the documents
-avoided), Haiku-routing the four closed-set tasks saved **$4.69 — 16% of the
+avoided), Haiku-routing the four closed-set tasks saved **$5.80 — 16% of the
 counterfactual all-Sonnet bill**. The classifier's prefix is shared with the
 extractor, so the 6k-token read is not paid twice.
 
 **2. The expensive judge is not the better judge.** This is the finding that
 most changed how the budget is spent:
 
-| judge | judged | usable | low-conf | USD | $/usable label | Dawid–Skene accuracy |
+| judge | calls | stored labels | low-conf | USD | $/label | Dawid–Skene accuracy |
 |---|---:|---:|---:|---:|---:|---:|
-| claude-sonnet-5 | 976 | 708 | 27.5% | 12.868 | **0.01817** | 0.864 |
-| gpt-5.2 | 762 | 594 | 22.0% | 1.658 | **0.00279** | 0.874 |
+| claude-sonnet-5 | 3,260 | 1,546 | 27.0% | 15.624 | **0.0101** | 0.864 |
+| gpt-5.2 | 762 | 762 | 22.0% | 1.658 | **0.0022** | 0.874 |
 
-GPT-5.2 costs **6.5× less per usable label** and its estimated reliability is
+GPT-5.2 costs **4.6× less per stored label** and its estimated reliability is
 *marginally higher*, not lower. It also returns fewer low-confidence verdicts
-(22.0% vs 27.5%), so more of what it is paid for survives into training. The
+(22.0% vs 27.0%), so more of what it is paid for survives into training. The
 honest reading is that Sonnet's price is buying nothing measurable on this task —
 the pairwise rubric decision is not hard enough to need it. Sonnet-as-judge
 remains in the system because Dawid–Skene requires a second independent family
-and because it is the incumbent the second family was introduced to check. At
-these rates the same $12.87 would buy roughly 4,600 usable labels instead of
-708, which makes judge routing the single highest-leverage cost decision left —
-carried into [future scope](final-report.md#future-scope).
+and because it is the incumbent the second family was introduced to check. The
+learning curve has since plateaued (+0.004 on the last doubling), so the lesson
+is carried forward as a routing rule rather than a purchase order: whatever
+labels are bought next should come from the cheaper family — see
+[future scope](final-report.md#future-scope).
 
 **3. Spend caps that refuse rather than truncate.** `--max-extract` caps events
 per run; the paid X source is gated behind `--dry-run` with a projected cost;
@@ -161,19 +162,42 @@ frozen into a JSON fixture. Every number measured against them since has cost
 nothing, which is the general pattern worth copying: pay once for real data,
 then make the evaluation re-runnable offline forever.
 
-## Cache and batch: built, barely used
+## Cache and batch: from built-but-idle to earning
 
-Both discounts are implemented and both are visible in the schema
-(`cache_write_tokens`, `cache_read_tokens`, and a `--batch` flag that halves the
-call). In the committed corpus only the judge wrote cache tokens — **2,087 cache
-writes and 0 cache reads**. Zero reads means the 5-minute ephemeral TTL expired
-between calls in every run, so the caching paid the 1.25× write premium and
-collected none of the 0.10× read discount.
+Both discounts are implemented, and the ledger says exactly how much each has
+actually earned.
 
-That is a small net loss, honestly reported rather than quietly dropped: on
-judge input alone the premium cost roughly $0.002. The remedy is not more
-caching but batching — the `--batch` path exists and is tested, it simply
-post-dates most of the labels in the committed DB. Both are carried into
+**Caching now pays.** For most of the corpus's history it did not: early judge
+runs wrote cache tokens whose 5-minute ephemeral TTL expired between calls,
+paying the 1.25× write premium and collecting none of the 0.10× read discount.
+Extraction reversed that. Across the corpus:
+
+| task | cache write | cache read |
+|---|---:|---:|
+| `extract` | 4,828 | **65,178** |
+| `judge` | 2,087 | 0 |
+
+The judge line is still the old pattern — premium paid, nothing collected — but
+extraction now reads roughly 13× what it writes, which is the discount working
+as intended.
+
+**Batching is real but narrow.** `llm_calls` has no batch column, so the flag is
+not directly queryable; it is recoverable arithmetically, because a batched call
+stores half its full-price cost. Recomputing every row from its tokens and the
+pinned price table:
+
+| task | batched calls | of total | saved |
+|---|---:|---:|---:|
+| `verify` | 220 | 1,568 | $0.07 |
+| `faithfulness` | 130 | 130 | $0.12 |
+| `channel` | 112 | 1,128 | $0.04 |
+| everything else | 0 | — | — |
+
+**462 of 8,707 calls, saving $0.24.** The two lines that would actually benefit —
+`judge` at $17.28 and `extract` at $6.14, 78% of all spend between them — have
+never been through it: the path is Anthropic-only and post-dates the bulk of
+both. Routing them through it is worth roughly $11 on a re-run, which is why
+batching-by-default is carried into
 [future scope](final-report.md#future-scope).
 
 No reasoning tokens were billed on any model (`M5a2`: 0 across all three), so
@@ -183,55 +207,57 @@ none of the output cost above is invisible thinking.
 
 | unit | cost |
 |---|---|
-| per stored event, all-in (total spend ÷ 734 events) | **$0.0343** |
-| per stored event, extraction only | $0.0068 |
-| per `extract` call (≈2.1 events) | $0.0142 |
-| per `classify` call | $0.0011 |
-| per usable judge label (Sonnet) | $0.0182 |
-| per usable judge label (GPT-5.2) | $0.0028 |
+| per stored event, all-in (total spend ÷ 954 events) | **$0.0313** |
+| per stored event, extraction only | $0.0064 |
+| per `extract` call (≈2.3 events) | $0.0150 |
+| per `classify` call | $0.0012 |
+| per stored judge label (Sonnet) | $0.0101 |
+| per stored judge label (GPT-5.2) | $0.0022 |
 
 **What a marginal day costs.** Splitting spend by date, a routine day that
 ingests, filters, extracts and delivers — without buying new judge labels —
-lands around **$1–2**. 2026-08-01 is the clean example at $2.23, and $1.05 of
-that was a one-off claim-repair pass over the whole back corpus. The recurring
-daily cost of running the product is therefore roughly **$1**, and the $25 total
-is dominated by one-time evaluation work: 3,435 judge calls, a repair pass, and
-a channel-classification sweep over the entire corpus.
+lands around **$1–2**: 2026-07-29 and 2026-07-31 are the clean examples at
+$1.16 and $1.19. The recurring daily cost of running the product is therefore
+roughly **$1**, and the $30 total is dominated by one-time evaluation work:
+4,022 judge calls, a repair pass, and a channel-classification sweep over the
+entire corpus.
 
 Per-day totals:
 
 | date | calls | USD | what dominated |
 |---|---:|---:|---|
 | 2026-07-25 | 334 | 2.76 | first extraction runs |
-| 2026-07-26 | 1,529 | 5.70 | corpus extraction |
-| 2026-07-27 | 1,164 | 5.38 | extraction + first judging |
+| 2026-07-26 | 1,529 | 5.70 | judging + human-assisted labeling |
+| 2026-07-27 | 1,164 | 5.38 | judging + extraction |
 | 2026-07-28 | 926 | 3.59 | judging |
-| 2026-07-29 | 114 | 1.16 | judging |
-| 2026-07-30 | 2,043 | 3.16 | judge 1.60 · verify 0.54 · persona 0.51 · channel 0.51 |
+| 2026-07-29 | 114 | 1.16 | extraction |
+| 2026-07-30 | 2,043 | 3.16 | judge 1.60 · verify 0.54 · persona 0.51 |
 | 2026-07-31 | 346 | 1.19 | judge label push |
 | 2026-08-01 | 967 | 2.23 | repair 1.05 · extract 0.60 · verify 0.28 |
+| 2026-08-02 | 1,284 | 4.69 | corpus refresh: judge 2.76 (batched) · extract 1.18 · repair 0.33 |
 
 ## What this cost profile means for scaling
 
-The corpus is 1,541 documents and 8 labs. Spend divides cleanly by what it
+The corpus is 1,675 documents and 8 labs. Spend divides cleanly by what it
 scales with:
 
 | scales with | tasks | USD | share |
 |---|---|---:|---:|
-| corpus size | `classify` `extract` `verify` `channel` `faithfulness` `repair` | 8.22 | 33% |
-| label count | `judge` `label` | 16.31 | 65% |
-| slate size | `persona` | 0.65 | 3% |
+| corpus size | `classify` `extract` `verify` `channel` `faithfulness` `repair` | 10.05 | 34% |
+| label count | `judge` `label` | 19.06 | 64% |
+| slate size | `persona` | 0.75 | 3% |
 
-The corpus-scaling half is about **$0.0053 per document**. Tripling the number
-of tracked labs would move it to roughly $25 and change nothing structurally —
+The corpus-scaling half is about **$0.0060 per document**. Tripling the number
+of tracked labs would move it to roughly $30 and change nothing structurally —
 and most of that is `extract`, the one line where paying for Sonnet is defended.
 
-The parts that scale with *label count* — `judge` and `label` — are $16.31, and
-they do not need to grow with the corpus at all. They need to grow until the
-learning curve flattens, which f11 says it has not. Buying those labels from
-GPT-5.2 rather than Sonnet is the difference between a few hundred more labels
-and a few thousand for the same money.
+The parts that scale with *label count* — `judge` and `label` — are $19.06, and
+they do not need to grow with the corpus at all. They needed to grow until the
+learning curve flattened, and f11 now says it has: the last doubling of pairs
+moved held-out accuracy +0.004. The label budget is roughly spent; what remains
+is feature work and human labels, which buy a different thing than more judge
+consensus.
 
-Against a €100 budget, **$25.18 was spent — about a quarter of it.** The
-binding constraint was never money; it was how many pairs a human could label in
-a sitting.
+Against a €100 budget, **$29.87 was spent — under a third of it.** The binding
+constraint was never money; it was how many pairs a human could label in a
+sitting.

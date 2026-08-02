@@ -355,7 +355,9 @@ CREATE TABLE IF NOT EXISTS slate_reviews (
 CREATE TABLE IF NOT EXISTS contributor_scores (
     id         INTEGER PRIMARY KEY,
     person_id  INTEGER NOT NULL REFERENCES people(id),
-    rubric     TEXT NOT NULL CHECK (rubric IN ('investment','ai_team')),
+    -- Keyed by RUBRIC name, matching event_scores' `rubric:model` keys; the
+    -- ai_team persona reads by the technical rubric (delivery's mapping).
+    rubric     TEXT NOT NULL CHECK (rubric IN ('investment','technical')),
     score      REAL NOT NULL,
     n_events   INTEGER NOT NULL,
     components TEXT,                -- JSON decomposition, never a bare number
@@ -369,7 +371,7 @@ CREATE TABLE IF NOT EXISTS contributor_scores (
 CREATE TABLE IF NOT EXISTS contributor_reviews (
     id          INTEGER PRIMARY KEY,
     person_id   INTEGER NOT NULL REFERENCES people(id),
-    rubric      TEXT NOT NULL CHECK (rubric IN ('investment','ai_team')),
+    rubric      TEXT NOT NULL CHECK (rubric IN ('investment','technical')),
     reviewer    TEXT NOT NULL,
     verdict     TEXT NOT NULL CHECK (verdict IN ('keep','cut')),
     reviewed_at TIMESTAMP NOT NULL,

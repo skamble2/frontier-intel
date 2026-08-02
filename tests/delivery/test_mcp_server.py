@@ -34,7 +34,8 @@ def _seed(conn):
                      (i, f"https://lab.example/{i}", f"h{i}", pub))
         conn.execute("INSERT INTO evidence (id,document_id,locator,"
                      "verbatim_content,verification) VALUES (?,?,'{}',?,'exact')",
-                     (i, i, f"verbatim quote {i}"))
+                     (i, i, f"verbatim quote {i} copied word for word from the "
+                            f"stored source document"))
         conn.execute("INSERT INTO insights (id,evidence_id,attributed_lab_id,"
                      "event_type,claim,score,created_at)"
                      " VALUES (?,?,?,'release',?,?,'t')",
@@ -67,7 +68,8 @@ class TestSearch(MCPTestCase):
         self.assertEqual(len(rows), 2)
         self.assertEqual(set(rows[0]), set(mcp_server._FIELDS))
         self.assertEqual(rows[0]["lab"], "Lab 1")
-        self.assertEqual(rows[0]["quote"], "verbatim quote 1")
+        self.assertEqual(rows[0]["quote"], "verbatim quote 1 copied word for "
+                                           "word from the stored source document")
 
     def test_no_match_is_an_empty_list_not_an_error(self):
         self.assertEqual(mcp_server.search(self.conn, "zzz-nothing"), [])

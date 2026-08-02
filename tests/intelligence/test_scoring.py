@@ -127,3 +127,130 @@ class TestSlateFilter(unittest.TestCase):
         self.assertFalse(f.accept(self._row(7, "OpenAI", "an overclaimed thing")))
         self.assertEqual(f.dropped["not_entailed"], 1)
         self.assertTrue(f.accept(self._row(8, "OpenAI", "a faithful thing")))
+
+    def test_thin_quotes_are_dropped_except_synthesized_moves(self):
+        """The 2026-08-02 failure class: GitHub release feeds serve one-line
+        changelog fragments ("support mcp sdk v2 alongside v1") whose quotes sit
+        below the extractor's own 10-60-word contract, and one topped the
+        engineering digest. Gate ON = a sub-floor quote is out; a synthesized
+        mobility event is exempt, because its evidence is a name on a lab page,
+        not an extracted quote. Gate at 0 = the rule does not exist."""
+        from fli.intelligence.scoring import SlateFilter
+        f = SlateFilter(self._policy(), self.CORPUS, min_quote_words=10)
+        changelog = {**self._row(1, "Anthropic", "SDK adds MCP v2 support"),
+                     "quote": "support mcp sdk v2 alongside v1"}
+        full = {**self._row(2, "OpenAI", "OpenAI contracts 900MW in Abilene"),
+                "quote": "we have contracted a further nine hundred megawatts "
+                         "of capacity at the Abilene site through 2028"}
+        move = {**self._row(3, "Mistral", "Alice moved from LabA to LabB"),
+                "quote": "Alice Research", "synth": 1}
+        self.assertFalse(f.accept(changelog))
+        self.assertTrue(f.accept(full))
+        self.assertTrue(f.accept(move))
+        self.assertEqual(f.dropped["thin_quote"], 1)
+        off = SlateFilter(self._policy(), self.CORPUS)
+        self.assertTrue(off.accept(dict(changelog)))
+
+    def test_no_holding_link_gate_drops_events_the_reading_disowned(self):
+        """The other 2026-08-02 failure class: an investment digest item whose
+        own persona reading said "this touches no holding" was still delivered
+        at the top of the slate. Events in the no-link set (reading unclear,
+        no ticker, no exposure edge — computed by top_events) are out; events
+        without a reading pass, because a missing reading is not evidence."""
+        from fli.intelligence.scoring import SlateFilter
+        f = SlateFilter(self._policy(), self.CORPUS, no_holding_link={4})
+        self.assertFalse(f.accept(self._row(4, "Anthropic",
+                                            "a partnership touching no holding")))
+        self.assertTrue(f.accept(self._row(5, "OpenAI", "a health launch")))
+        self.assertEqual(f.dropped["no_holding_link"], 1)
+
+    def test_window_is_anchored_not_wall_clocked(self):
+        """A committed corpus must render the same slate whenever it is
+        cloned. Anchored to the newest document, a 7-day window keeps an
+        event 5 days older than that document forever; anchored to the wall
+        clock, the same event would silently expire as the demo sat."""
+        from datetime import datetime, timedelta, timezone
+        from fli.intelligence.scoring import SlateFilter
+        anchor = datetime(2026, 7, 28, tzinfo=timezone.utc)
+        f = SlateFilter(self._policy(window_days=7), self.CORPUS,
+                        anchor=anchor)
+        self.assertTrue(f.accept(self._row(1, "OpenAI", "inside the window",
+                                           day="2026-07-23")))
+        self.assertFalse(f.accept(self._row(2, "Meta", "before the window",
+                                            day="2026-07-19")))
+        self.assertEqual(f.dropped["outside_window"], 1)
+        # no anchor -> wall clock, the live-feed behaviour
+        g = SlateFilter(self._policy(window_days=7), self.CORPUS)
+        fresh = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        self.assertTrue(g.accept(self._row(3, "OpenAI", "fresh", day=fresh)))
+        self.assertFalse(g.accept(self._row(4, "Meta", "stale",
+                                            day="2026-07-19")))
+
+    def test_slate_anchor_is_the_newest_document(self):
+        from fli.intelligence.scoring import slate_anchor
+        from tests.helpers import memory_db
+        conn = memory_db()
+        conn.execute("INSERT INTO sources (source_type,name,url)"
+                     " VALUES ('blog','s','u')")
+        for i, pub in enumerate(("2026-07-01", "2026-07-28", None), 1):
+            conn.execute(
+                "INSERT INTO raw_documents (id,source_id,source_type,url,"
+                "content_hash,raw_content,retrieved_at,published_at)"
+                " VALUES (?,1,'blog',?,?,'x','t',?)",
+                (i, f"u{i}", f"h{i}", pub))
+        self.assertEqual(slate_anchor(conn).date().isoformat(), "2026-07-28")
+
+
+class TestReaderRank(unittest.TestCase):
+    """The persisted rank is the ranking a reviewer opens. Before this class
+    existed, plain score order put a two-year-old event at rank 1 of a
+    recent-frontier-activity product (the raw technical top-25 was 100%
+    outside the 90-day window)."""
+
+    def _db(self):
+        import numpy as np
+        from tests.helpers import memory_db
+        conn = memory_db()
+        conn.execute("INSERT INTO sources (source_type,name,url)"
+                     " VALUES ('blog','s','u')")
+        # anchor doc: newest is 2026-07-28; policy window is 90d
+        rows = [
+            # id, published_at, cluster, score
+            (1, "2024-05-24", None, 9.0),   # ancient, highest score
+            (2, "2026-07-20", 7,    5.0),   # in window, cluster 7 primary
+            (3, "2026-07-21", 7,    4.0),   # in window, cluster 7 duplicate
+            (4, "2026-07-01", None, 1.0),   # in window, low score
+            (5, None,         None, 8.0),   # undated
+        ]
+        for i, pub, cl, _ in rows:
+            conn.execute(
+                "INSERT INTO raw_documents (id,source_id,source_type,url,"
+                "content_hash,raw_content,retrieved_at,published_at)"
+                " VALUES (?,1,'blog',?,?,'x','t',?)", (i, f"u{i}", f"h{i}", pub))
+            conn.execute(
+                "INSERT INTO evidence (id,document_id,locator,verbatim_content,"
+                "verification) VALUES (?,?,'{}','q','exact')", (i, i))
+            conn.execute(
+                "INSERT INTO insights (id,evidence_id,event_type,claim,"
+                "cluster_id,created_at) VALUES (?,?,'release',?,?,'t')",
+                (i, i, f"claim {i}", cl))
+        ids = [r[0] for r in rows]
+        scores = np.array([r[3] for r in rows])
+        return conn, ids, scores
+
+    def test_in_window_primaries_outrank_duplicates_and_the_archive(self):
+        from fli.intelligence.scoring import _reader_rank
+        conn, ids, scores = self._db()
+        rank = {ids[i]: r for i, r in enumerate(_reader_rank(conn, ids, scores))}
+        # band 0 (in-window primaries, score order): 2 then 4
+        # band 1 (in-window duplicate): 3 — cluster 7 already represented
+        # band 2 (archive + undated, score order): 1 then 5
+        self.assertEqual([rank[2], rank[4], rank[3], rank[1], rank[5]],
+                         [1, 2, 3, 4, 5])
+
+    def test_scores_are_not_touched_only_their_order_of_presentation(self):
+        from fli.intelligence.scoring import _reader_rank
+        conn, ids, scores = self._db()
+        before = scores.copy()
+        _reader_rank(conn, ids, scores)
+        self.assertTrue((scores == before).all())

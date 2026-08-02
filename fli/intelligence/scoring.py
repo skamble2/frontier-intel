@@ -14,7 +14,7 @@ import numpy as np
 
 from fli.intelligence import features as featmod
 from fli import storage
-from fli.core.config import RANDOM_SEED, TEST_FRAC
+from fli.core.config import QUOTE_MIN_WORDS, RANDOM_SEED, TEST_FRAC
 from fli.core.policy import load_policy
 from fli.core.text import norm
 
@@ -171,6 +171,46 @@ def _dense_rank(scores):
     return rank
 
 
+def _reader_rank(conn, ids, scores):
+    """The rank that lands in the database, which is the ranking a reviewer
+    opens. Plain score order put two-year-old events at the top (the raw
+    technical top-25 was 100% outside the 90-day window before this change):
+    score says how strong an event is, but a persisted `rank` on a product
+    about RECENT frontier activity reads as what matters now. So the stored
+    rank applies the same contract the slate enforces — events inside the
+    policy window rank first, one per cluster, then in-window cluster
+    duplicates, then the dated archive and the undated. Score order within
+    each band; scores themselves are stored untouched."""
+    pol = load_policy()
+    cutoff = (slate_anchor(conn)
+              - timedelta(days=pol.window_days)).isoformat()
+    meta = {r[0]: (r[1], r[2]) for r in conn.execute(
+        "SELECT i.id,"
+        " COALESCE(d.published_at,"
+        "   CASE WHEN ev.locator LIKE '%mobility_synthesis%'"
+        "        THEN json_extract(ev.locator,'$.to_first_observed') END),"
+        " i.cluster_id"
+        " FROM insights i"
+        " JOIN evidence ev ON ev.id = i.evidence_id"
+        " JOIN raw_documents d ON d.id = ev.document_id")}
+    band = np.full(len(ids), 2, dtype=int)         # archive / undated
+    seen: set = set()
+    for i in sorted(range(len(ids)), key=lambda i: -scores[i]):
+        pub, cluster = meta.get(ids[i], (None, None))
+        if not pub or pub < cutoff:
+            continue
+        if cluster is not None and cluster in seen:
+            band[i] = 1                            # in-window duplicate
+        else:
+            if cluster is not None:
+                seen.add(cluster)
+            band[i] = 0                            # in-window primary
+    order = sorted(range(len(ids)), key=lambda i: (band[i], -scores[i]))
+    rank = np.empty(len(ids), dtype=int)
+    rank[np.array(order)] = np.arange(1, len(ids) + 1)
+    return rank
+
+
 def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
             persist: bool = True) -> dict:
     """Train and compare models on one rubric's judgements."""
@@ -238,7 +278,7 @@ def bakeoff(conn, include_lf: bool = False, rubric: str | None = None,
         else:
             conn.execute("DELETE FROM event_scores")
         for model, scores in model_scores.items():
-            ranks = _dense_rank(scores)
+            ranks = _reader_rank(conn, ids, scores)
             for i, iid in enumerate(ids):
                 conn.execute(
                     "INSERT INTO event_scores (event_id, model, score, rank,"
@@ -302,7 +342,7 @@ def _write_winner_scores(conn, ids, names, Xz, scores, winner, extras):
     from the winning model only."""
     fidx = {f: j for j, f in enumerate(names)}
     coef = extras.get("logistic", {}).get("coef", {})
-    ranks = _dense_rank(scores)
+    ranks = _reader_rank(conn, ids, scores)
     for i, iid in enumerate(ids):
         contribs = sorted(((f, round(coef.get(f, 0.0) * Xz[i, fidx[f]], 3)) for f in names),
                           key=lambda kv: -abs(kv[1]))[:5]
@@ -327,12 +367,17 @@ class SlateFilter:
 
     def __init__(self, policy, corpus_claims: list[str],
                  no_mech_quotes: set[str] | None = None,
-                 not_entailed: set[int] | None = None):
+                 not_entailed: set[int] | None = None,
+                 no_holding_link: set[int] | None = None,
+                 min_quote_words: int = 0,
+                 anchor: datetime | None = None):
         self.pol = policy
-        self.cutoff = (datetime.now(timezone.utc)
+        self.cutoff = ((anchor or datetime.now(timezone.utc))
                        - timedelta(days=policy.window_days)).isoformat()
         self.no_mech_quotes = no_mech_quotes
         self.not_entailed = not_entailed or set()
+        self.no_holding_link = no_holding_link or set()
+        self.min_quote_words = min_quote_words
         self.rare_cut = policy.story_rare_df * max(len(corpus_claims), 1)
         df: Counter = Counter()
         for c in corpus_claims:
@@ -372,8 +417,22 @@ class SlateFilter:
         if row["id"] in self.not_entailed:
             self.dropped["not_entailed"] += 1
             return False
+        if (self.min_quote_words and not row.get("synth")
+                and len((row.get("quote") or "").split()) < self.min_quote_words):
+            # Below the extractor's own 10-60-word contract: a changelog
+            # fragment ("add support for X") cannot support a decision.
+            # Synthesized mobility events are exempt — their evidence is a
+            # name on a lab page, not an extracted quote.
+            self.dropped["thin_quote"] += 1
+            return False
         if self.no_mech_quotes is not None and (row["quote"] or "") in self.no_mech_quotes:
             self.dropped["no_mechanism"] += 1
+            return False
+        if row["id"] in self.no_holding_link:
+            # The system's own investment reading concluded this touches no
+            # holding, and the exposure scan found no edge either. Delivering
+            # it anyway would be noise by the system's own admission.
+            self.dropped["no_holding_link"] += 1
             return False
         if not row["published_at"]:
             if not self.pol.show_undated:
@@ -404,6 +463,19 @@ def _parse_ts(s: str) -> datetime:
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+def slate_anchor(conn) -> datetime:
+    """The instant every reader-facing window is measured from: the newest
+    document in the corpus, not the wall clock — the anchoring drift.py
+    established. On a live feed the two coincide; on a committed corpus the
+    wall clock silently empties the slate as the database sits (the newest
+    document stays put while `now` walks away), so a reviewer cloning this
+    weeks later would see an empty digest and conclude the system is broken
+    rather than the demo is old."""
+    newest = conn.execute(
+        "SELECT max(published_at) FROM raw_documents").fetchone()[0]
+    return _parse_ts(newest) if newest else datetime.now(timezone.utc)
+
+
 def top_events(conn, k: int = 10, window_days: int | None = None,
                dedupe: bool = True, show_undated: bool | None = None,
                rubric: str | None = None) -> list[dict]:
@@ -430,7 +502,8 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
         "   CASE WHEN ev.locator LIKE '%mobility_synthesis%'"
         "        THEN json_extract(ev.locator,'$.to_first_observed') END)"
         "   AS published_at,"
-        " d.url, d.source_type, ev.verbatim_content quote"
+        " d.url, d.source_type, ev.verbatim_content quote,"
+        " ev.locator LIKE '%mobility_synthesis%' AS synth"
         " FROM insights i"
         " JOIN evidence ev ON ev.id = i.evidence_id"
         " JOIN raw_documents d ON d.id = ev.document_id"
@@ -449,16 +522,34 @@ def top_events(conn, k: int = 10, window_days: int | None = None,
         no_mech = {t for t, v in cached_verdicts(quotes).items()
                    if v["channel"] == "none"}
 
+    # Events the system itself could not connect to anything the fund owns:
+    # the paid investment reading came back unclear naming no ticker, AND the
+    # deterministic exposure scan drew no edge. Suppressed only for rubrics
+    # listed in `require_holding_link` (holdings are the investment persona's
+    # concern, so the readings consulted are always that persona's).
+    no_link: set | None = None
+    if rubric and rubric in pol.require_holding_link:
+        no_link = {r[0] for r in conn.execute(
+            "SELECT h.insight_id FROM hypotheses h"
+            " WHERE h.persona='investment' AND h.direction='unclear'"
+            "   AND (h.tickers IS NULL OR trim(h.tickers)='')"
+            "   AND NOT EXISTS (SELECT 1 FROM event_positions ep"
+            "                   WHERE ep.event_id = h.insight_id)")}
+
     bad = {r[0] for r in conn.execute(
         "SELECT DISTINCT insight_id FROM claim_checks"
         " WHERE verdict='not_entailed'")}
 
+    min_quote = QUOTE_MIN_WORDS
     pol = replace(pol, window_days=window_days, show_undated=show_undated)
     if not dedupe:
         pol = replace(pol, max_per_lab=0, story_rare_df=0.0)
         no_mech = None
+        no_link = None
+        min_quote = 0
     filt = SlateFilter(pol, all_claims, no_mech_quotes=no_mech,
-                       not_entailed=bad)
+                       not_entailed=bad, no_holding_link=no_link,
+                       min_quote_words=min_quote, anchor=slate_anchor(conn))
 
     out = []
     for r in rows:

@@ -149,7 +149,7 @@ RUBRIC_FOR_PERSONA = {"investment": "investment", "ai_team": "technical"}
 def _candidates(conn, persona: str, k: int) -> list[int]:
     """Which events this persona renders — THE SAME EVENTS THE DIGEST PUBLISHES.
     Which events this persona renders — THE SAME EVENTS THE DIGEST PUBLISHES."""
-    from fli.intelligence.scoring import top_events
+    from fli.intelligence.scoring import slate_anchor, top_events
     rubric = RUBRIC_FOR_PERSONA[persona]
     top = [r["id"] for r in top_events(conn, k=k, rubric=rubric)[0]]
     week = [r["id"] for r in top_events(conn, k=k, window_days=7,
@@ -164,8 +164,9 @@ def _candidates(conn, persona: str, k: int) -> list[int]:
         " JOIN raw_documents d ON d.id = ev.document_id"
         " WHERE ep.channel IS NOT NULL"
         "   AND d.published_at IS NOT NULL"
-        "   AND julianday('now') - julianday(d.published_at) <= ?"
-        " ORDER BY i.score DESC", (load_policy().window_days,))]
+        "   AND julianday(?) - julianday(d.published_at) <= ?"
+        " ORDER BY i.score DESC",
+        (slate_anchor(conn).isoformat(), load_policy().window_days))]
     seen, out = set(), []
     for e in touching + top:
         if e not in seen:
