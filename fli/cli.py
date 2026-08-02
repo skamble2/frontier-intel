@@ -30,6 +30,7 @@ COMMANDS = {
     "personas": "fli.delivery.personas",
     "digest": "fli.delivery.digest",
     "alerts": "fli.delivery.alerts",
+    "mcp": "fli.delivery.mcp_server",
     "skeleton": "fli.orchestration.skeleton",
     "web": "fli.web.app",
 }

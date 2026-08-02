@@ -31,3 +31,8 @@ flask>=3.0
 # included, behind one --spend gate. Imported lazily inside
 # fli.orchestration.graph, so everything else runs without it.
 langgraph>=1.0
+
+# MCP server (`python -m fli.cli mcp`): read-only tool surface (slate, search,
+# drift, digests) for agent clients over stdio. Imported lazily inside
+# fli.delivery.mcp_server, so everything else runs without it.
+mcp>=2.0
