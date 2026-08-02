@@ -109,22 +109,36 @@ commercially:
 > **`open_source` events: 6.8% of the corpus historically, 0.0% in the last 14
 > days** — zero, against roughly 14 expected at the historical rate.
 
-That is the event type supplying the top 3 of the engineering ranking. It is not
-obviously a coverage artifact: `blog` contributed 48 documents and 104 events in
-that window and is historically the largest source of `open_source` events (26
-of 50), so the places these announcements normally appear were being read and
-carried none. The newest `open_source` event is Gemma 4 12B, 2026-07-01.
+That is the event type supplying the top 3 of the engineering ranking, and the
+newest one in the corpus is Gemma 4 12B on 2026-07-01.
 
-Two readings are available and **the system cannot distinguish them**: a genuine
-pause, or a mix shift the extractor is sensitive to. Stating both is the honest
-position; what would settle it is in future scope.
+**The follow-up located the cause, and it is neither a pause in the industry nor
+a broken extractor — it is which labs the window sampled.** Only four labs
+produce open-weight events at all (Qwen 23 of 50, Google DeepMind 13, Mistral 5,
+DeepSeek 5), and in this window three of them nearly vanish:
 
-The rest of the drift is legible — arXiv nearly quadrupled its share of content
-documents as the last ingest wave leaned on author-query feeds, which also moves
-document length. The document metrics are scoped to content documents, so none
-of the four readings is an artifact of register mining. No invariant check would
-have flagged any of this: the database is perfectly consistent and C1–C20 are
-green.
+| share of events | history | last 14d |
+|---|---:|---:|
+| Qwen | 18.2% | 2.9% |
+| Mistral | 6.0% | **0** |
+| DeepSeek | 5.0% | **0** |
+| OpenAI + Anthropic | 17.8% | **70.4%** |
+
+The window is 70% OpenAI and Anthropic, two labs that account for 2 of 50
+open-source events between them. The same ingest wave that quadrupled arXiv's
+share also tilted the lab mix toward the labs that do not open-weight.
+
+Extraction was checked too, and cleared: 58 in-window documents mention
+open-weight terms, but they are labs *discussing* the subject — "Anthropic
+states that it has never advocated for a ban on open-weights models" — not
+announcing releases. Nothing was misclassified.
+
+So the drought is real for the reader and temporary in the corpus: the
+engineering digest genuinely has less to serve this window, and the fix is
+coverage balance rather than a prompt change. No invariant check would have
+surfaced any of this — the database is perfectly consistent and C1–C20 are
+green — and the diagnosis cost nothing beyond queries the monitor already
+motivated.
 
 ## The honest negatives
 
@@ -380,10 +394,10 @@ Each item is the direct consequence of a measurement above.
 
 | | |
 |---|---|
-| **Resolve the `open_source` question** | Genuine pause or extraction artifact is not yet decidable; it needs a longer window and a per-lab release-feed check. The one open question with a direct product consequence. |
+| **Balance lab coverage per window** | The `open_source` drought traced to sampling, not to the industry or the extractor: the last window was 70% OpenAI and Anthropic, and the four labs that actually open-weight had nearly vanished from it. Ingestion has no per-lab balance target, so an ingest wave weighted toward one channel silently reshapes what the engineering reader can be served. A per-lab floor on each window is the fix. |
 | **Witness a live talent move** | Re-observation runs on a 7-day cadence and the first landed 2026-07-30, so the earliest a real move can be witnessed is 2026-08-06. Waiting, not building. |
 | **Deepen person attribution** | 61 of 954 events reach a person. The machinery works; official channels rarely name individuals outside paper bylines. |
-| **Re-extract the back corpus** | The quote-first revision cut the partial rate on the 30 hardest documents from 65.6% to 47.9% but applies only to new extractions. |
+| **Re-extracting the back corpus — declined, not pending** | The quote-first revision applies only to new extractions, so part of the corpus predates it. Re-running extraction would cost about $6 in tokens, but the repair pass has already taken entailment to 97.5% and left **10 partial claims in 954** — and new extractions mean new event ids, which would invalidate 2,735 pairwise labels, 9,540 score rows and every position and persona note. Re-buying the label set to improve ten claims is the wrong trade, so it is recorded as declined rather than carried as work. |
 | **Grow the channel benchmark** | 100 posts, one annotator, one policy version. |
 
 ### 4. Deployment — unblocked, not done
