@@ -127,8 +127,22 @@ is the only way to reach `verify`, `personas` and `faithfulness`, and
 `_spend_ready` requires the flag *and* an API key; without both, the conditional
 edges route around those nodes entirely, so **a default `graph` run costs exactly
 what `pipeline` costs.** The paid stages are not skipped at runtime — they are
-not on the path. Three tests pin it, including "spend without a key still skips
+not on the path. Five tests pin it, including "spend without a key still skips
 paid stages".
+
+The flag is not the last word, though, and deliberately so: a flag is set before
+the operator knows what the run will find. An `approve` node raises a LangGraph
+`interrupt` that **pauses the run** and prints the work sized from the current
+database before asking — `unaudited_claims` (insights with no `claim_checks`
+row) and `existing_notes`. On the committed corpus that reads
+`unaudited_claims: 0`, which is the gate doing its job: there is nothing for the
+paid audit to do, so the honest answer is `n` and the run costs nothing.
+Declining is not an error and one answer covers both paid segments; `--yes`
+skips the pause for schedulers, and a missing tty declines rather than hanging.
+
+The cost story here is small but real: the most expensive run is the one nobody
+meant to start. Sizing the work at the moment of decision is cheaper than any
+model-routing optimisation in this document.
 
 Worth noting what is deliberately free: the `drift` node runs on every graph
 invocation and costs **$0** — PSI and KS are computed directly from SQL, with no

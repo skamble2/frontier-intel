@@ -17,11 +17,13 @@ GitHub, X and lab pages, and ranks every event twice — once for an investment
 reader, once for an engineering reader — from 2,165 pairwise labels (1,738 from
 two model-judge families, 427 from a human). It then
 connects lab events to public-equity holdings, writes a per-audience reading of
-each, and delivers a cited digest and an alert path. The whole run — twenty-one
-stages, paid ones included behind a single `--spend` gate — is packaged as a
-LangGraph graph with per-node tracing, and a free PSI/KS drift monitor watches
-whether the corpus is still the corpus the models were fitted to. Total LLM
-spend to date is
+each, and delivers a cited digest and an alert path. The same intelligence is
+readable four ways — CLI, Flask UI, a read-only MCP server for agent clients,
+and a scheduled GitHub Actions run — all calling the same layer functions, so no
+surface can show a different answer. The whole run, twenty-two stages with the
+paid ones behind an approval the graph pauses on, is packaged as a LangGraph
+graph with per-node tracing, and a free PSI/KS drift monitor watches whether the
+corpus is still the corpus the models were fitted to. Total LLM spend to date is
 **$25.18 across 7,423 calls** — including a $1.05 claim-repair pass that lifted
 claim↔quote entailment from 52.0% to 95.2% (699/734 entailed).
 

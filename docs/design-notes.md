@@ -607,6 +607,31 @@ Text with no WinAnsi form (CJK, emoji) degrades to `?` rather than corrupting th
 file. Typographic punctuation is mapped exactly, because lab posts are full of
 curly quotes and em dashes and dropping them would mangle every second quotation.
 
+**`mcp_server.py` — a surface, not a second system.** Every tool delegates to
+the layer function that already owns the answer: `top_insights` calls
+`top_events`, the same call the digest and the web UI make. An agent that got a
+different slate from the human reading the digest would be worse than no agent,
+so the surface is forbidden from deriving anything itself.
+
+Tool bodies are plain functions taking a connection, and the SDK import lives
+inside `build_server()`. That is what keeps the behaviour under test on a
+machine without the MCP SDK — the wiring is the only part that needs it.
+
+Strictly read-only: no tool writes, spends a token, or touches the network. A
+long-running server also opens a fresh connection per call, so a pipeline run
+replacing the database underneath it cannot leave the server holding a stale
+handle.
+
+The wire format is narrower than the internal row on purpose. `score_components`
+and `cluster_id` are ranking internals and would invite an agent to reason about
+mechanics it cannot validate; `url` and `quote` stay, because an agent that
+cannot cite its source is the failure mode this whole system exists to prevent.
+
+`search_insights` is deliberately **not** slate-filtered while `top_insights`
+is. Raw corpus matches let an agent find precisely what the slate suppressed —
+duplicates, not-entailed claims, events with no mechanism. A read surface that
+can only show the filtered view cannot be used to audit the filter.
+
 ## validation
 
 **`checks.py` — C1–C20.** A pure function of the database: no network, no LLM, no
@@ -701,6 +726,31 @@ run summary unprintable and imply the graph passes data it does not.
 route around `verify`/`personas`/`faithfulness` when it is false — the paid
 nodes are not on the path rather than skipped inside it, so a default run cannot
 spend even if a node body were wrong.
+
+**The `approve` gate.** `--spend` states intent at launch; the flag alone is a
+bad gate, because the operator sets it before knowing what the run will find.
+So a dedicated node raises a LangGraph `interrupt` mid-run with the work sized
+from the current database (`spend_estimate`: insights with no `claim_checks`
+row, plus existing note count), and the decision is made against that.
+
+`approved` is written into state once and read by *both* conditional edges
+(`approve` and `digest_parity`). One decision covers both paid segments — being
+asked twice in one run would train the operator to stop reading the question.
+
+Declining is deliberately not an error. The run continues on the free path
+exactly as if `--spend` had been absent, and `checks` still sets the exit code;
+an operator saying "not today" should not produce a red build.
+
+Non-interactive callers are handled rather than left to hang: `--yes` skips the
+pause for schedulers, and `EOFError` on a missing tty is caught and read as a
+decline with the `--yes` hint printed. Without `--spend` or a key the gate
+resolves to the free path *without pausing*, so unattended default runs never
+block.
+
+The `InMemorySaver` checkpointer exists only because `interrupt` needs one to be
+resumable. In-memory is sufficient and deliberately not more: the pause and the
+resume happen in the same CLI process, so durable checkpointing would be
+infrastructure for a scenario that does not exist here.
 
 One ordering fix over the CLI habit is deliberate: delivery runs **after** claim
 repair and persona notes. The reverse order shipped digests citing claims repair

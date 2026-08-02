@@ -959,7 +959,10 @@ def build(conn) -> int:
     for title, path, note in made:
         stem = Path(path).stem
         tier = FIGURE_TIERS.get(stem)
-        lines += [f"### {title}", "", f"![{title}]({Path(path).name})", ""]
+        # Path is repo-relative ("docs/figures/x.png") but the report lives in
+        # docs/, so link relative to it — the bare filename resolved to
+        # docs/x.png and rendered broken on GitHub.
+        lines += [f"### {title}", "", f"![{title}](figures/{Path(path).name})", ""]
         if tier:
             lines += [f"*{tier}*", ""]
         lines += [f"{note}", ""]

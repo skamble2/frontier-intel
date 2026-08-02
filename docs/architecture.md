@@ -243,20 +243,45 @@ reviewer reads in the repo. Items without a reading are published *as* uncovered
 rather than dropped, so the coverage gap is visible in the committed artifact.
 
 `alerts` is the push path, and its trigger is deliberately not the score. The
-one event the system calls a threat to a holding scores below the median,
-because the rubric rewards specificity and shipped-ness rather than portfolio
-consequence — a top-decile rule would have missed it and fired on ten model
-releases instead. So an alert fires on a *signed direction* (a
-classifier-established position edge, or a persona reading at medium-or-better
-confidence), bounded by the reporting period, and the `alerts` table's UNIQUE
-key means each fires exactly once. A channel that repeats itself every run
-trains its reader to ignore it, so once-only is enforced in the schema, not left
-to the caller.
+one event the system calls a threat to a holding ranks 10th of 734 under the
+shipped model — but 15th under logistic, 26th under hand-weights and 84th under
+the recency baseline. A top-decile rule would therefore fire or not fire
+depending on which model won a bake-off, which is no basis for waking a PM. So
+an alert fires on a *signed direction* (a classifier-established position edge,
+or a persona reading at medium-or-better confidence), bounded by the reporting
+period, and the `alerts` table's UNIQUE key means each fires exactly once. A
+channel that repeats itself every run trains its reader to ignore it, so
+once-only is enforced in the schema, not left to the caller.
+
+`mcp` is the fourth surface, and the only one built for a non-human reader.
+`fli/delivery/mcp_server.py` exposes four **strictly read-only** tools over
+stdio — `top_insights` (the slate), `search_insights` (substring over claims and
+their verbatim quotes), `corpus_drift`, and `get_latest_digest` — so a Claude
+Desktop or IDE agent can query the corpus directly. No tool writes to the
+database, spends a token, or touches the network.
+
+Two design choices keep it from becoming a second implementation. Every tool
+body is a plain function taking a connection, so the whole surface is testable
+without the MCP SDK installed and the SDK import happens only inside
+`build_server()`. And each one delegates to the layer function that already owns
+the logic — `top_insights` calls `top_events`, which is the same call the digest
+and web UI make, so an agent cannot get a slate that differs from the one a
+human reads. The wire format is deliberately narrower than the internal row:
+`score_components` and `cluster_id` are ranking internals and stay out of it,
+while `url` and `quote` stay in, because an agent that cannot cite is worse than
+useless.
+
+One asymmetry is intentional. `top_insights` is slate-filtered (deduped,
+entailment-checked, mechanism-gated) but `search_insights` is not — it returns
+raw corpus matches, so an agent can deliberately go looking for what the slate
+*suppressed*. A read surface that can only show the filtered view cannot be used
+to audit the filter.
 
 ## The stack, and model selection per task
 
 The stack is deliberately small: **Python 3, SQLite, scikit-learn, the Anthropic
-and OpenAI SDKs, LangGraph for run packaging, Flask for the web surface,
+and OpenAI SDKs, Pydantic for typed model I/O, LangGraph for run packaging,
+Flask for the web surface, the MCP SDK for the agent surface,
 matplotlib/seaborn for figures**, with optional OpenInference/Phoenix tracing.
 There is no vector store, no embeddings and no second database. Scoring is SQL
 plus scikit-learn over a few hundred rows; a vector store would be
@@ -265,9 +290,9 @@ single-writer daily pipeline, and it makes the deliverable a file a reviewer can
 open.
 
 Every dependency past the first four is **optional and lazily imported** —
-LangGraph, Flask, matplotlib and the tracing stack each live behind a function-
-local import, so the daily pipeline runs on a machine with none of them
-installed.
+LangGraph, Flask, the MCP SDK, matplotlib and the tracing stack each live behind
+a function-local import, so the daily pipeline runs on a machine with none of
+them installed.
 
 Model routing is one dictionary — `MODEL_FOR_TASK` in `fli/ops/llm.py` — so the
 cost-quality trade-off for the whole system is legible in eight lines.
@@ -299,12 +324,13 @@ vs 0.864). The next tranche of labels should be bought from it. Full working in
 
 `python -m fli.cli pipeline` chains the free stages and leaves the paid ones
 (`verify --repair`, `personas`, `faithfulness`) as manual CLI steps.
-`fli/orchestration/graph.py` packages **all twenty-one stages** as a LangGraph
+`fli/orchestration/graph.py` packages **all twenty-two stages** as a LangGraph
 `StateGraph` behind one entry point, with one explicit gate:
 
 ```bash
 python -m fli.cli graph                 # free stages only — costs what `pipeline` costs
-python -m fli.cli graph --spend         # + the paid audit and reading stages
+python -m fli.cli graph --spend         # offer the paid stages; pauses for approval
+python -m fli.cli graph --spend --yes   # skip the pause (schedulers)
 python -m fli.cli graph --mermaid       # print the topology, run nothing
 ```
 
@@ -315,11 +341,44 @@ function the corresponding CLI command already invokes, so there is no parallel
 code path to drift out of sync. The graph owns *ordering and gating*, nothing
 else.
 
-**The paid stages are not on the default path.** `_spend_ready` requires
-`--spend` *and* an API key; without both, the conditional edges route `score →
-evaluate` and `digest_parity → checks`, so the paid nodes are never reached.
-Three tests pin exactly this — a default run skips every paid stage, `--spend`
-without a key still skips them, and a spend run orders repair and persona notes
+**The paid stages need three things, and the third is a human.** `--spend`
+states intent at launch and `_spend_ready` also requires an API key, but neither
+is the gate. A dedicated `approve` node sits between `score` and the paid
+segment, and when spend is possible it raises a LangGraph `interrupt` that
+**pauses the run** and prints what the paid work would actually touch:
+
+```
+=== approval required ===
+  question: run the paid stages (verify+repair, personas, faithfulness)?
+  unaudited_claims: 0
+  existing_notes: 65
+```
+
+That sizing comes from `spend_estimate`, which counts insights with no row in
+`claim_checks`. The point is that approval is an informed decision made against
+the current state of the database, not a flag someone set hours earlier — and on
+the committed corpus it correctly reports **0 unaudited claims**, i.e. there is
+nothing for the paid audit to do.
+
+One decision applies to *both* paid segments: `approved` is written once into
+state and read by the conditional edges at `approve` and at `digest_parity`, so
+an operator cannot approve the repair pass and then be asked again about
+faithfulness. Declining is not an error — the run continues down the free path
+exactly as if `--spend` had been absent, and `checks` still decides the exit
+code.
+
+Non-interactive callers are handled explicitly rather than left to hang:
+`--yes` skips the pause for schedulers, and an `EOFError` on a missing tty is
+caught and treated as a decline, printing the `--yes` hint. Compiling with an
+`InMemorySaver` checkpointer is what makes `interrupt` resumable at all;
+in-memory is sufficient because the pause and the resume live in the same CLI
+process.
+
+Without `--spend` or without a key the gate resolves to the free path **without
+pausing**, so an unattended default run never blocks. Five tests pin the
+behaviour: a default run skips every paid stage; `--spend` without a key still
+skips them; `--spend` pauses at the interrupt and a decline stays on the free
+path; `--yes` skips the pause; and a spend run orders repair and persona notes
 *before* delivery.
 
 That last ordering is a real fix, not a preference. Running delivery before
@@ -417,13 +476,15 @@ gradient-boosted contender, on any install. The shipped winner names which one
 ran (`gbm_sklearn` in the committed results), so the fallback is visible in the
 output rather than hidden.
 
-**Missing plotting, web, graph or tracing libraries → the pipeline is
+**Missing plotting, web, graph, agent or tracing libraries → the pipeline is
 unaffected.** matplotlib/seaborn/pandas are imported only inside
 `fli/validation/evaluation.py`, Flask only inside `fli/web/app.py`, LangGraph
-only inside `build()` in `fli/orchestration/graph.py`, and the OpenTelemetry
-stack only inside `tracing.setup()` — all lazily. `python -m fli.cli pipeline`
-runs with none of them installed; only the corresponding command is
-unavailable. Tracing goes further and degrades rather than fails: with
+only inside `build()` in `fli/orchestration/graph.py`, the MCP SDK only inside
+`build_server()` in `fli/delivery/mcp_server.py`, and the OpenTelemetry stack
+only inside `tracing.setup()` — all lazily. `python -m fli.cli pipeline` runs
+with none of them installed; only the corresponding command is unavailable. The
+MCP tool *bodies* are plain functions taking a connection, so the agent
+surface's behaviour stays under test even where the SDK is absent. Tracing goes further and degrades rather than fails: with
 `FLI_TRACING` set but OpenTelemetry absent it prints the install hint and
 continues with tracing off, because an observability dependency must never be
 able to break the run it observes.

@@ -13,7 +13,7 @@ fli/knowledge/      LAYER 2  filtering, extraction, register
 fli/intelligence/   LAYER 3  clustering, features, labels, scoring
 fli/ops/            LLM client, tracing (cross-cutting)
 fli/validation/     C1-C20 invariant battery + drift monitoring (reads every layer)
-fli/delivery/       LAYER 4  positions, personas, digest, alerts (nothing imports it)
+fli/delivery/       LAYER 4  positions, personas, digest, alerts, mcp (nothing imports it)
 fli/orchestration/  pipeline, graph, skeleton (composition only)
 ```
 
@@ -342,22 +342,63 @@ truncate+rebuild resets `fetch_log` to all-ok.
 ## The whole run in one command
 
 `pipeline` chains the free stages and leaves the paid ones as separate commands.
-`graph` packages all twenty-one stages as a LangGraph graph behind one gate:
+`graph` packages all twenty-two stages as a LangGraph graph behind one gate:
 
 ```bash
-python3 -m fli.cli graph                # free stages only — costs what `pipeline` costs
-python3 -m fli.cli graph --spend        # + verify/repair, personas, faithfulness
-python3 -m fli.cli graph --mermaid      # print the topology and exit; runs nothing
+python3 -m fli.cli graph                 # free stages only — costs what `pipeline` costs
+python3 -m fli.cli graph --spend         # offer verify/repair, personas, faithfulness
+python3 -m fli.cli graph --spend --yes   # same, without the approval pause (schedulers)
+python3 -m fli.cli graph --mermaid       # print the topology and exit; runs nothing
 python3 -m fli.cli graph --max-extract 30
 ```
 
-The paid nodes require `--spend` **and** an API key; without both they are not
-on the graph's path at all, so a default run cannot spend. Node bodies are the
-same layer functions the CLI commands call — the graph owns ordering and gating
-only. It exits on the checks battery's verdict, exactly as `pipeline` does.
+The paid nodes need three things: `--spend`, an API key, and an in-run
+approval. With the first two present the graph **pauses** and shows what the
+paid work would touch before asking:
+
+```
+=== approval required ===
+  question: run the paid stages (verify+repair, personas, faithfulness)?
+  unaudited_claims: 0
+  existing_notes: 65
+approve spend? [y/N]
+```
+
+Answering anything other than `y`/`yes` continues on the free path — declining
+is not an error, and `checks` still sets the exit code. One answer covers both
+paid segments. Without a tty and without `--yes` the run declines automatically
+rather than hanging. Without `--spend` or without a key the gate resolves to the
+free path with no pause at all, so unattended runs never block.
+
+Node bodies are the same layer functions the CLI commands call — the graph owns
+ordering and gating only. It exits on the checks battery's verdict, exactly as
+`pipeline` does.
 
 `langgraph` is an optional dependency imported lazily, so everything else runs
 without it (`pip install -r requirements.txt` includes it).
+
+## MCP server — the same intelligence, for an agent
+
+```bash
+python3 -m fli.cli mcp                  # serve over stdio
+python3 -m fli.cli mcp --db path/to.db
+```
+
+Four **read-only** tools, for Claude Desktop or an IDE agent:
+
+| tool | returns |
+|---|---|
+| `top_insights(k=10)` | the current slate under the primary rubric — deduped, entailment-checked, mechanism-gated, exactly what the digest shows |
+| `search_insights(query, k=20)` | substring matches over claims *and* their verbatim quotes, best score first — raw corpus, **not** slate-filtered, so you can find what the slate suppressed |
+| `corpus_drift(days=14)` | the PSI/KS rows, one per metric, with verdicts |
+| `get_latest_digest(persona="")` | newest rendered digest markdown; `ai_team` or `investment` to filter |
+
+Every row carries `url` and `quote`, so an agent can cite what it reports.
+Nothing here writes to the database, spends a token, or makes a network call.
+
+Register it with a client by pointing the client's MCP config at that command.
+`mcp` is an optional dependency imported lazily, so the rest of the system runs
+without it.
 
 ## Corpus drift (free, monitoring only)
 
