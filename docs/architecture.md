@@ -40,7 +40,7 @@ knowledge         2   filtering, extraction, the researcher register
 intelligence      3   clustering, features, judge labels, scoring
 validation        3   the C1–C20 invariant battery (reads every layer)
 delivery          4   positions, personas, digest, alerts
-orchestration     4   the pipeline (composition only)
+orchestration     4   the pipeline and the graph (composition only)
 ```
 
 Layers do not call each other's functions in memory. They communicate through
@@ -131,6 +131,13 @@ dated and evidenced (C5), every source was fetched (C7), no evidence is orphaned
 (C17), published dates are the page's own rather than a sitemap timestamp (C18),
 every insight quote verifies at the strictest `exact` tier (C19), and one name
 resolves to one person (C20).
+
+Alongside the battery, and deliberately outside it, sits **corpus drift**
+(`drift.py`): PSI and KS between a recent window and the corpus history. The
+battery answers "is the database internally consistent?"; drift answers "has the
+world moved out from under the models fitted to it?" — a different question with
+a different consequence, so it never gates the build. Both are covered in their
+own sections below.
 The battery is a pure function of the database, so a green run is a strong
 statement: the committed DB is internally consistent, end to end.
 
@@ -249,12 +256,18 @@ to the caller.
 ## The stack, and model selection per task
 
 The stack is deliberately small: **Python 3, SQLite, scikit-learn, the Anthropic
-and OpenAI SDKs, Flask for the web surface, matplotlib/seaborn for figures.**
-There is no vector store, no embeddings, no second database, no orchestration
-framework. Scoring is SQL plus scikit-learn over a few hundred rows; a vector
-store would be infrastructure carrying no measurement. SQLite is the right size
-for a single-writer daily pipeline, and it makes the deliverable a file a
-reviewer can open.
+and OpenAI SDKs, LangGraph for run packaging, Flask for the web surface,
+matplotlib/seaborn for figures**, with optional OpenInference/Phoenix tracing.
+There is no vector store, no embeddings and no second database. Scoring is SQL
+plus scikit-learn over a few hundred rows; a vector store would be
+infrastructure carrying no measurement. SQLite is the right size for a
+single-writer daily pipeline, and it makes the deliverable a file a reviewer can
+open.
+
+Every dependency past the first four is **optional and lazily imported** —
+LangGraph, Flask, matplotlib and the tracing stack each live behind a function-
+local import, so the daily pipeline runs on a machine with none of them
+installed.
 
 Model routing is one dictionary — `MODEL_FOR_TASK` in `fli/ops/llm.py` — so the
 cost-quality trade-off for the whole system is legible in eight lines.
@@ -281,6 +294,85 @@ label than Sonnet (\$0.0028 vs \$0.0182), returns fewer low-confidence verdicts
 (22.0% vs 27.5%), and its Dawid–Skene reliability is marginally *higher* (0.874
 vs 0.864). The next tranche of labels should be bought from it. Full working in
 [tokenomics.md](tokenomics.md).
+
+## The run as a graph
+
+`python -m fli.cli pipeline` chains the free stages and leaves the paid ones
+(`verify --repair`, `personas`, `faithfulness`) as manual CLI steps.
+`fli/orchestration/graph.py` packages **all twenty-one stages** as a LangGraph
+`StateGraph` behind one entry point, with one explicit gate:
+
+```bash
+python -m fli.cli graph                 # free stages only — costs what `pipeline` costs
+python -m fli.cli graph --spend         # + the paid audit and reading stages
+python -m fli.cli graph --mermaid       # print the topology, run nothing
+```
+
+Two properties make this packaging rather than a second implementation:
+
+**No node has a body of its own.** Every node is one call into the layer
+function the corresponding CLI command already invokes, so there is no parallel
+code path to drift out of sync. The graph owns *ordering and gating*, nothing
+else.
+
+**The paid stages are not on the default path.** `_spend_ready` requires
+`--spend` *and* an API key; without both, the conditional edges route `score →
+evaluate` and `digest_parity → checks`, so the paid nodes are never reached.
+Three tests pin exactly this — a default run skips every paid stage, `--spend`
+without a key still skips them, and a spend run orders repair and persona notes
+*before* delivery.
+
+That last ordering is a real fix, not a preference. Running delivery before
+claim repair produced digests citing claims that repair had already rewritten —
+**2 stale claims in `docs/digests/2026-07-30-ai_team.md`**. The graph makes the
+correct order structural instead of a thing the operator has to remember.
+
+State is a `TypedDict` of `spend`, `max_extract`, a merge-annotated `report`
+dict and the checks `verdict`; the DB connection is deliberately *not* state but
+bound into the nodes by closure, because state should stay printable and the
+database is the actual shared medium between stages anyway. The graph's exit
+code is the checks battery's verdict, so it is still the release gate.
+
+**Tracing.** With `FLI_TRACING=1`, `tracing.chain_span` wraps each node and the
+existing `llm_span` nests inside it via OTel context, so Phoenix renders one run
+as `graph.run → node.<stage> → llm.<task>` — per-node latency and per-call token
+counts in one tree. Tracing is off by default and no-ops entirely when the
+OpenTelemetry packages are absent (`requirements-tracing.txt`, kept separate
+from `requirements.txt` for that reason).
+
+## Corpus drift monitoring
+
+The stage-1 filter, the scoring bake-off and the judge labels were all fitted
+against a corpus with a particular shape. When that shape moves, those fits
+degrade quietly — no invariant breaks, nothing turns red, the rankings just get
+worse. `fli/validation/drift.py` measures the movement:
+
+- **PSI** (population stability index) over categorical mixes — document
+  `source_type`, insight `event_type`
+- **KS** (two-sample Kolmogorov–Smirnov) over continuous distributions —
+  document length, insight score
+
+Both are computed directly, with no scipy dependency, and both are unit-tested
+against hand-computed values. PSI uses the conventional 0.10 / 0.25 banking
+bands rather than house-tuned thresholds, so the numbers are comparable to the
+literature; KS uses the α = 0.05 critical value. Empty bins are smoothed to
+1e-4 rather than dropped, because *the appearance of a new category is itself
+drift* and must register instead of dividing by zero.
+
+Two design decisions worth stating:
+
+**The window is anchored to the newest document, not the wall clock**, so the
+report is reproducible on a static corpus — a reviewer running it next month
+gets the same numbers.
+
+**Drift is deliberately not part of `checks`.** An organic news cycle must not
+turn the release gate red. It is a monitoring signal with its own exit code (the
+count of MAJOR drifts) so a scheduler can still alarm on it, and it runs as a
+free node inside the graph, informational only. Making drift an invariant would
+mean the build fails because the world changed, which is not a defect.
+
+On the committed corpus it reports **3 MAJOR of 4 metrics**, and what it caught
+is discussed in [final-report.md](final-report.md).
 
 ## Fallback strategies
 
@@ -325,10 +417,16 @@ gradient-boosted contender, on any install. The shipped winner names which one
 ran (`gbm_sklearn` in the committed results), so the fallback is visible in the
 output rather than hidden.
 
-**Missing plotting or web libraries → the pipeline is unaffected.**
-matplotlib/seaborn/pandas are imported only inside `fli/validation/evaluation.py`
-and Flask only inside `fli/web/app.py`, both lazily. The daily pipeline runs
-without any of them installed.
+**Missing plotting, web, graph or tracing libraries → the pipeline is
+unaffected.** matplotlib/seaborn/pandas are imported only inside
+`fli/validation/evaluation.py`, Flask only inside `fli/web/app.py`, LangGraph
+only inside `build()` in `fli/orchestration/graph.py`, and the OpenTelemetry
+stack only inside `tracing.setup()` — all lazily. `python -m fli.cli pipeline`
+runs with none of them installed; only the corresponding command is
+unavailable. Tracing goes further and degrades rather than fails: with
+`FLI_TRACING` set but OpenTelemetry absent it prints the install hint and
+continues with tracing off, because an observability dependency must never be
+able to break the run it observes.
 
 **Provider outage → the second family.** The OpenAI SDK is an optional
 dependency imported lazily, and only when a task is routed to an OpenAI model.
@@ -346,10 +444,17 @@ reason.
 ## What runs automatically, and what costs money
 
 The daily pipeline runs every deterministic, free stage — ingest, filter,
-register, cluster, features, score, evaluate, positions, digest, alerts — and
-exits on the validation battery's verdict. The three paid steps stay manual and
-explicit: `judge` (new pairwise labels), `x` (the paid source), and `personas`
-(the written reading). Each previews its projected spend before sending, checks
+register, cluster, features, drift, score, evaluate, positions, digest, alerts —
+and exits on the validation battery's verdict. `judge` (new pairwise labels) and
+`x` (the paid source) stay manual and explicit under both runners. The
+difference between the two entry points is what happens to the remaining paid
+stages: `pipeline` leaves `verify --repair`, `personas` and `faithfulness` as
+separate commands, while `graph --spend` puts them on the path behind a single
+gate that requires both the flag and an API key. **Default `graph` costs exactly
+what `pipeline` costs** — the paid nodes are not merely skipped at runtime, they
+are not on the graph's path at all.
+
+Each paid entry point previews its projected spend before sending, checks
 the API key and the price table, and refuses to start a run it cannot afford.
 Cost is logged per call to `llm_calls`; the whole system to date has spent
 **$25.18 across 7,423 calls**. Extraction — the part that produces what a reader

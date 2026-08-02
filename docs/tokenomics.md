@@ -122,6 +122,19 @@ per run; the paid X source is gated behind `--dry-run` with a projected cost;
 and refuses to start a run it cannot price. The failure mode being designed
 against is a loop that silently spends the whole budget on a bad prompt.
 
+The graph runner makes this structural rather than procedural. `graph --spend`
+is the only way to reach `verify`, `personas` and `faithfulness`, and
+`_spend_ready` requires the flag *and* an API key; without both, the conditional
+edges route around those nodes entirely, so **a default `graph` run costs exactly
+what `pipeline` costs.** The paid stages are not skipped at runtime — they are
+not on the path. Three tests pin it, including "spend without a key still skips
+paid stages".
+
+Worth noting what is deliberately free: the `drift` node runs on every graph
+invocation and costs **$0** — PSI and KS are computed directly from SQL, with no
+scipy and no model call. Monitoring that costs money gets switched off, so the
+corpus-shape signal was built to have no per-run price.
+
 ## Cache and batch: built, barely used
 
 Both discounts are implemented and both are visible in the schema

@@ -367,6 +367,62 @@ the fairness figure from an independent human read: the cuts are the same
 failure class — vendor case studies and official-channel engineering posts whose
 feature shape the score rewards but the reader rejects.
 
+## 5. Is the corpus still the corpus the models were fitted to?
+
+Everything above measures the models against labels. None of it notices if the
+*input distribution* moves — and when it does, a filter tuned on last month's
+mix and a ranker trained on last month's labels degrade silently. No invariant
+breaks; the rankings just get quietly worse.
+
+`python -m fli.cli drift` measures the movement between a recent window and the
+corpus history, using PSI over categorical mixes and a two-sample KS test over
+continuous distributions. Both are computed directly (no scipy), both are
+unit-tested against hand-computed values, and PSI uses the conventional
+0.10/0.25 banking bands rather than house-tuned thresholds so the numbers mean
+what they mean in the literature. The window is anchored to the **newest
+document rather than the wall clock**, so the report is reproducible on a static
+corpus.
+
+On the committed database — last 14 days (from 2026-07-15) vs everything before:
+
+| metric | kind | value | threshold | n_ref | n_cur | verdict |
+|---|---|---:|---:|---:|---:|---|
+| doc `source_type` mix | PSI | 0.356 | 0.250 | 817 | 372 | **MAJOR** |
+| insight `event_type` mix | PSI | 0.792 | 0.250 | 529 | 192 | **MAJOR** |
+| doc length | KS | 0.176 | 0.085 | 817 | 372 | **MAJOR** |
+| insight score | KS | 0.078 | 0.114 | 529 | 192 | stable |
+
+**3 MAJOR of 4**, and the causes are legible rather than mysterious:
+
+| | history | last 14d |
+|---|---:|---:|
+| `social` documents | 65.2% | 46.0% |
+| `arxiv` documents | 11.1% | **32.5%** |
+| `open_source` events | 8.3% | **0.0%** |
+| `commercial` events | 9.8% | 19.3% |
+| `other` events | 8.3% | 18.8% |
+
+arXiv nearly tripled its share of the corpus — that is co-author expansion
+working as designed, pulling in paper listings — which also explains the
+document-length shift, since an arXiv abstract page is a different size from a
+tweet. Neither is a defect.
+
+The `open_source` collapse is a genuine finding and is discussed in the final
+report: **the event type that dominates the engineering ranking produced zero
+events in the most recent window.** The drift monitor caught, on its first run, a
+real problem that no invariant check would ever have flagged.
+
+That `insight score` is the one **stable** metric is the reassuring half: the
+inputs moved, but the score distribution the ranking produces did not. The
+scoring layer absorbed a substantial change in corpus composition without its
+output distribution shifting — which is weak evidence that it is responding to
+event content rather than to corpus mix.
+
+Drift is deliberately **not** part of the `checks` battery. An organic news
+cycle must not turn the release gate red. It exits with the count of MAJOR
+drifts so a scheduler can alarm on it, and it runs as a free, informational node
+inside the graph.
+
 ## What this evaluation does not establish
 
 Stated here rather than left for a reader to discover.
@@ -380,12 +436,20 @@ Stated here rather than left for a reader to discover.
 - **The entailment figures pre-date the prompt fix** that was measured to
   improve them. The corpus has not been re-extracted.
 - **The channel benchmark is 100 posts**, one annotator, one policy version.
-- **The corpus-level ranking does not collapse clusters.** `event_scores.rank`
-  orders all 734 events, so near-duplicate claims from the same cluster can
-  occupy adjacent ranks. The *delivered* slate applies one-per-cluster
-  suppression (`fli/intelligence/scoring.py`, `seen_clusters`), so the reader
-  never sees the duplicates — but the raw top-10 used in the divergence figure
-  does contain them.
+- **The raw corpus ranking is neither de-duplicated nor windowed, and the
+  divergence figure is computed on it.** `event_scores.rank` orders all 734
+  events by score alone: near-duplicate claims from one cluster can occupy
+  adjacent ranks (the investment top 10 is really 6 distinct stories), and there
+  is no recency window, so the technical top 10 includes events published as far
+  back as 2024-05. The *delivered* slate applies both corrections —
+  one-per-cluster suppression and the policy's 90-day window
+  (`fli/intelligence/scoring.py`, `seen_clusters`; "104 outside window, 19 same
+  story" in the committed digest) — so a reader sees neither problem. But
+  `fig_rubric_divergence` ranks by `score DESC` over the whole table, which
+  makes its top-k *examples* unrepresentative of what ships. The Kendall τ and
+  the overlap curve are still valid measures of how differently the two rubrics
+  order the same corpus; the illustrative items are not the delivered product.
+  Ranking on cluster representatives inside the window would fix both.
 - **No gold labels exist for extraction.** Quote verification is mechanical and
   entailment is LLM-judged; neither is a human-audited extraction reference.
   That is the single largest gap, and it is the next thing worth buying.

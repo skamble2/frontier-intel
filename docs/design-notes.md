@@ -15,7 +15,9 @@ Numbers are from the committed database and are reproducible with
 - [intelligence](#intelligence)
 - [delivery](#delivery)
 - [validation](#validation)
+- [orchestration](#orchestration)
 - [ops](#ops)
+- [storage](#storage)
 
 ---
 
@@ -648,6 +650,68 @@ old one.
 A wrong-channel prediction counts once as fp and once as fn. That strict reading
 is deliberate — naming the wrong transmission channel is not a partial success,
 since the channel exists to say which position it touches.
+
+**`drift.py`.** Deliberately outside the battery. `checks` asks "is the database
+internally consistent?"; drift asks "has the world moved out from under the
+models fitted to it?" — a different question with a different consequence, so it
+must not gate the build. An organic news cycle is not a defect. It carries its
+own exit code (the count of MAJOR drifts) so a scheduler can still alarm.
+
+PSI bands are the conventional 0.10 / 0.25 from banking scorecard practice,
+kept standard on purpose so the numbers are comparable to the literature rather
+than house-tuned. KS is the two-sample statistic against the α = 0.05 critical
+value, implemented directly: scipy would be a large dependency for two
+functions, and the tie-handling has to be explicit anyway — both sides advance
+past the smaller value *entirely, ties included*, before measuring, or tied
+samples register a spurious gap.
+
+Empty bins are smoothed to 1e-4 rather than dropped, because the appearance of a
+new category **is** drift and must register instead of dividing by zero.
+
+The window is anchored to the newest document rather than the wall clock, so the
+report is reproducible on a static corpus — a reviewer running it a month later
+gets the same numbers rather than a slowly emptying window.
+
+Known limitation: `_DOC_MIX` and `_DOC_LEN` count every `raw_documents` row,
+including register/identity pages that never enter extraction. A co-author
+expansion run therefore reads as corpus drift (measured: 121 arXiv documents in
+one window yielding zero insights, driving PSI to 0.356). The funnel figure
+excludes register documents from every bar for exactly this reason; these two
+metrics should too. `_EVENT_MIX` and `_SCORE` are computed over insights and are
+unaffected.
+
+## orchestration
+
+**`pipeline.py` vs `graph.py`.** Two runners over one set of stages, kept apart
+on purpose. `pipeline` is the plain sequential composition and has no optional
+dependency; `graph` packages the same stages — plus the paid ones — as a
+LangGraph `StateGraph`, and is imported lazily so its absence costs nothing.
+
+No node has a body of its own: every one is a single call into the layer
+function the corresponding CLI command already invokes. The graph owns
+**ordering and gating only**, so there is no second implementation of any stage
+to drift out of sync with the first.
+
+The DB connection is bound into nodes by closure rather than carried in
+`RunState`. State should stay printable, and the database is the actual shared
+medium between stages anyway — putting the connection in state would make the
+run summary unprintable and imply the graph passes data it does not.
+
+`_spend_ready` requires `--spend` *and* an API key, and the conditional edges
+route around `verify`/`personas`/`faithfulness` when it is false — the paid
+nodes are not on the path rather than skipped inside it, so a default run cannot
+spend even if a node body were wrong.
+
+One ordering fix over the CLI habit is deliberate: delivery runs **after** claim
+repair and persona notes. The reverse order shipped digests citing claims repair
+had already rewritten (2 stale claims in
+`docs/digests/2026-07-30-ai_team.md`), so the correct order is structural
+instead of something the operator has to remember.
+
+`SystemExit` from a layer is caught and recorded as a summary line, not a crash:
+a stage refusing (too few labels for a rubric, no API key) is information, not
+failure. `tolerant=True` mirrors `pipeline.py` for the network-facing stages —
+an API outage in an optional stage must not kill the deterministic run.
 
 ## ops
 

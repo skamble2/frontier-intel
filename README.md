@@ -6,7 +6,7 @@
 cited, ranked intelligence — and refuses to store anything it cannot prove.**
 
 ![Python](https://img.shields.io/badge/python-3.x-blue)
-![Tests](https://img.shields.io/badge/tests-274%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-293%20passing-brightgreen)
 ![Storage](https://img.shields.io/badge/storage-SQLite-lightgrey)
 ![LLM](https://img.shields.io/badge/LLM-Claude%20%2B%20GPT-orange)
 
@@ -109,13 +109,15 @@ One entry point, one command per layer — every layer also runs alone.
 | `xbench` | — | The frozen X reference set used by the evaluation figures ($0) |
 | `evaluate` | — | Figures + evaluation report |
 | `checks` | — | C1–C20 invariant battery |
+| `drift` | — | PSI/KS corpus drift vs history ($0; monitoring, never gates the build) |
 | `verify` | — | Claim↔quote entailment check over all insights (`--repair` rewrites `partial` claims to what their quote supports) |
 | `positions` | L4 | Map events to holdings (ticker + mechanism edges) |
 | `personas` | L4 | Per-audience readings (threat/tailwind · adopt/investigate) |
 | `digest` | L4 | Periodic digest, Markdown + PDF (`--review` for keep/cut) |
 | `alerts` | L4 | Push material events to a sink (fires on signed direction) |
 | `web` | — | Web UI over the DB (browse + candidate approve/reject) |
-| `pipeline` | — | The full daily cycle |
+| `pipeline` | — | The full daily cycle (free stages) |
+| `graph` | — | The same run as a LangGraph graph, paid stages included behind `--spend`. `--mermaid` prints the topology and runs nothing |
 | `skeleton` | — | One doc → one insight, end to end |
 
 ```bash

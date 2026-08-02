@@ -12,9 +12,9 @@ fli/ingestion/      LAYER 1  raw sources
 fli/knowledge/      LAYER 2  filtering, extraction, register
 fli/intelligence/   LAYER 3  clustering, features, labels, scoring
 fli/ops/            LLM client, tracing (cross-cutting)
-fli/validation/     C1-C20 invariant battery (reads every layer)
+fli/validation/     C1-C20 invariant battery + drift monitoring (reads every layer)
 fli/delivery/       LAYER 4  positions, personas, digest, alerts (nothing imports it)
-fli/orchestration/  pipeline, skeleton (composition only)
+fli/orchestration/  pipeline, graph, skeleton (composition only)
 ```
 
 Import direction is enforced by `tests/test_architecture.py`, which fails the
@@ -216,10 +216,19 @@ Then, in the project `.venv` (not base conda), the lightweight client only:
 source .venv/bin/activate
 pip install -r requirements-tracing.txt   # opentelemetry client libs, small
 FLI_TRACING=1 python3 -m fli.cli pipeline      # spans stream to Phoenix at :6006
+FLI_TRACING=1 python3 -m fli.cli graph         # + one CHAIN span per graph node
 ```
 
+Under `graph`, each node is wrapped in a `chain_span` and the `llm_span` of any
+call it makes nests inside it, so Phoenix renders a run as a single tree —
+`graph.run → node.<stage> → llm.<task>` — giving per-node latency next to
+per-call token counts.
+
 Without the extras (or without `FLI_TRACING`), tracing is a no-op and the
-deterministic pipeline is unaffected. Endpoint override: `PHOENIX_COLLECTOR_ENDPOINT`.
+deterministic pipeline is unaffected. If `FLI_TRACING` is set but the
+OpenTelemetry client is missing, it prints the install hint and continues with
+tracing off — an observability dependency must never break the run it observes.
+Endpoint override: `PHOENIX_COLLECTOR_ENDPOINT`.
 (If you prefer not to use Docker, run `pip install arize-phoenix && phoenix serve`
 in a **separate** dedicated venv — never this one or base.)
 
@@ -322,6 +331,43 @@ fix land?" against the previous run's numbers, inline. Snapshots live in
 `data/snapshots/` — `fli-robustness-evidence.db` is the artifact behind the
 ingestion-robustness claim (4 failure modes incl. HTTP 429), since a
 truncate+rebuild resets `fetch_log` to all-ok.
+
+## The whole run in one command
+
+`pipeline` chains the free stages and leaves the paid ones as separate commands.
+`graph` packages all twenty-one stages as a LangGraph graph behind one gate:
+
+```bash
+python3 -m fli.cli graph                # free stages only — costs what `pipeline` costs
+python3 -m fli.cli graph --spend        # + verify/repair, personas, faithfulness
+python3 -m fli.cli graph --mermaid      # print the topology and exit; runs nothing
+python3 -m fli.cli graph --max-extract 30
+```
+
+The paid nodes require `--spend` **and** an API key; without both they are not
+on the graph's path at all, so a default run cannot spend. Node bodies are the
+same layer functions the CLI commands call — the graph owns ordering and gating
+only. It exits on the checks battery's verdict, exactly as `pipeline` does.
+
+`langgraph` is an optional dependency imported lazily, so everything else runs
+without it (`pip install -r requirements.txt` includes it).
+
+## Corpus drift (free, monitoring only)
+
+```bash
+python3 -m fli.cli drift                # last 14 days vs history
+python3 -m fli.cli drift --days 30
+```
+
+PSI over categorical mixes (document `source_type`, insight `event_type`) and a
+two-sample KS test over continuous ones (document length, insight score),
+computed directly from SQL — no scipy, no model call, $0. The window is anchored
+to the newest document rather than the wall clock, so the report is reproducible
+on a static corpus.
+
+Exit code is the number of MAJOR drifts, so a scheduler can alarm on it. It is
+deliberately **not** part of `checks`: an organic news cycle must not turn the
+release gate red.
 
 ## Pipeline-green gate (run after any change)
 

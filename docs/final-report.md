@@ -17,7 +17,11 @@ GitHub, X and lab pages, and ranks every event twice — once for an investment
 reader, once for an engineering reader — from 2,165 pairwise labels (1,738 from
 two model-judge families, 427 from a human). It then
 connects lab events to public-equity holdings, writes a per-audience reading of
-each, and delivers a cited digest and an alert path. Total LLM spend to date is
+each, and delivers a cited digest and an alert path. The whole run — twenty-one
+stages, paid ones included behind a single `--spend` gate — is packaged as a
+LangGraph graph with per-node tracing, and a free PSI/KS drift monitor watches
+whether the corpus is still the corpus the models were fitted to. Total LLM
+spend to date is
 **$25.18 across 7,423 calls** — including a $1.05 claim-repair pass that lifted
 claim↔quote entailment from 52.0% to 95.2% (699/734 entailed).
 
@@ -46,12 +50,17 @@ This is measured, not asserted, and it is the justification for the entire
 two-persona design: a single "importance score" would have quietly served one
 audience and mis-served the other.
 
-*(The investment ranks skip numbers because the raw corpus ranking does not
+*(Two caveats on the table, both about the raw ranking rather than the delivered
+product. The investment ranks skip numbers because the raw ranking does not
 collapse clusters: ranks 3/4/5 are three near-identical reports of the same $40M
-commitment, 6/7 one DiffusionGemma story, 8/9 one pricing story. Distinct
-stories are shown. The engineering top 10 has no such duplicates. The reader
-never sees them either — the delivered slate suppresses them — but it is a real
-defect in the diagnostic, discussed under the honest negatives below.)*
+commitment, 6/7 one DiffusionGemma story, 8/9 one pricing story — distinct
+stories are shown here. And the raw ranking is not windowed, so the engineering
+column includes work published as far back as 2024-05. The delivered slate
+applies both corrections — one item per cluster, inside the policy's 90-day
+window — so a reader sees neither problem. But the divergence figure is computed
+on raw ranks, which makes these examples illustrative of the two rubrics'
+priorities rather than of what actually ships. Both are discussed under the
+honest negatives.)*
 
 ## Insight 1 (investment) — OpenAI's Health launch is a direct threat to two holdings
 
@@ -155,6 +164,43 @@ figure closes the loop — DeepSeek reaches p@10 = 0.90 on 29 scored events, and
 normalized by the headroom its high base rate leaves (lift/ceiling 76%) it is
 second only to Google DeepMind, despite the thinnest coverage in the corpus.
 
+## Insight 6 (monitoring) — the drift monitor's first run found the engineering product's supply drying up
+
+Drift monitoring (`python -m fli.cli drift`, PSI over categorical mixes and KS
+over continuous ones) exists because a filter tuned on last month's corpus and a
+ranker trained on last month's labels degrade *silently* when the input
+distribution moves — no invariant breaks, the rankings just get worse. On the
+committed corpus it reports **3 MAJOR of 4 metrics**, and one of them matters
+commercially:
+
+> **`open_source` events: 8.3% of the corpus historically, 0.0% in the last 14
+> days.** Zero, against roughly 16 expected at the historical rate.
+
+That is the event type supplying **8 of the engineering ranking's top 10**. The
+channel that usually carries open-weight announcements was not under-covered in
+that window either — `blog` contributed 52 documents and 103 events, and blog is
+historically the largest source of `open_source` events (21 of 44). So the drop
+is not obviously a coverage artifact: the places these announcements normally
+appear were being read, and carried none. The newest `open_source` event in the
+corpus is Gemma 4 12B on 2026-07-01.
+
+Two readings are available and **the system cannot currently distinguish them**:
+either the labs genuinely paused open-weight releases in that window, or the
+mix shifted in a way the extractor is sensitive to. Saying which would need a
+longer window than 14 days and a targeted check of each lab's release feed.
+Stating both is the honest position, and it is a concrete next task rather than
+a shrug.
+
+What is not ambiguous is that the monitor earned its place on its first run. No
+invariant check would ever have flagged this — the database is perfectly
+consistent, C1–C20 are green, and the engineering digest still renders a
+confident top 10 built entirely from older material.
+
+The reassuring half of the same table: `insight score` is the one **stable**
+metric (KS 0.078 against a 0.114 critical value). The inputs moved substantially;
+the distribution of scores the ranking produces did not. That is weak evidence
+the scorer responds to event content rather than to corpus mix.
+
 ## The honest negatives
 
 A system that only reported its wins would be untrustworthy for exactly the
@@ -176,7 +222,22 @@ cannot trade the labs themselves, but it means the investment product is a small
 number of high-conviction connections surrounded by an honest majority of "we
 see it, we can't sign it", not a dense signal.
 
-**The corpus ranking does not collapse clusters; only the delivered slate does.**
+**One of the three MAJOR drift readings is partly an artifact of the drift
+metric itself.** The `doc source_type mix` PSI of 0.356 is driven mostly by
+arXiv tripling its share of fetched documents (11.1% → 32.5%) — but those are
+co-author *expansion* documents, fetched to evidence who someone is, and they
+almost never yield events: 121 arXiv documents landed in the window and produced
+**zero** insights (all-time, 256 arXiv documents yield 22 with events). The
+funnel figure excludes register documents from every bar for exactly this
+reason; `drift.py`'s `_DOC_MIX` does not, so it counts a register run as corpus
+drift. The `doc length` KS follows from the same cause — an arXiv abstract page
+is not the size of a tweet. The `event_type` PSI is computed over insights and
+is unaffected, so the finding above stands; but the document-level metrics
+should be restricted to extraction-eligible documents before anyone alarms on
+them.
+
+**The corpus ranking is neither de-duplicated nor windowed; only the delivered
+slate is.**
 Clustering correctly groups near-duplicate claims — the three reports of Google's
 $40M Genesis commitment all carry `cluster_id` 32 — but `event_scores.rank`
 orders all 734 events without consulting that grouping, so the raw investment
@@ -184,10 +245,21 @@ top 10 contains only **6 distinct stories**. A reader never sees this: the slate
 builder (`fli/intelligence/scoring.py`, `seen_clusters`) enforces one item per
 cluster and reports what it suppressed, and the committed investment digest says
 so in as many words: *"669 no mechanism, 21 lab cap, 14 outside window, 11 not
-entailed, 4 duplicate cluster, 4 same story, 3 undated."* So the product is correct and
-the diagnostic is not — but the divergence figure above is computed on raw
-ranks, which means its "top 10" is really a top 6. The fix is to rank on cluster
-representatives rather than events, and it is the first thing on the next list.
+entailed, 4 duplicate cluster, 4 same story, 3 undated."*
+
+The same gap applies to recency. The policy window is 90 days and the slate
+enforces it ("14 outside window" above, and 104 in the ai_team digest), but the
+raw ranking has no window at all — which is why the engineering top 10 contains
+work from 2024-05 and its newest item predates the last two weeks of the corpus
+entirely. The `recency` feature carries a coefficient of just +0.091, so score
+alone barely encodes it.
+
+So the product is correct and the diagnostic is not: the divergence figure is
+computed on raw ranks, which makes its "top 10" really a top 6, drawn from
+outside the reporting window. Kendall τ and the overlap curve remain valid — they
+measure how differently the two rubrics order the same corpus — but the
+illustrative items are not what ships. Ranking on cluster representatives inside
+the policy window fixes both, and it is the first thing on the next list.
 
 **The two model judges agree with each other more than with the human.** On the
 363 investment pairs a human has now labelled, the two models (Claude and GPT)
@@ -268,7 +340,25 @@ so the same budget already spent on judging would buy roughly 4,600 more labels
 instead of 708. The investment
 product is sharpest where a lab enters a market a holding occupies
 (displacement, which carries an inherent sign) and weakest on demand channels
-(where the sign needs a per-event reading). The engineering product is already
-dense, because "usable and reproducible" is a property the corpus carries on its
-face. The single most valuable next investment would be more human pairwise
-labels on the investment rubric, where the models' shared blind spot is largest.
+(where the sign needs a per-event reading). The engineering product looks dense,
+because "usable and reproducible" is a property the corpus carries on its face —
+but the drift monitor is the caveat on that sentence: its supply of
+`open_source` events went to zero in the most recent window, and the ranking
+does not notice because it is not windowed.
+
+**What I would do next, in order.**
+
+1. **Rank on cluster representatives inside the policy window.** One change
+   fixes both diagnostic defects above — the duplicate top-10 and the 2024
+   events in a 90-day product — and makes the divergence figure describe what
+   actually ships.
+2. **Buy the next labels from the cheaper judge.** Same money, ~6.5× the
+   labels, marginally better measured reliability. The learning curve says they
+   are still worth buying.
+3. **Then buy human labels on the investment rubric**, where the two models'
+   shared blind spot is largest and where slate precision is weakest (53%).
+4. **Scope the drift metrics to extraction-eligible documents**, so a register
+   expansion run stops reading as corpus drift and the alarm means one thing.
+5. **Resolve the `open_source` question** — pause or artifact — with a longer
+   window and a per-lab release-feed check. It is the one open question in this
+   report that has a direct product consequence.
