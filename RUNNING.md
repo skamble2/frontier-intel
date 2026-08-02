@@ -27,20 +27,26 @@ python3 -m fli.cli checks           # unified dispatcher; `--help` lists all lay
 python3 -m fli.validation.checks    # the layer directly
 ```
 
-Split of responsibilities during development:
-
-- **Sandbox (Claude):** everything deterministic — schema, ingestion replay, Stage-1 filter, verification, scoring, rendering, tests. LLM calls are blocked by the sandbox's credential-protection proxy.
-- **Your machine:** anything needing `ANTHROPIC_API_KEY` (Stage-2 extraction) and live HTTP fetching.
+Everything deterministic — schema, ingestion replay, Stage-1 filter,
+verification, scoring, rendering — runs with no credentials at all. Only
+Stage-2 extraction and the other LLM stages need an API key, and only live
+fetching needs network.
 
 ## One-time setup
 
 ```bash
-cd ~/Downloads/BitCapCaseStudy/frontier-intel
-python3 -m venv .venv && source .venv/bin/activate
+git clone <this-repo> && cd frontier-intel
+
+python3 -m venv .venv && source .venv/bin/activate    # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+
+cp .env.example .env        # then fill in the keys you actually need
 ```
 
-`.env` with `ANTHROPIC_API_KEY=...` already exists in this folder.
+Every variable in `.env.example` is optional except `ANTHROPIC_API_KEY`, and
+even that is only required for the stages that call a model. Without it the
+deterministic pipeline still runs end to end against the committed database and
+`checks` still exits green.
 
 ## Walking skeleton (one doc → one cited insight)
 
@@ -202,15 +208,16 @@ to a local Phoenix — so a classifier verdict shows the exact input it judged.
 This is dev tooling for the prompt-iteration loop only; `checks.py` stays the
 source of truth for measured numbers.
 
-Run Phoenix (the viewer) **isolated** — it is a heavy server and must not share
-this env or your base conda env, or it will upgrade shared libs and break other
-tools. Use Docker (nothing installed into Python):
+Run Phoenix (the viewer) **isolated** — it is a heavy server and should not
+share this project's environment, or it will upgrade shared libraries and break
+other tools. Docker is the cleanest option, since it installs nothing into
+Python:
 
 ```bash
 docker run -p 6006:6006 arizephoenix/phoenix:latest   # UI + collector at :6006
 ```
 
-Then, in the project `.venv` (not base conda), the lightweight client only:
+Then, in this project's `.venv`, install the lightweight client only:
 
 ```bash
 source .venv/bin/activate
@@ -230,7 +237,7 @@ OpenTelemetry client is missing, it prints the install hint and continues with
 tracing off — an observability dependency must never break the run it observes.
 Endpoint override: `PHOENIX_COLLECTOR_ENDPOINT`.
 (If you prefer not to use Docker, run `pip install arize-phoenix && phoenix serve`
-in a **separate** dedicated venv — never this one or base.)
+in a **separate** dedicated virtualenv — never this project's.)
 
 ## Scoring & validation
 

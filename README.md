@@ -2,15 +2,20 @@
 
 # Frontier Lab Intelligence
 
-**Tracks what frontier AI labs and their researchers actually ship, turns it into
-cited, ranked intelligence — and refuses to store anything it cannot prove.**
+**An evidence-driven intelligence system for frontier AI labs: it tracks what the
+labs and their researchers actually ship, and turns it into cited, ranked,
+audience-tailored intelligence.**
 
 ![Python](https://img.shields.io/badge/python-3.x-blue)
-![Tests](https://img.shields.io/badge/tests-293%20passing-brightgreen)
 ![Storage](https://img.shields.io/badge/storage-SQLite-lightgrey)
-![LLM](https://img.shields.io/badge/LLM-Claude%20%2B%20GPT-orange)
+![Models](https://img.shields.io/badge/models-Claude%20%2B%20GPT-orange)
+![Orchestration](https://img.shields.io/badge/orchestration-LangGraph-6f42c1)
+![Validation](https://img.shields.io/badge/schemas-Pydantic-e10098)
+![Tracing](https://img.shields.io/badge/tracing-Phoenix%20%2F%20OpenInference-0a7ea4)
+![Web](https://img.shields.io/badge/web-Flask-black)
 
-*Built for a technology investment fund tracking frontier-lab activity.*
+*Every event is evidenced, every score is justified, and the whole tracked
+universe is a YAML file.*
 
 </div>
 
@@ -21,6 +26,8 @@ cited, ranked intelligence — and refuses to store anything it cannot prove.**
 - [The one idea](#the-one-idea)
 - [How it works](#how-it-works)
 - [Highlights](#highlights)
+- [The stack](#the-stack)
+- [Configure it for your fund](#configure-it-for-your-fund)
 - [Quick start](#quick-start)
 - [CLI reference](#cli-reference)
 - [Project layout](#project-layout)
@@ -39,6 +46,13 @@ Every insight carries an `evidence_id` (`NOT NULL`). Every quote is re-checked
 against the stored document — not at write time, but again on every validation
 run. If a source edits a page, or a bad extraction slipped through once, the
 check battery says so.
+
+The data model is an **event spine**: a fetched document yields evidence, evidence
+yields an event, and everything downstream — clustering, features, scores,
+holding exposure, the per-audience reading, the digest, the alert — hangs off
+that one event row and can be traced back through it to the bytes a lab
+published. Layers never call each other in memory; they communicate through the
+database, which is what lets any stage run, and be inspected, on its own.
 
 ## How it works
 
@@ -68,23 +82,70 @@ and lab pages.
 | **Scoring that earns its weights** | No arbitrary weighted sum: a 5-model bake-off (recency & corroboration baselines, hand-weights, logistic, GBM) on held-out pairwise labels. Lab identity is **never** a feature; per-lab precision@10 is the fairness check, and labs with too few events are excluded rather than given a meaningless score. |
 | **Reliability without ground truth** | Two independent model families (Claude and GPT) plus a human auditor judge the identical pairs; Dawid–Skene estimates each labeler's accuracy from their disagreement alone — 0.874, 0.864 and 0.778. The human's *lower* score is itself a finding: human sittings deliberately target the pairs where the models disagree, and a disagreement-based estimator reads that as inaccuracy — which is why the human agreement is reported alongside, never replaced by, the model estimate. The figure refuses to render from a single family, because one model agreeing with itself measures nothing. |
 | **Cost-controlled by design** | A cheap Haiku gate kills non-substantive documents before Sonnet sees them. Every call is logged to `llm_calls` (model, tokens, $). `--max-extract` caps spend per run. |
-| **A validation battery, not vibes** | C1–C20 invariant checks run after every pipeline; the exit code *is* the verdict. `tests/test_architecture.py` fails the build if a lower layer imports a higher one. |
+| **A validation battery, not vibes** | C1–C20 invariant checks run after every pipeline and the exit code *is* the verdict — quotes re-verify, every person is evidenced, no evidence is orphaned, scores cite a live policy version. Layer boundaries are enforced at build time, so presentation can never reach back and change what was extracted. |
+| **Drift monitoring that stays out of the way** | PSI over categorical mixes and a two-sample KS test over continuous ones, computed straight from SQL at $0. Deliberately *not* an invariant — an organic news cycle must not turn the build red — but it exits with the count of MAJOR drifts so a scheduler can alarm. On the current corpus it caught the event type feeding the technical top 10 going to zero in the latest window. |
+
+## The stack
+
+Small on purpose. Everything past the first four rows is optional and lazily
+imported, so the daily run works on a machine that has none of it installed.
+
+| | | why |
+|---|---|---|
+| **Python 3** | runtime | no framework; the layers are plain modules |
+| **SQLite** | storage | right size for a single-writer daily pipeline, and it makes the deliverable a file you can open |
+| **Anthropic SDK** (Claude) | classify · extract · repair · judge · persona | Sonnet where a wrong answer becomes a stored fact, Haiku where it only costs a re-check |
+| **OpenAI SDK** (GPT) | second judge family | reliability estimates need conditionally independent labelers, not two prompts of one model |
+| **Pydantic** | typed model I/O | model replies are validated into schemas; a reply that omits its working is rejected, not stored |
+| **scikit-learn** | scoring bake-off | SQL + sklearn over a few hundred rows. No vector store, no embeddings — they would be infrastructure carrying no measurement |
+| **LangGraph** | run orchestration | the whole run as one graph, paid stages behind a single `--spend` gate |
+| **Phoenix / OpenInference** | tracing | `graph.run → node.<stage> → llm.<task>` in one tree; off by default |
+| **Flask** | web UI | a light read surface over the same database |
+| **matplotlib · seaborn · pandas** | figures | regenerated by one command, $0 |
+
+## Configure it for your fund
+
+The core is **evidence- and event-driven**, and deliberately knows nothing about
+any particular fund. What makes it *this* fund's system is four YAML files:
+
+| file | what it decides |
+|---|---|
+| [config/register_seeds.yml](config/register_seeds.yml) | which labs and people to track, and the pages that evidence them — your data sources |
+| [config/policy.yml](config/policy.yml) | `channels` (how a lab event reaches a portfolio — general to any technology fund) and `positions` (which holdings exist, and the vocabulary indicating exposure — fund-specific) |
+| [config/rubrics/](config/rubrics/) | what *important* means, one file per audience |
+| [config/register_overrides.yml](config/register_overrides.yml) | manual corrections that survive a database rebuild |
+
+That split is the design, not a happy accident — `policy.yml` says so in its own
+comments: *"Swap this `positions` block for another fund and the system works
+unchanged."* Point `register_seeds.yml` at a different set of labs and the same
+pipeline tracks a different universe, with no code change.
+
+**Portability.** There is nothing cloud-specific anywhere: state is one SQLite
+file, the runtime is plain Python, and model routing is a single dictionary in
+`fli/ops/llm.py`. Today it runs three ways: as a CLI, as a Flask UI, and as a
+scheduled [GitHub Actions](.github/workflows/pipeline.yml) job that commits the
+updated database and report back to the repository. Moving inference to Vertex
+AI or Bedrock is a provider entry in that one module rather than a rewrite, and
+containerising it is a Dockerfile over `requirements.txt` — neither is
+implemented yet, and both are listed here as *unblocked*, not as done.
 
 ## Quick start
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-echo "ANTHROPIC_API_KEY=sk-..." > .env
+cp .env.example .env             # fill in ANTHROPIC_API_KEY; everything else is optional
 
 python3 -m fli.cli pipeline      # the full daily cycle
+python3 -m fli.cli graph         # the same run as one graph (--spend adds the paid stages)
 python3 -m fli.cli checks        # invariant battery; exit 0 = green
-python3 -m unittest discover -s tests -t .
+python3 -m fli.cli web           # browse the register, scores and past reports
 ```
 
 > [!NOTE]
 > Without an API key everything deterministic still runs and stays green —
-> only LLM extraction is skipped.
+> only the LLM stages are skipped. The committed database ships with real data,
+> so a clone reproduces every reported number without spending anything.
 
 Full operational detail in [RUNNING.md](RUNNING.md).
 
