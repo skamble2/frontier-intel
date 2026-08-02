@@ -69,7 +69,7 @@ document supports fewer. Each quote must be copied character-for-character.
 ```
 
 **"PICK THE QUOTE FIRST" is a measured revision, not a flourish.** The
-entailment audit (f15) judged 46% of the corpus's claim–quote pairs only
+entailment audit judged 46% of the corpus's claim–quote pairs only
 *partially* entailed, and the failure reasons had one shape: claims carrying a
 model name, version or number that lives in a *different* sentence than the
 quoted one — true facts, wrong provenance. The block inverts the model's

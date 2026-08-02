@@ -1,4 +1,4 @@
-# Frontier Lab Intelligence — findings
+# Frontier Lab Intelligence
 
 ## The system in one paragraph
 
@@ -254,7 +254,7 @@ What the corpus cannot yet show, a rank probe can. Feeding a synthetic move —
 median feature shape of the 10 extracted personnel events, dated two days ago —
 through the same scoring path the bake-off ships puts it at **investment #46 of
 954 (top 5%) and technical #953 of 954**. Nothing is written; it is an
-in-memory probe reported in f14. So the mechanism is real, the ranking would
+in-memory probe reported in the mobility figure. So the mechanism is real, the ranking would
 surface it to the reader who wants it, and the two rubrics disagree exactly as
 they should: a researcher move is an investment signal, not a technical one.
 Only the observation is missing.
@@ -333,8 +333,8 @@ number:
 | tier | meaning | example |
 |---|---|---|
 | **MECHANICAL** | arithmetic over the database; no human, no judge | funnel, cost, event-type mix |
-| **SYNTHETIC** | ground truth known by construction | planted-policy recovery (f17) |
-| **vs HUMAN REFERENCE** | agreement with a stated, frozen human-audited set | channel classifier (f5), slate precision (f16) |
+| **SYNTHETIC** | ground truth known by construction | planted-policy recovery |
+| **vs HUMAN REFERENCE** | agreement with a stated, frozen human-audited set | channel classifier, slate precision |
 | **JUDGED** | against an unaudited LLM reference — provisional | bake-off, ablation, fairness |
 
 F1, precision and recall appear **only** in the SYNTHETIC and HUMAN tiers. On
@@ -349,7 +349,7 @@ Extraction turns one document into one or more events, each a `claim` (the
 model's sentence) plus a `quote` (the source's own contiguous words). The quote
 is what makes the claim checkable, so quote fidelity is the metric.
 
-**Quote verification (D1) — 94.8%.** Every proposed quote is matched against the
+**Quote verification — 94.8%.** Every proposed quote is matched against the
 stored bytes of its source document before the insight is allowed to persist.
 
 | kept insights | rejected quotes | verified |
@@ -395,7 +395,7 @@ Byte-verification proves the quote is real. It does not prove the *claim*
 follows from the quote — a model can copy a sentence correctly and still
 summarize it wrongly. So there is a second, independent check.
 
-**Claim↔quote entailment (f15) — 97.5%.** Every one of the 954 insights was
+**Claim↔quote entailment — 97.5%.** Every one of the 954 insights was
 re-judged with the claim and its quote *alone*, no document context:
 
 | verdict | n | % |
@@ -508,21 +508,21 @@ is re-earned on every re-fit rather than fixed by preference.
 
 #### Does it generalize?
 
-**Overfitting (f10)** — largest train/held-out gap is `gbm_sklearn` at +0.109,
+**Overfitting** — largest train/held-out gap is `gbm_sklearn` at +0.109,
 and the figure flags it as **memorising**: the training accuracy is not evidence
 of anything, and only the held-out number above should be read. The gap grew as
 the label set grew harder, which is the expected trade — the GBM buys its
 held-out edge with capacity, and the figure exists so that trade stays visible
 rather than flattering.
 
-**Learning curve (f11)** — the last step, 160→320 pairs, moved accuracy +0.004:
+**Learning curve** — the last step, 160→320 pairs, moved accuracy +0.004:
 **the curve has plateaued.** More labels from the same judges will not move the
 number; the features are the limit. This is also the honest
 counterweight to the headline: as the label set grew, accuracy did not rise
 monotonically, because newer labels deliberately cover harder pairs. An early
 number computed on an easier test set flattered the model.
 
-**Ablation (f8) — reported with its limits.** Leave-one-feature-out moves
+**Ablation, reported with its limits.** Leave-one-feature-out moves
 held-out accuracy by at most +0.022 (`mechanism_channel`), i.e. **five pairs out
 of 224**, with `source_type_github` next at +0.018. The honest conclusion is not
 "two features matter" but "**at 760 labels the ablation is coarse**" — most
@@ -578,7 +578,7 @@ rank.
 Every number above is measured against a judge that is not ground truth. So one
 figure removes that dependency entirely.
 
-**Planted-policy recovery (f17) — SYNTHETIC.** Four known weight vectors are
+**Planted-policy recovery — SYNTHETIC.** Four known weight vectors are
 planted over the *real* standardized feature matrix (real, so recovery must
 survive the actual feature correlations), 400 pairwise labels are generated from
 each with **10% of verdicts flipped** — the same order of unreliability measured
@@ -704,7 +704,7 @@ against the old one. Four hypotheses were then
 written down *before any code was changed*, on the principle that a result you
 can interpret after seeing it is not a result. The decisive one was:
 
-> **H4.** Even after the lexicon is repaired, channel-assignment F1 stays below
+> Even after the lexicon is repaired, channel-assignment F1 stays below
 > **0.80**, because channel membership is semantic ("does this move a number in
 > a thesis?") and not lexical.
 > **If F1 ≥ 0.80 the lexicon is sufficient — ship it and build no classifier**,
@@ -839,7 +839,7 @@ consequence of a measurement reported above, and each names what it would take.
 
 | | |
 |---|---|
-| **Spend on features and human labels, not more LLM labels** | The learning curve has plateaued: the last doubling of pairs moved held-out accuracy +0.004. More labels from the same judges will buy noise; the remaining accuracy lives in the feature surface (the f9 misses are all one feature shape) and in human labels, which measure reader preference rather than judge consensus. When labels are bought, GPT-5.2 costs $0.0022 per usable label against Sonnet's $0.0101, returns fewer low-confidence verdicts (22.0% vs 27.0%), and its estimated reliability is marginally *higher* (0.874 vs 0.864). |
+| **Spend on features and human labels, not more LLM labels** | The learning curve has plateaued: the last doubling of pairs moved held-out accuracy +0.004. More labels from the same judges will buy noise; the remaining accuracy lives in the feature surface (the per-lab misses are all one feature shape) and in human labels, which measure reader preference rather than judge consensus. When labels are bought, GPT-5.2 costs $0.0022 per usable label against Sonnet's $0.0101, returns fewer low-confidence verdicts (22.0% vs 27.0%), and its estimated reliability is marginally *higher* (0.874 vs 0.864). |
 | **Then buy human labels on the investment rubric** | Where the two models' shared blind spot is largest and slate precision is weakest (53% kept, against 86% for `ai_team`). |
 | **Human labels on the technical rubric** | 64 human sittings against 363 for investment, so the technical `human_acc` of 0.849 rests on a much thinner reference (53 decided pairs) than its investment counterpart. |
 | **A human-audited extraction reference** | The single largest evaluation gap. Quote verification is mechanical and entailment is LLM-judged; there is no gold extraction set. Everything in the JUDGED tier stays provisional until there is one. |

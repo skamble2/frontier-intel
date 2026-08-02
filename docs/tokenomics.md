@@ -10,7 +10,7 @@ from a pinned price table. Nothing is estimated. Regenerate the whole table
 with:
 
 ```bash
-sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt   # sections M5a–M5b
+sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
 ```
 
 ## The bill
@@ -200,7 +200,7 @@ both. Routing them through it is worth roughly $11 on a re-run, which is why
 batching-by-default is carried into
 [future scope](final-report.md#future-scope).
 
-No reasoning tokens were billed on any model (`M5a2`: 0 across all three), so
+No reasoning tokens were billed on any model — zero across all three — so
 none of the output cost above is invisible thinking.
 
 ## Unit economics
@@ -253,7 +253,7 @@ and most of that is `extract`, the one line where paying for Sonnet is defended.
 
 The parts that scale with *label count* — `judge` and `label` — are $19.06, and
 they do not need to grow with the corpus at all. They needed to grow until the
-learning curve flattened, and f11 now says it has: the last doubling of pairs
+learning curve flattened, and it now has: the last doubling of pairs
 moved held-out accuracy +0.004. The label budget is roughly spent; what remains
 is feature work and human labels, which buy a different thing than more judge
 consensus.

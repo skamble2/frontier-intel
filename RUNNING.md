@@ -120,7 +120,7 @@ server and will upgrade shared libraries if installed into this environment.
 sqlite3 data/fli.db < docs/metrics.sql > docs/metrics-out.txt
 ```
 
-Regression guards (G1–G5b) sit at the top of the output and answer "did the last
+Regression guards sit at the top of the output and answer "did the last
 fix land?" against the previous run's numbers.
 
 `data/fli.db` is the only database in the repo. Where evidence could not survive
