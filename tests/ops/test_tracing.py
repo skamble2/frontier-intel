@@ -3,11 +3,9 @@ import unittest
 
 from fli.ops import tracing
 
-try:
-    import opentelemetry  # noqa: F401
-    _OTEL = True
-except ImportError:  # tracing extras are optional
-    _OTEL = False
+from importlib.util import find_spec
+
+_OTEL = find_spec("opentelemetry") is not None   # tracing extras are optional
 
 
 class TestTracingDisabled(unittest.TestCase):

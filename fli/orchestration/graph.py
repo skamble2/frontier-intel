@@ -258,7 +258,7 @@ def main() -> int:
                               "report": {}, "verdict": 0}, cfg)
         while "__interrupt__" in final:      # paused at the approve gate
             payload = final["__interrupt__"][0].value
-            print(f"\n=== approval required ===")
+            print("\n=== approval required ===")
             for k, v in payload.items():
                 print(f"  {k}: {v}")
             try:

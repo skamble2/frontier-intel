@@ -15,11 +15,9 @@ from unittest import mock
 from fli.delivery import mcp_server
 from tests.helpers import memory_db
 
-try:
-    import mcp  # noqa: F401
-    HAVE_MCP = True
-except ImportError:
-    HAVE_MCP = False
+from importlib.util import find_spec
+
+HAVE_MCP = find_spec("mcp") is not None   # SDK is optional; wiring tests skip
 
 
 def _seed(conn):
