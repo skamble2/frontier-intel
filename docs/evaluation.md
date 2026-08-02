@@ -36,45 +36,45 @@ Extraction turns one document into one or more events, each a `claim` (the
 model's sentence) plus a `quote` (the source's own contiguous words). The quote
 is what makes the claim checkable, so quote fidelity is the metric.
 
-**Quote verification (D1) — 94.5%.** Every proposed quote is matched against the
+**Quote verification (D1) — 94.8%.** Every proposed quote is matched against the
 stored bytes of its source document before the insight is allowed to persist.
 
-| kept insights | per-insight failures | whole-document failures | verified |
-|---:|---:|---:|---:|
-| 734 | 43 | 4 | **94.5%** |
+| kept insights | rejected quotes | verified |
+|---:|---:|---:|
+| 954 | 52 | **94.8%** |
 
 **This number used to read 99.8%, and that was a bug, not an achievement.**
 Failed quotes were silently `continue`d in the extraction loop, so they were
 never written to `rejections` — the rate was high because failures had stopped
 being *counted*, not because they had stopped happening. Per-insight
-verification logging was added (`quote_unverified`, 43 rows in `rejections`) and
-the honest number fell to 94.5%. It is reported that way deliberately: a
+verification logging was added (`quote_unverified`, 52 rows in `rejections`) and
+the honest number fell below 95%. It is reported that way deliberately: a
 verification metric that cannot go down is not measuring anything.
 
-**Verification tier — 734/734 exact.** Every insight quote verifies at the
+**Verification tier — 954/954 exact.** Every insight quote verifies at the
 strictest tier, byte-verbatim under the shared normalization. Check **C19**
 fails the build if this is ever below 100%, so "exact" is an enforced invariant
-rather than an observed statistic. (The corpus's 1,255 `structural`-tier
+rather than an observed statistic. (The corpus's 1,459 `structural`-tier
 evidence rows carry no claims — they are the register's author-name spans in
 structured documents, where structural *is* the designed tier.)
 
-**Quote-length compliance — 92.6%.** The prompt specifies a 10–60 word quote;
-680 of 734 land in spec. The 48 under-length quotes are the interesting tail:
+**Quote-length compliance — 93.4%.** The prompt specifies a 10–60 word quote;
+891 of 954 land in spec. The 51 under-length quotes are the interesting tail:
 short quotes are where a claim most often outruns its evidence, which is exactly
 what the entailment check below is for.
 
-**The rejection ledger.** The 43 rejected quotes were characterized rather than
-just counted, because "5.5% failed" says nothing about whether the model was
+**The rejection ledger.** The 52 rejected quotes were characterized rather than
+just counted, because "5% failed" says nothing about whether the model was
 lying or the matcher was fussy:
 
 | kind | n | reading |
 |---:|---:|---|
-| ≥80%-contiguous near-miss | 20 | the verifier being stricter than the normalization — not model failure |
-| paraphrase | 21 | the model rewrote instead of copying — a real prompt failure |
+| ≥80%-contiguous near-miss | 25 | the verifier being stricter than the normalization — not model failure |
+| paraphrase | 25 | the model rewrote instead of copying — a real prompt failure |
 | fabrication (no anchor in source) | **2** | the actual hallucination floor |
 
-Two fabrications in 777 proposed insights is the number that matters, and none
-of the 43 were ever shown to a reader — they were rejected at the gate.
+Two fabrications in 1,006 proposed insights is the number that matters, and none
+of the 52 were ever shown to a reader — they were rejected at the gate.
 
 ## 2. Hallucination control
 
@@ -82,14 +82,14 @@ Byte-verification proves the quote is real. It does not prove the *claim*
 follows from the quote — a model can copy a sentence correctly and still
 summarize it wrongly. So there is a second, independent check.
 
-**Claim↔quote entailment (f15) — 95.2%.** Every one of the 734 insights was
+**Claim↔quote entailment (f15) — 97.5%.** Every one of the 954 insights was
 re-judged with the claim and its quote *alone*, no document context:
 
 | verdict | n | % |
 |---|---:|---:|
-| entailed | 699 | 95.2% |
-| partial | 24 | 3.3% |
-| not entailed | 11 | 1.5% |
+| entailed | 930 | 97.5% |
+| partial | 10 | 1.0% |
+| not entailed | 14 | 1.5% |
 
 `partial` is the actionable class: the claim names a load-bearing fact — a
 number, a date, an actor — that the quote does not carry. That is a prompt
@@ -110,11 +110,11 @@ re-verifies in the same pass:
 | | entailed | partial | not entailed |
 |---|---:|---:|---:|
 | before repair | 382 (52.0%) | 341 | 11 |
-| after one $1.05 run | **699 (95.2%)** | 24 | 11 |
+| after repair ($1.38 across the corpus) | **930 (97.5%)** | 10 | 14 |
 
 The important property is the direction: repair only ever makes a claim
 *weaker*. It cannot add a fact, because it is given nothing but the quote. The
-11 `not_entailed` claims were not repaired away — they are gated out of every
+14 `not_entailed` claims were not repaired away — they are gated out of every
 slate, so no reader sees them.
 
 **Structural controls, not just measurement.** `insights.evidence_id` is
@@ -133,30 +133,30 @@ seeded held-out split. The hand-weighted sum is included as a **baseline to
 beat, never as the shipped scorer** — the brief calls an arbitrary weighted sum
 dressed up as a score a red flag, and the measurement below is why.
 
-**Investment rubric** — 581 usable labels, 182 held-out pairs, 323 human-labeled
+**Investment rubric** — 760 usable labels, 224 held-out pairs, 323 human-labeled
 pairs available as an out-of-sample audit:
 
 | model | held-out acc (LLM ref) | human acc (out-of-sample) | p@10 held-out | nDCG@20 held-out |
 |---|---:|---:|---:|---:|
-| **gbm_sklearn** (winner) | **0.835** | **0.703** | 0.80 | 0.473 |
-| logistic | 0.813 | 0.669 | 0.80 | 0.416 |
-| baseline_corroboration | 0.637 | 0.480 | 0.50 | 0.203 |
-| hand_weights | 0.462 | 0.486 | 0.40 | 0.138 |
-| baseline_recency | 0.434 | 0.461 | 0.40 | 0.101 |
+| **gbm_sklearn** (winner) | **0.768** | **0.684** | 0.90 | 0.232 |
+| logistic | 0.763 | — | 1.00 | 0.325 |
+| baseline_corroboration | 0.491 | — | 0.20 | 0.074 |
+| baseline_recency | 0.478 | — | 0.30 | 0.049 |
+| hand_weights | 0.424 | — | 0.30 | 0.111 |
 
-**Technical rubric** — 721 usable labels, 218 held-out pairs, 53 human pairs:
+**Technical rubric** — 963 usable labels, 294 held-out pairs, 53 human pairs:
 
 | model | held-out acc | human acc | p@10 held-out | nDCG@20 held-out |
 |---|---:|---:|---:|---:|
-| **logistic** (winner) | **0.789** | **0.811** | 1.00 | 0.671 |
-| gbm_sklearn | 0.784 | 0.736 | 0.90 | 0.491 |
-| hand_weights | 0.468 | 0.340 | 0.20 | 0.126 |
-| baseline_corroboration | 0.404 | 0.547 | 0.30 | 0.219 |
-| baseline_recency | 0.317 | 0.340 | 0.30 | 0.258 |
+| **gbm_sklearn** (winner) | **0.827** | **0.849** | 1.00 | 0.675 |
+| logistic | 0.806 | — | 1.00 | 0.590 |
+| hand_weights | 0.412 | — | 0.40 | 0.109 |
+| baseline_corroboration | 0.408 | — | 0.50 | 0.197 |
+| baseline_recency | 0.347 | — | 0.30 | 0.063 |
 
 Three things worth reading off these tables:
 
-**The hand-weighted sum is worse than chance.** 0.462 and 0.468 held-out, on a
+**The hand-weighted sum is worse than chance.** 0.424 and 0.412 held-out, on a
 task where chance is 0.500. A plausible-looking set of weights chosen by an
 engineer does not merely underperform a fitted model — it fails to rank at all.
 Shipping it would have been the exact failure mode the brief warns about, and
@@ -164,41 +164,49 @@ the only reason that is known is that it was benchmarked instead of assumed.
 
 **`human_acc` is the non-circular number.** Human labels never enter training,
 so this column is a fully out-of-sample audit against a different labeler
-population. The winner scores **0.703** (investment) and **0.811** (technical)
-against a human. Both are well above the baselines, and both are lower than the
-LLM-reference accuracy — which is the correct and expected direction: agreeing
-with the judge that trained you is easier than agreeing with a person.
+population. The winner scores **0.684** (investment) and **0.849** (technical)
+against a human. Both are well above the baselines, and the investment number is
+lower than the LLM-reference accuracy — which is the correct and expected
+direction: agreeing with the judge that trained you is easier than agreeing with
+a person.
 
-**The winner differs per rubric, and that is allowed.** Investment picks the
-GBM, technical picks logistic. Each rubric trains and selects independently;
-nothing forces one model family on both audiences.
+**Each rubric selects its winner independently, and the selection has moved.**
+An earlier bake-off picked logistic for the technical rubric while investment
+picked the GBM; on the current label set the GBM wins both. Nothing forces one
+model family on both audiences — the point of the bake-off is that the choice
+is re-earned on every re-fit rather than fixed by preference.
 
 ### Does it generalize?
 
-**Overfitting (f10)** — largest train/held-out gap is `gbm_sklearn` at +0.050.
-Small, so the held-out number is trustworthy.
+**Overfitting (f10)** — largest train/held-out gap is `gbm_sklearn` at +0.109,
+and the figure flags it as **memorising**: the training accuracy is not evidence
+of anything, and only the held-out number above should be read. The gap grew as
+the label set grew harder, which is the expected trade — the GBM buys its
+held-out edge with capacity, and the figure exists so that trade stays visible
+rather than flattering.
 
-**Learning curve (f11)** — the last step, 160→320 pairs, moved accuracy +0.025
-and is still climbing. More labels are worth buying. This is also the honest
+**Learning curve (f11)** — the last step, 160→320 pairs, moved accuracy +0.004:
+**the curve has plateaued.** More labels from the same judges will not move the
+number; the features are the limit. This is also the honest
 counterweight to the headline: as the label set grew, accuracy did not rise
 monotonically, because newer labels deliberately cover harder pairs. An early
 number computed on an easier test set flattered the model.
 
 **Ablation (f8) — reported with its limits.** Leave-one-feature-out moves
-held-out accuracy by at most 0.011, i.e. **two pairs out of 182**. Only
-`specificity` shows a positive delta. The honest conclusion is not "only
-specificity matters" but "**at 581 labels the ablation is underpowered**" — no
-single feature is load-bearing enough to detect at this resolution. The fitted
+held-out accuracy by at most +0.022 (`mechanism_channel`), i.e. **five pairs out
+of 224**, with `source_type_github` next at +0.018. The honest conclusion is not
+"two features matter" but "**at 760 labels the ablation is coarse**" — most
+features move nothing detectable at this resolution. The fitted
 logistic coefficients are more informative than the ablation deltas:
 
 | feature | coefficient |
 |---|---:|
-| `mechanism_channel` | +0.989 |
-| `specificity` | +0.520 |
-| `corroboration` | +0.395 |
-| `event_type_release` | +0.348 |
-| `source_type_github` | −0.393 |
-| `event_type_benchmark` | −0.587 |
+| `mechanism_channel` | +0.798 |
+| `specificity` | +0.456 |
+| `corroboration` | +0.368 |
+| `event_type_release` | +0.364 |
+| `source_type_github` | −0.328 |
+| `event_type_benchmark` | −0.488 |
 
 The largest positive weight is "does this event's own quote establish a market
 transmission mechanism?" — which is what an investment reader should reward, and
@@ -212,26 +220,28 @@ p@10 tracks each lab's base rate, so **lift over base rate** is the fairness
 number — and lift is itself ceilinged at `1 − base`, so lift/ceiling is the only
 comparable figure across labs:
 
-| lab | n | base | p@10 | lift | lift/ceiling |
-|---|---:|---:|---:|---:|---:|
-| Google DeepMind | 94 | 0.436 | 1.00 | +0.564 | 100% |
-| DeepSeek | 29 | 0.586 | 0.90 | +0.314 | 76% |
-| Qwen | 71 | 0.310 | 0.80 | +0.490 | 71% |
-| OpenAI | 56 | 0.375 | 0.80 | +0.425 | 68% |
-| Meta AI | 35 | 0.543 | 0.80 | +0.257 | 56% |
-| Anthropic | 67 | 0.299 | 0.60 | +0.301 | 43% |
-| Mistral | 28 | 0.357 | 0.60 | +0.243 | 38% |
+| lab | base | p@10 | lift | lift/ceiling |
+|---|---:|---:|---:|---:|
+| Google DeepMind | 0.40 | 1.00 | +0.60 | 100% |
+| DeepSeek | 0.66 | 1.00 | +0.34 | 100% |
+| Qwen | 0.35 | 0.80 | +0.45 | 69% |
+| Mistral | 0.37 | 0.80 | +0.43 | 68% |
+| OpenAI | 0.28 | 0.70 | +0.42 | 58% |
+| Anthropic | 0.37 | 0.70 | +0.33 | 53% |
+| Meta AI | 0.40 | 0.70 | +0.30 | 50% |
 
 xAI is excluded rather than scored: 2 events, and a ratio on 2 events is noise.
 Excluding a lab is more honest than printing a number for it.
 
-The weakest lift is Mistral (+0.243), and its top-10 misses are `release` ×2 and
-`infrastructure` ×2 — official-channel engineering posts whose feature shape
-(official source, high specificity) the score rewards but the judges call
-irrelevant. That is a feature-shape gap, not lab bias. The same diagnosis
-previously applied to Meta AI, and adding `mechanism_channel` plus ~320 labels
-moved Meta from the bottom of this table to the middle — evidence the diagnosis
-was right and the fix worked.
+The weakest lift is Meta AI (+0.30 on a 0.40 base, n=40), and its top-10 misses
+are `infrastructure` ×2 and `release` ×1 — official-channel engineering posts
+whose feature shape (official source, high specificity) the score rewards but
+the judges call irrelevant. That is a feature-shape gap, not lab bias. The same
+diagnosis applied to Meta before `mechanism_channel` was added, when its lift
+was +0.05; the fix moved it to +0.30, and that recovery held even as the corpus
+grew and returned Meta to the bottom of the (now tighter) table — evidence the
+diagnosis was right about the mechanism even though composition still drives the
+rank.
 
 ### Does the machinery work at all?
 
@@ -247,10 +257,10 @@ planted ranking back:
 
 | planted policy | AUC | F1 |
 |---|---:|---:|
-| single_feature | 0.99 | 0.91 |
-| hand_shape | 0.97 | 0.91 |
-| dense_mixed | 0.95 | 0.84 |
-| anti_prior | 0.97 | 0.89 |
+| single_feature | 1.00 | 0.95 |
+| hand_shape | 0.97 | 0.92 |
+| dense_mixed | 0.96 | 0.88 |
+| anti_prior | 0.98 | 0.92 |
 
 `anti_prior` puts a **negative** weight on recency, so no baseline shape
 recovers it by luck; its recovery shows the machinery follows the labels rather
@@ -279,8 +289,9 @@ Importance is elicited **pairwise** — "which of these two ranks higher, and
 which rubric rule decided it?" — because scoring an event in isolation is not a
 question anyone can answer consistently. The judge must cite a rule number, so
 every verdict is auditable, and it must return a confidence: `low` means "I
-effectively guessed", and those verdicts are **excluded from training** (436 of
-1,017 investment verdicts). Keeping coin-flips out is worth more than the label
+effectively guessed", and those verdicts are **excluded from training** (585
+low-confidence LLM verdicts dropped from the investment pool, leaving 760 usable
+labels). Keeping coin-flips out is worth more than the label
 volume they would add.
 
 The lab name is withheld from the judge, presentation order is randomised per
@@ -291,7 +302,9 @@ never pooled.
 ### (b) Reliability from disagreement — and the trap it hides
 
 Dawid–Skene estimates each labeler's accuracy from their disagreement alone, on
-468 investment pairs across three independent families:
+462 investment pairs across three independent families — restricted to pairs
+voted by at least two families, since a pair only one family saw carries no
+disagreement to learn from:
 
 | labeler | estimated accuracy |
 |---|---:|
@@ -383,40 +396,42 @@ what they mean in the literature. The window is anchored to the **newest
 document rather than the wall clock**, so the report is reproducible on a static
 corpus.
 
-On the committed database — last 14 days (from 2026-07-15) vs everything before:
+On the committed database — last 14 days (from 2026-07-18) vs everything before,
+both scoped to content documents (register identity-evidence pages are
+excluded, exactly as the funnel figure excludes them):
 
 | metric | kind | value | threshold | n_ref | n_cur | verdict |
 |---|---|---:|---:|---:|---:|---|
-| doc `source_type` mix | PSI | 0.356 | 0.250 | 817 | 372 | **MAJOR** |
-| insight `event_type` mix | PSI | 0.792 | 0.250 | 529 | 192 | **MAJOR** |
-| doc length | KS | 0.176 | 0.085 | 817 | 372 | **MAJOR** |
-| insight score | KS | 0.078 | 0.114 | 529 | 192 | stable |
+| doc `source_type` mix | PSI | 0.679 | 0.250 | 937 | 373 | **MAJOR** |
+| insight `event_type` mix | PSI | 0.563 | 0.250 | 735 | 206 | **MAJOR** |
+| doc length | KS | 0.257 | 0.083 | 937 | 373 | **MAJOR** |
+| insight score | KS | 0.187 | 0.107 | 735 | 206 | **MAJOR** |
 
-**3 MAJOR of 4**, and the causes are legible rather than mysterious:
+**4 MAJOR of 4**, and the causes are legible rather than mysterious:
 
 | | history | last 14d |
 |---|---:|---:|
-| `social` documents | 65.2% | 46.0% |
-| `arxiv` documents | 11.1% | **32.5%** |
-| `open_source` events | 8.3% | **0.0%** |
-| `commercial` events | 9.8% | 19.3% |
-| `other` events | 8.3% | 18.8% |
+| `social` documents | 61.4% | 34.6% |
+| `arxiv` documents | 11.2% | **43.4%** |
+| `open_source` events | 6.8% | **0.0%** |
+| `commercial` events | 10.9% | 18.9% |
+| `release` events | 31.2% | 28.2% |
 
-arXiv nearly tripled its share of the corpus — that is co-author expansion
-working as designed, pulling in paper listings — which also explains the
-document-length shift, since an arXiv abstract page is a different size from a
-tweet. Neither is a defect.
+arXiv nearly quadrupled its share of content documents — the most recent ingest
+wave leaned on the author-query feeds — which also explains the document-length
+shift, since an arXiv abstract page is a different size from a tweet. Neither is
+a defect; both are exactly what the monitor is for, because a filter tuned on
+the old mix is now running on a different one.
 
 The `open_source` collapse is a genuine finding and is discussed in the final
-report: **the event type that dominates the engineering ranking produced zero
-events in the most recent window.** The drift monitor caught, on its first run, a
+report: **the event type that supplies the top of the engineering ranking
+produced zero events in the most recent window.** The drift monitor caught a
 real problem that no invariant check would ever have flagged.
 
-That `insight score` is the one **stable** metric is the reassuring half: the
-inputs moved, but the score distribution the ranking produces did not. The
-scoring layer absorbed a substantial change in corpus composition without its
-output distribution shifting — which is weak evidence that it is responding to
-event content rather than to corpus mix.
+That all four metrics read MAJOR — including the score distribution — is the
+consistent story: the newest ingest wave genuinely moved the corpus, and the
+monitor says so instead of averaging it away. This is the condition under which
+the bake-off deserves a re-run, and re-running it is one free command.
 
 Drift is deliberately **not** part of the `checks` battery. An organic news
 cycle must not turn the release gate red. It exits with the count of MAJOR
@@ -429,26 +444,17 @@ Stated here rather than left for a reader to discover.
 
 - **The judged tier is provisional.** Bake-off, ablation and fairness are all
   measured against an unaudited LLM reference. `human_acc` is the corrective,
-  and it is lower.
-- **The ablation is underpowered** at 581 labels — ±0.011 is two pairs.
-- **Per-lab n is small** (28–94 events). A p@10 on 28 events is a noisy
-  statistic even after the lift correction.
-- **The entailment figures pre-date the prompt fix** that was measured to
-  improve them. The corpus has not been re-extracted.
+  and on the investment rubric it is lower.
+- **The ablation is coarse** at 760 labels — the largest delta is five pairs.
+- **Per-lab n is small** (dozens of events per lab). A p@10 on a few dozen
+  events is a noisy statistic even after the lift correction.
+- **The winner memorises.** The GBM's train/held-out gap is +0.109; its held-out
+  edge over logistic is real but small, and the training numbers should never be
+  quoted.
+- **The back corpus pre-dates the quote-first prompt fix** that was measured to
+  improve extraction; the repair pass compensates downstream (97.5% entailed),
+  but the extraction-side fix applies only to new documents.
 - **The channel benchmark is 100 posts**, one annotator, one policy version.
-- **The raw corpus ranking is neither de-duplicated nor windowed, and the
-  divergence figure is computed on it.** `event_scores.rank` orders all 734
-  events by score alone: near-duplicate claims from one cluster can occupy
-  adjacent ranks (the investment top 10 is really 6 distinct stories), and there
-  is no recency window, so the technical top 10 includes events published as far
-  back as 2024-05. The *delivered* slate applies both corrections —
-  one-per-cluster suppression and the policy's 90-day window
-  (`fli/intelligence/scoring.py`, `seen_clusters`; "104 outside window, 19 same
-  story" in the committed digest) — so a reader sees neither problem. But
-  `fig_rubric_divergence` ranks by `score DESC` over the whole table, which
-  makes its top-k *examples* unrepresentative of what ships. The Kendall τ and
-  the overlap curve are still valid measures of how differently the two rubrics
-  order the same corpus; the illustrative items are not the delivered product.
 - **No gold labels exist for extraction.** Quote verification is mechanical and
   entailment is LLM-judged; neither is a human-audited extraction reference.
   That is the single largest gap in this document.

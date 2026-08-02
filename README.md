@@ -59,7 +59,7 @@ database, which is what lets any stage run, and be inspected, on its own.
 
 ```mermaid
 flowchart LR
-    A["370 sources<br/>blogs · newsrooms · arXiv · GitHub · X"] --> B["fetch & store<br/>immutable, hash-deduped"]
+    A["371 sources<br/>blogs · newsrooms · arXiv · GitHub · X"] --> B["fetch & store<br/>immutable, hash-deduped"]
     B --> C["stage 1<br/>deterministic filter (free)"]
     C --> D["stage 2<br/>classify (Haiku) → extract (Sonnet)"]
     D --> E{"quote verification<br/>— the gate —"}
@@ -68,7 +68,7 @@ flowchart LR
     F --> H["two rankings<br/>investment · technical"]
 ```
 
-Current corpus: **734 events** from 1,541 documents, 2,294 evidence rows, across
+Current corpus: **954 events** from 1,675 documents, 2,718 evidence rows, across
 **8 tracked labs** (OpenAI, Anthropic, Google DeepMind, Meta AI, Mistral,
 DeepSeek, Qwen, xAI) and 285 tracked people resolved across arXiv, X, GitHub
 and lab pages.
@@ -79,7 +79,7 @@ and lab pages.
 |---|---|
 | **Evidence-gated extraction** | Every LLM-extracted claim must carry a verbatim 10–60-word quote that re-matches the stored bytes. Unverified quotes are discarded *and counted* — the hallucination-control number is printed on every run. |
 | **A register, not a list** | Labs are first-class entities; people are discovered by arXiv co-author expansion, corroborated across platforms (`identities` with confidence tiers), and re-observed daily. Approvals are versioned; manual overrides survive DB rebuilds. |
-| **Two audiences, two rankings** | The investment reader asks "what does this mean for our positions?"; the AI team asks "what should we adopt?". Both definitions of *important* live in [config/rubrics/](config/rubrics/), and each trains its own model. Measured, the two rankings share **0 of their top 10** and correlate at **Kendall τ = +0.064** — near zero, so one ranking demonstrably cannot serve both. |
+| **Two audiences, two rankings** | The investment reader asks "what does this mean for our positions?"; the AI team asks "what should we adopt?". Both definitions of *important* live in [config/rubrics/](config/rubrics/), and each trains its own model. Measured, the two rankings share **0 of their top 10** and correlate at **Kendall τ = +0.128** — near zero, so one ranking demonstrably cannot serve both. |
 | **Scoring that earns its weights** | No arbitrary weighted sum: a 5-model bake-off (recency & corroboration baselines, hand-weights, logistic, GBM) on held-out pairwise labels. Lab identity is **never** a feature; per-lab precision@10 is the fairness check, and labs with too few events are excluded rather than given a meaningless score. |
 | **Reliability without ground truth** | Two independent model families (Claude and GPT) plus a human auditor judge the identical pairs; Dawid–Skene estimates each labeler's accuracy from their disagreement alone — 0.874, 0.864 and 0.778. The human's *lower* score is itself a finding: human sittings deliberately target the pairs where the models disagree, and a disagreement-based estimator reads that as inaccuracy — which is why the human agreement is reported alongside, never replaced by, the model estimate. The figure refuses to render from a single family, because one model agreeing with itself measures nothing. |
 | **Cost-controlled by design** | A cheap Haiku gate kills non-substantive documents before Sonnet sees them. Every call is logged to `llm_calls` (model, tokens, $). `--max-extract` caps spend per run, and the graph *pauses* before any paid stage — showing how much unaudited work is actually pending — so approval is an informed decision rather than a flag set hours earlier. |
@@ -234,19 +234,19 @@ Kept here rather than buried, because a system that hides its boundaries is not
 an intelligence system. What it would take to close each of these is collected
 in [future scope](docs/final-report.md#future-scope).
 
-- **Person linkage reaches 58 of 734 events** — 14 attributed to a person as the
-  event's subject, plus 44 linked deterministically to tracked arXiv authors
-  (`extract --backfill-authors`, role `author`, never inflated into subject
-  attribution). The register, expansion and approval machinery works, but
-  official channels rarely name individuals outside paper bylines.
-- **`personnel` events are 8 of 734 (1.1%).** Rare, but they include two xAI
+- **Person linkage reaches 61 of 954 events** — 17 attributed to a person as the
+  event's subject, plus the rest linked deterministically to tracked arXiv
+  authors (`extract --backfill-authors`, role `author`, never inflated into
+  subject attribution). The register, expansion and approval machinery works,
+  but official channels rarely name individuals outside paper bylines.
+- **`personnel` events are 10 of 954 (1.0%).** Rare, but they include two xAI
   co-founder departures and a 30-person acquihire into Mistral — the signals the
   fund most wants, found only after researcher X accounts were added.
 - **Live mobility synthesis has not fired yet.** The mechanism is test-verified
   end to end (a planted move reaches the digest slate), but re-observation runs
   on a 7-day cadence and the first observation landed Jul 30 — the earliest a
   real move can be witnessed is Aug 6.
-- **Roughly a quarter of pairwise verdicts come back low-confidence** (27.5%
+- **Roughly a quarter of pairwise verdicts come back low-confidence** (27.0%
   Claude, 22.0% GPT) and are excluded from training. That is the judge reporting
   when a pair is genuinely inseparable, not a defect — but it cuts usable label
   yield.

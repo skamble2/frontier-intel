@@ -201,7 +201,7 @@ Researcher handles are populated: `identities` carries **41 rows with
 self-link, 8 on a corroborated name match). Adding them is what unlocked
 personnel-move coverage — the two xAI co-founder departures and the Mistral
 acquihire were found only after researcher accounts were tracked, and
-`personnel` is still the rarest event type in the corpus at 8 of 734.
+`personnel` is still the rarest event type in the corpus at 10 of 954.
 
 ## Observability (optional)
 

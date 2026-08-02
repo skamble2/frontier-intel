@@ -572,12 +572,14 @@ everything interesting — it is "a reader would want to know before the next
 report".
 
 **The trigger is the reading, not the rank.** The obvious rule is a score
-threshold and it is wrong here: the two events carrying a signed reading score
--0.02 and 1.13 against a p90 of 1.59. OpenAI launching Health in ChatGPT — the
-one event in 734 the deterministic layer calls a threat to a named holding —
-sits near the *middle* of the ranking, because the rubric rewards specificity and
-shipped-ness, not portfolio consequence. A p90 rule would have missed it and
-fired on ten model releases instead.
+threshold and it is wrong here, because rank is not stable across the bake-off
+contenders. OpenAI launching Health in ChatGPT — the one event in 954 the
+deterministic layer calls a threat to a named holding — ranks 22nd under the
+shipped GBM but 14th under logistic, 37th under hand-weights and 506th under
+the recency baseline. Any rank threshold makes the alert's firing an accident
+of which model won the last bake-off, which is no basis for interrupting a PM;
+a signed reading means a reader-facing judgment was actually made about a
+position.
 
 Low confidence is excluded: it means the reader flagged the evidence as thin, and
 interrupting on it is how a channel gets muted. One event is one alert even when

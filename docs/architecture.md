@@ -190,12 +190,13 @@ lands as a new labeler rather than mixing into the old one.
 
 This is not decoration, and the system measures whether it is real. The two
 rankings share **0 of their top 10** (8% of the top 25) and correlate at a
-Kendall τ of **+0.064** — near zero, i.e. close to unrelated orderings.
+Kendall τ of **+0.128** — near zero, i.e. close to unrelated orderings.
 Same events, same features — only the definition of "important" differs, and it
 differs enough that one ranking demonstrably cannot serve both readers. The
-investment top 10 is commercial and infrastructure — government cloud
-commitments, token pricing, datacenter power. The engineering top 10 is eight
-open-weight releases. Neither list would serve the other reader at all.
+investment top 10 is personnel, commercial and infrastructure — an acquihire,
+datacenter buildouts, token pricing, enterprise adoption. The engineering top
+10 opens with open-weight releases and fills with shippable tooling. Neither
+list would serve the other reader at all.
 
 ## Connecting private labs to public equities
 
@@ -243,9 +244,9 @@ reviewer reads in the repo. Items without a reading are published *as* uncovered
 rather than dropped, so the coverage gap is visible in the committed artifact.
 
 `alerts` is the push path, and its trigger is deliberately not the score. The
-one event the system calls a threat to a holding ranks 10th of 734 under the
-shipped model — but 15th under logistic, 26th under hand-weights and 84th under
-the recency baseline. A top-decile rule would therefore fire or not fire
+one event the system calls a threat to two holdings ranks 22nd of 954 under the
+shipped model — but 14th under logistic, 37th under hand-weights and 506th under
+the recency baseline. A rank-threshold rule would therefore fire or not fire
 depending on which model won a bake-off, which is no basis for waking a PM. So
 an alert fires on a *signed direction* (a classifier-established position edge,
 or a persona reading at medium-or-better confidence), bounded by the reporting
@@ -430,7 +431,7 @@ count of MAJOR drifts) so a scheduler can still alarm on it, and it runs as a
 free node inside the graph, informational only. Making drift an invariant would
 mean the build fails because the world changed, which is not a defect.
 
-On the committed corpus it reports **3 MAJOR of 4 metrics**, and what it caught
+On the committed corpus it reports **4 MAJOR of 4 metrics**, and what it caught
 is discussed in [final-report.md](final-report.md).
 
 ## Fallback strategies
@@ -518,9 +519,9 @@ are not on the graph's path at all.
 Each paid entry point previews its projected spend before sending, checks
 the API key and the price table, and refuses to start a run it cannot afford.
 Cost is logged per call to `llm_calls`; the whole system to date has spent
-**$25.18 across 7,423 calls**. Extraction — the part that produces what a reader
-sees — is 19.7% of that; judging and labeling, which exist only to validate the
-ranking, are 64.8%. The full breakdown, the unit economics and the three places
+**$29.87 across 8,707 calls**. Extraction — the part that produces what a reader
+sees — is 20.5% of that; judging and labeling, which exist only to validate the
+ranking, are 63.8%. The full breakdown, the unit economics and the three places
 cost changed a design decision are in [tokenomics.md](tokenomics.md); the raw
 per-task split is `docs/metrics-out.txt`, section M5a.
 
