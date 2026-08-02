@@ -26,3 +26,8 @@ pandas>=2.0
 # Web UI (`python -m fli.cli web`). Imported lazily inside fli.web.app,
 # so the pipeline runs without it.
 flask>=3.0
+
+# Graph orchestration (`python -m fli.cli graph`): the whole run, paid stages
+# included, behind one --spend gate. Imported lazily inside
+# fli.orchestration.graph, so everything else runs without it.
+langgraph>=1.0

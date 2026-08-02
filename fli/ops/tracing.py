@@ -46,11 +46,27 @@ def setup(project_name: str = "frontier-intel", exporter=None) -> bool:
     if exporter is None:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
         exporter = OTLPSpanExporter(endpoint=_endpoint())
-    provider = TracerProvider(resource=Resource.create({"service.name": project_name}))
+    provider = TracerProvider(resource=Resource.create(
+        {"service.name": project_name,
+         # Phoenix groups traces into projects by this attribute, not service.name
+         "openinference.project.name": project_name}))
     provider.add_span_processor(BatchSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
     _tracer = trace.get_tracer("fli")
     return True
+
+
+@contextmanager
+def chain_span(name: str):
+    """Span for one orchestration step (OpenInference CHAIN). Any llm_span
+    opened inside nests under it via OTel context, so Phoenix renders a run as
+    graph.run -> node.<stage> -> llm.<task>. No-op when tracing is off."""
+    if _tracer is None:
+        yield None
+        return
+    with _tracer.start_as_current_span(name) as span:
+        span.set_attribute(SPAN_KIND, "CHAIN")
+        yield span
 
 
 @contextmanager

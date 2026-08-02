@@ -16,20 +16,35 @@ class TestTracingDisabled(unittest.TestCase):
     def test_annotate_none_is_noop(self):
         tracing.annotate(None, {"anything": 1})  # must not raise
 
+    def test_spans_are_noop_when_tracing_off(self):
+        with tracing.chain_span("node.ingest") as c, tracing.llm_span("x") as l:
+            self.assertIsNone(c)
+            self.assertIsNone(l)
+
 
 @unittest.skipUnless(_OTEL, "opentelemetry not installed (optional tracing extras)")
 class TestTracingEnabled(unittest.TestCase):
-    """Tracing on: llm_span emits one OpenInference LLM span, task-tagged."""
+    """Tracing on: spans carry OpenInference attributes and nest correctly.
+    OTel allows set_tracer_provider once per process, so one exporter is shared
+    by the class and cleared between tests."""
 
-    def tearDown(self):
+    @classmethod
+    def setUpClass(cls):
+        from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
+            InMemorySpanExporter)
+        cls.exporter = InMemorySpanExporter()
+        assert tracing.setup(exporter=cls.exporter)
+
+    @classmethod
+    def tearDownClass(cls):
         tracing._tracer = None
+
+    def setUp(self):
+        self.exporter.clear()
 
     def test_llm_span_emits_openinference_span(self):
         from opentelemetry import trace
-        from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
-            InMemorySpanExporter)
-        exporter = InMemorySpanExporter()
-        self.assertTrue(tracing.setup(exporter=exporter))
+        exporter = self.exporter
         with tracing.llm_span("classify") as span:
             tracing.annotate(span, tracing.input_attrs("haiku", "SYS", "the doc text"))
             tracing.annotate(span, tracing.output_attrs('{"ok":1}', 12, 3))
@@ -41,3 +56,16 @@ class TestTracingEnabled(unittest.TestCase):
         self.assertEqual(s.attributes[tracing.INPUT_VALUE], "the doc text")
         self.assertEqual(s.attributes[tracing.OUTPUT_VALUE], '{"ok":1}')
         self.assertEqual(s.attributes[tracing.TOKENS_TOTAL], 15)
+
+    def test_llm_span_nests_under_chain_span(self):
+        from opentelemetry import trace
+        with tracing.chain_span("node.extract") as parent:
+            tracing.annotate(parent, {tracing.OUTPUT_VALUE: "5 insights"})
+            with tracing.llm_span("extract"):
+                pass
+        trace.get_tracer_provider().force_flush()
+        spans = {s.name: s for s in self.exporter.get_finished_spans()}
+        chain, llm = spans["node.extract"], spans["llm.extract"]
+        self.assertEqual(chain.attributes[tracing.SPAN_KIND], "CHAIN")
+        self.assertEqual(chain.attributes[tracing.OUTPUT_VALUE], "5 insights")
+        self.assertEqual(llm.parent.span_id, chain.context.span_id)

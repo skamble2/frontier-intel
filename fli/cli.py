@@ -24,6 +24,7 @@ COMMANDS = {
     "checks": "fli.validation.checks",
     "xbench": "fli.validation.x_benchmark",
     "pipeline": "fli.orchestration.pipeline",
+    "graph": "fli.orchestration.graph",
     "positions": "fli.delivery.positions",
     "personas": "fli.delivery.personas",
     "digest": "fli.delivery.digest",
