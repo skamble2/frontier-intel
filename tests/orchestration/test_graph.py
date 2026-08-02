@@ -12,8 +12,8 @@ if HAVE_LANGGRAPH:
     from fli.orchestration import graph as G
 
 FREE = ["ingest", "stage1", "expand", "register", "extract", "authors",
-        "observe", "mobility", "cluster", "features", "score", "evaluate",
-        "positions", "digest", "alerts", "digest_parity", "checks"]
+        "observe", "mobility", "cluster", "features", "drift", "score",
+        "evaluate", "positions", "digest", "alerts", "digest_parity", "checks"]
 PAID = ["verify", "personas", "faithfulness"]
 
 
@@ -45,6 +45,7 @@ class GraphTests(unittest.TestCase):
             mock.patch.object(G.register, "detect_mobility_events", rec("mobility")),
             mock.patch.object(G.clustering, "cluster_all", rec("cluster")),
             mock.patch.object(G.featmod, "compute_features", rec("features")),
+            mock.patch.object(G.drift, "report", rec("drift", 0)),
             mock.patch.object(G, "available_rubrics", rec("score", [])),
             mock.patch.object(G.entailment, "check_all", rec("verify")),
             mock.patch.object(G.entailment, "repair_all", lambda *a, **k: None),

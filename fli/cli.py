@@ -22,6 +22,7 @@ COMMANDS = {
     "verify": "fli.validation.entailment",
     "faithfulness": "fli.validation.faithfulness",
     "checks": "fli.validation.checks",
+    "drift": "fli.validation.drift",
     "xbench": "fli.validation.x_benchmark",
     "pipeline": "fli.orchestration.pipeline",
     "graph": "fli.orchestration.graph",

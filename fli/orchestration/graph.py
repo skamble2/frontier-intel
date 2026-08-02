@@ -37,7 +37,7 @@ from fli.knowledge import filtering as filter1
 from fli.core.rubric import available as available_rubrics
 from fli.ops import tracing
 from fli.ops.llm import LLM, have_api_key
-from fli.validation import checks, entailment, evaluation, faithfulness
+from fli.validation import checks, drift, entailment, evaluation, faithfulness
 
 
 def _merge(a: dict, b: dict) -> dict:
@@ -140,6 +140,8 @@ def build(conn):
         node("mobility", lambda s: register.detect_mobility_events(conn)),
         node("cluster", lambda s: clustering.cluster_all(conn)),
         node("features", lambda s: featmod.compute_features(conn)),
+        # free monitoring signal; informational, never gates the verdict
+        node("drift", lambda s: {"major": drift.report(conn)}),
         node("score", score_node),
         # ---- paid audit + reading; reached only through the spend gate ----
         node("verify", verify_node),
