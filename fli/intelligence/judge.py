@@ -146,13 +146,14 @@ def judge_pairs(conn, n: int = 150, dry_run: bool = False,
         else:
             batch_results = llm.call_batch(
                 "judge", system,
-                [(f"{a}:{b}", build_prompt(conn, a, b)) for a, b in todo],
+                # custom_id must match ^[a-zA-Z0-9_-]{1,64}$ — no colon
+                [(f"{a}-{b}", build_prompt(conn, a, b)) for a, b in todo],
                 max_tokens=300, model=model)
 
     stats = Counter()
     for i, (a, b) in enumerate(todo, 1):
         user = build_prompt(conn, a, b)
-        raw = batch_results.get(f"{a}:{b}")
+        raw = batch_results.get(f"{a}-{b}")
         if raw is None:
             raw = llm.call("judge", system, user,
                            max_tokens=300, model=model)

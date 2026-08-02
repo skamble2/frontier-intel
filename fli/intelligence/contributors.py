@@ -148,8 +148,12 @@ def main() -> int:
     from fli.intelligence.scoring import primary_rubric
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--db", default=str(storage.DEFAULT_DB))
-    ap.add_argument("--rubric", choices=["investment", "ai_team"], default=None,
-                    help="default: policy primary_rubric")
+    ap.add_argument("--rubric",
+                    choices=["investment", "technical", "ai_team"],
+                    default=None,
+                    help="default: policy primary_rubric. `ai_team` is the "
+                         "persona name and is accepted as an alias for the "
+                         "`technical` rubric it reads by.")
     ap.add_argument("--top", type=int, default=20, help="how many to print")
     ap.add_argument("--review", action="store_true",
                     help="human keep/cut audit of the current top-K")
@@ -158,7 +162,11 @@ def main() -> int:
     args = ap.parse_args()
     conn = storage.connect(Path(args.db))
     storage.init_db(conn)
+    # The ai_team PERSONA reads by the `technical` rubric (the delivery
+    # layer's RUBRIC_FOR_PERSONA); scores are keyed by rubric name.
     rubric = args.rubric or primary_rubric()
+    if rubric == "ai_team":
+        rubric = "technical"
     if args.review:
         review(conn, rubric, k=args.k, reviewer=args.reviewer)
         return 0
