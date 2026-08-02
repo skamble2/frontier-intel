@@ -1,48 +1,30 @@
-# ACTIVE policy. Previous version preserved at config/policy.v2.yml.bak.
+# Editorial policy: what counts as decision-relevant to this fund.
 #
-# What counts as decision-relevant to this fund.
+#   channels  — the MECHANISM by which a lab event reaches a portfolio.
+#               General; any technology fund has these.
+#   positions — WHICH holdings exist and the vocabulary indicating exposure.
+#               Fund-specific. Swap this block and the system works unchanged.
 #
-# v3 splits what v2 conflated:
-#   channels  = the MECHANISM by which a lab event reaches a portfolio.
-#               General. Any technology fund has these. Swap nothing.
-#   positions = WHICH holdings exist, and the vocabulary that indicates
-#               exposure to each. BIT-specific. Swap this block for another
-#               fund and the system works unchanged.
-#
-# Why: v2 put sector nouns (health, broker, adtech) inside the
-# `competitive_displacement` lexicon, so any post mentioning health scored as
-# displacement whether or not anything was being displaced. Exposure and
-# mechanism are different questions and now have different homes.
+# Every rule here is applied at RENDER time. None of it reaches the scorer.
 
 version: 3
-owner: "BIT PM — unassigned"    # a placeholder; nothing here has been reviewed
+owner: "BIT PM — unassigned"    # placeholder; nothing here has been reviewed
 effective_from: "2026-07-26"
 source: research/facts.md       # BIT's published materials, fetched 2026-07-22
 
-# ---------------------------------------------------------------------------
-# CHANNELS — the general mechanism by which a lab event reaches a portfolio:
-# the semiconductor and energy supply chains, a researcher leaving a lab to
-# found a startup, a capability jump that threatens a holding's moat.
-#
 # Terms match case-insensitively on WORD BOUNDARIES, never as substrings.
-# Multi-word terms match as phrases.
-# ---------------------------------------------------------------------------
+# Multi-word terms match as phrases. Mechanisms only — the industries they
+# happen in belong under positions.holdings[].exposure_terms.
 channels:
   compute_memory:           [gpu, gpus, h100, tpu, tpus, hbm, wafer, fab, flops, training run,
                              cluster, clusters, accelerator, accelerators, inference cost, chip, chips]
 
-  # `energy` restored — dropped in the v2 edit, which cost a real signal:
-  # "expanding our work with the US Dept. of @ENERGY ... committing $40M in AI tokens"
-  # matched nothing at all.
   energy_datacenter:        [megawatt, megawatts, gigawatt, gigawatts, datacenter, datacenters,
                              data center, data centers, power, grid, cooling, campus, energy]
 
   data_economics:           [licensing, license, training data, corpus, copyright, content deal,
                              crawl, crawling, data partnership]
 
-  # STRIPPED of sector nouns. What remains are displacement MECHANISMS — verbs
-  # and commercial moves — not the industries they happen in. The industries
-  # now live under `positions.holdings[].exposure_terms`.
   competitive_displacement: [deprecates, deprecated, replaces, replacing, undercuts,
                              api pricing, price cut, free tier, open weights,
                              general availability, bundled, bundling, acquires, acquisition]
@@ -63,87 +45,50 @@ event_type_prior:
   benchmark: 1
   other: 0
 
-# How many co-author-discovered people may be auto-approved PER LAB.
-#
-# Raised 5 -> 15. At 5 the register held 28 approved people against 1,095
-# pending, and the approved cohort averaged 2.1 papers — while 510 pending
-# candidates already met that bar. The gate was not selecting quality, it was
-# just capping count.
-#
-# This is the one knob that changes how much of the firehose is even eligible:
-# stage 1 rejects a document with `no_tracked_entity`, so more tracked people
-# means more documents reaching extraction. Raising it therefore costs money,
-# which is why it is a policy decision with a named owner rather than a default.
+# Co-author-discovered people auto-approved per lab. The one knob that changes
+# how much of the firehose is eligible: stage 1 rejects documents with
+# `no_tracked_entity`, so more tracked people means more documents reaching
+# extraction. Raising it costs money, hence a policy decision with an owner.
 slate_k: 15
 
-# How far back a ranked report may reach. Without a window, arXiv results from
-# 2024 outranked 2026 launches: 12 of the top 20 were stale or undated.
-# 90 days keeps 286 of 503 events (57%).
-#
-# This does NOT change scoring — the learned model gives recency a coefficient
-# of 0.014, because the judge's rules reward "shipped vs intended", not
-# publication date. The window is an editorial boundary applied at render time,
-# which is the honest place for it: it is a decision about what to SHOW, not a
-# claim about what the model learned.
+# How far back a ranked report may reach. An editorial boundary on what to SHOW,
+# not a claim about what the model learned — the scorer gives recency a near-zero
+# coefficient on its own.
 window_days: 90
 
-# Undated events (13 of 503) currently get a neutral recency of 0.5 and five of
-# them reached the top 20. An event we cannot date cannot be shown as recent.
+# An event we cannot date cannot be shown as recent.
 show_undated: false
 
-# Mobility synthesis pairing bound: last-seen-at-lab-A and first-seen-at-lab-B
-# further apart than this many days is a stale pairing, not a fresh move.
-# NOT a delay — detection runs every pipeline run and the event is emitted in
-# the same run whose re-observation saw the arrival.
+# Mobility pairing bound: last-seen-at-A to first-seen-at-B further apart than
+# this is a stale pairing, not a fresh move. Not a delay — the event is emitted
+# in the same run whose re-observation saw the arrival.
 mobility_window_days: 90
 
-# Most a single lab may occupy in one slate. Google DeepMind is 147 of 503
-# events (128 of the 286 inside the window) and took 5 of the first 10 slots.
-# That is the corpus, not a scoring bug — but a digest where half the items come
-# from one lab is not a digest.
-#
-# Note this is NOT in tension with "lab identity is never a feature". Identity is
-# excluded from SCORING so the model cannot learn that DeepMind is inherently
-# more interesting; it is used HERE, at render time, to guarantee coverage. The
-# two uses point in opposite directions and both are deliberate.
+# Most seats one lab may take in a slate. NOT in tension with "lab identity is
+# never a feature": identity is excluded from SCORING so the model cannot learn
+# a lab is inherently interesting, and used HERE, at render time, to guarantee
+# coverage. Opposite directions, both deliberate.
 max_per_lab: 2
 
 # Same-story suppression. A cluster is a near-duplicate CLAIM; a story is one
-# announcement. The 21 July Gemini launch produced 12 events across 9 clusters,
-# so cluster-dedupe alone still put four of them in the top 10 — correctly, since
-# "3.6 Flash cuts output tokens 17%" and "3.6 Flash is rolling out" really are
-# different claims. They are not different news.
-#
-# Rule: skip a candidate if an ALREADY-SELECTED item from the same lab, within
-# `story_days`, shares an uncommon token. Uncommon = appears in <= story_rare_df
-# of claims; common words like "released" (df 104) and "google" (df 97) cannot
-# trigger it, while version tokens like "3.6" (df 7) and "1.1" (df 3) — which are
-# what actually name a story — always can.
-#
-# 0.03 is the middle of a measured stable band, not a tuned value: sweeping
-# 0.015 / 0.03 / 0.05 under max_per_lab=2 changes which items fill the last two
-# slots and nothing above them.
+# announcement, and one announcement can produce several genuinely different
+# claims. Skip a candidate if an already-selected item from the same lab within
+# `story_days` shares an uncommon token — uncommon meaning it appears in
+# <= story_rare_df of claims, so "released" cannot trigger it but "3.6" can.
 story_rare_df: 0.03
 story_days: 7
 
-# Rubrics whose slate requires a transmission MECHANISM: an event whose quote
-# the channel classifier could not assign a channel ("none") is dropped at
-# render time. This is the investment rubric's rule 1 — "channel over no
-# channel" — applied as an editorial boundary, in direct response to the f16
-# review: 12 of 18 investment slate items were cut by the human reader, and
-# the cuts were vendor case studies and official-channel engineering posts
-# whose feature shape (official source, high specificity) the score rewards
-# but which move no quantity a portfolio must respond to. The ai_team rubric
-# is deliberately NOT listed: "adopt this SDK fix" needs no portfolio channel.
-# Like every rule here, render-time only — the scorer never sees it.
+# Rubrics whose slate requires a transmission mechanism: an event the channel
+# classifier rated "none" is dropped at render time. This is the investment
+# rubric's rule 1 as an editorial boundary. ai_team is deliberately absent —
+# "adopt this SDK fix" needs no portfolio channel.
 require_mechanism: [investment]
 
-# The persona whose ranking also lands in insights.score, and which the
-# evaluation figures describe unless told otherwise. Which audience the fund
-# serves by default is a business decision, so it lives here, not in code.
-# Must name a rubric file: config/rubrics/<name>.yml.
+# The rubric whose ranking lands in insights.score and which the evaluation
+# figures describe by default. Must name a file: config/rubrics/<name>.yml.
 primary_rubric: investment
 
+# Baseline for the bake-off to beat, never the shipped scorer.
 hand_weights:
   recency: 1.0
   corroboration: 0.6
@@ -151,20 +96,16 @@ hand_weights:
   attribution_confidence: 0.4
   quote_len_words: 0.2
 
-# ---------------------------------------------------------------------------
-# POSITIONS — BIT-specific. The one block another fund would replace.
+# POSITIONS — the one block another fund would replace.
 #
-# Answering "what does this mean for our positions?" needs fund-specific facts:
-# holdings, theses, tickers. A generic rubric cannot supply them, so they belong
-# HERE — dated and sourced — rather than smuggled into a keyword list.
+# "What does this mean for our positions?" needs fund-specific facts: holdings,
+# theses, tickers. They belong here, dated and sourced, rather than smuggled
+# into a keyword list. `as_of` is mandatory (enforced in code) because holdings
+# move quarterly and an undated list silently claims to be current.
 #
-# `as_of` is mandatory (enforced in code). Holdings move quarterly and an
-# undated list silently claims to be current.
-#
-# Provenance note: the website's showcased securities carry BIT's own
-# disclaimer that they are "neither top positions nor representative". These
-# weights come from the Q2 2026 quarterly instead, which is real disclosure.
-# ---------------------------------------------------------------------------
+# Weights come from the Q2 2026 quarterly, not the website's showcased
+# securities — those carry BIT's own disclaimer that they are "neither top
+# positions nor representative".
 positions:
   as_of: "2026-06-30"
   source: "research/facts.md — Q2 2026 equity quarterly, top-10 table + commentary"

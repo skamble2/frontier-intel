@@ -6,7 +6,7 @@ from fli.ops import tracing
 try:
     import opentelemetry  # noqa: F401
     _OTEL = True
-except ImportError:  # tracing extras are optional (requirements-tracing.txt)
+except ImportError:  # tracing extras are optional
     _OTEL = False
 
 

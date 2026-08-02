@@ -1,38 +1,30 @@
+# Core — the pipeline will not run without these.
 anthropic>=0.117
-# OPTIONAL second provider. Imported lazily and only when a task is routed to
-# an OpenAI model, so the demo runs on ANTHROPIC_API_KEY alone. It exists for
-# one reason: Dawid-Skene needs conditionally independent labelers, and three
-# prompt variants of one model are not independent (measured: 92-100%
-# agreement). A second family gives the reliability estimate real disagreement
-# to work with, and doubles as the fallback path for a provider outage.
-openai>=1.40
 pydantic>=2.13
-# config/policy.yml holds the editorial policy (business decisions,
-# owned by a domain expert). It needs comments and nesting, so YAML —
-# and one real parser rather than the hand-rolled one it replaces.
 pyyaml>=6.0
-# Scoring: SQL + scikit-learn over ~400 rows, no embeddings / vector store /
-# second DB. LightGBM/XGBoost are optional contenders — the bake-off runs and
-# ships the winner without them.
 numpy>=1.26
 scikit-learn>=1.3
 
-# Report figures (docs/figures/*.png). Only fli.intelligence.evaluation
-# imports these, so the pipeline still runs without them installed.
+# Second model family. Lazily imported, only when a task routes to an OpenAI
+# model. Dawid-Skene needs conditionally independent labelers, and prompt
+# variants of one model are not independent (measured: 92-100% agreement).
+openai>=1.40
+
+# Figures, web UI, graph runner, agent surface. Each is imported inside the
+# function that needs it, so the daily pipeline runs without any of them.
 matplotlib>=3.7
 seaborn>=0.13
 pandas>=2.0
-
-# Web UI (`python -m fli.cli web`). Imported lazily inside fli.web.app,
-# so the pipeline runs without it.
 flask>=3.0
-
-# Graph orchestration (`python -m fli.cli graph`): the whole run, paid stages
-# included, behind one --spend gate. Imported lazily inside
-# fli.orchestration.graph, so everything else runs without it.
 langgraph>=1.0
-
-# MCP server (`python -m fli.cli mcp`): read-only tool surface (slate, search,
-# drift, digests) for agent clients over stdio. Imported lazily inside
-# fli.delivery.mcp_server, so everything else runs without it.
 mcp>=2.0
+
+# --- tracing (optional) ---------------------------------------------------
+# Uncomment the two lines below, then run with FLI_TRACING=1. Client libraries
+# only; tracing is a no-op when they are absent.
+#
+# The Phoenix viewer is a heavy server — run it isolated rather than installing
+# it here:  docker run -p 6006:6006 arizephoenix/phoenix:latest
+#
+# opentelemetry-sdk
+# opentelemetry-exporter-otlp-proto-http

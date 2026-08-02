@@ -128,9 +128,9 @@ file, the runtime is plain Python, and model routing is a single dictionary in
 `fli/ops/llm.py`. Today it runs four ways: as a CLI, as a Flask UI, as an MCP
 server an agent client can call, and as a scheduled
 [GitHub Actions](.github/workflows/pipeline.yml) job that commits the updated
-database and report back to the repository. Other targets — Vertex AI or Bedrock
-inference, a container image — are not implemented; what stands between the
-system and them is recorded under
+database and report back to the repository — and a `Dockerfile`, so it runs
+with no Python environment at all. Moving inference to Vertex AI or Bedrock is
+not implemented; what stands between the system and it is recorded under
 [future scope](docs/final-report.md#future-scope).
 
 ## Quick start

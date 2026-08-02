@@ -41,7 +41,9 @@ def setup(project_name: str = "frontier-intel", exporter=None) -> bool:
     except ImportError:
         if enabled():
             print("FLI_TRACING set but opentelemetry is not installed in this env"
-                  " — tracing OFF. Fix: pip install -r requirements-tracing.txt")
+                  " — tracing OFF. Fix: uncomment the tracing block in"
+                  " requirements.txt, or pip install opentelemetry-sdk"
+                  " opentelemetry-exporter-otlp-proto-http")
         return False
     if exporter is None:
         from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter

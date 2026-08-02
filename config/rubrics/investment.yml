@@ -1,18 +1,9 @@
-# RUBRIC: investment team (PMs / analysts)
+# RUBRIC: investment team (PMs / analysts) — "what does this mean for our
+# positions?"
 #
-# "What does this mean for our positions?"
-#
-# This is the fund-specific file. Everything BIT-particular about what counts
-# as important lives HERE, not in code — swap this one file and the system
-# ranks for a different fund without a line changing.
-#
-# WHY IT IS A SEPARATE FILE AT ALL, measured rather than assumed: a single
-# rubric produced a single ranking in which `commercial` events took 60% of the
-# top 50 at a 6.2x lift, while `research` and `benchmark` — 34% of the corpus —
-# took ZERO slots. That is not a defect of this rubric. It is this rubric
-# working correctly: to an investment reader a paper genuinely does rank below
-# a price change. It is a demonstration that one ranking cannot serve two
-# audiences, which is why config/rubrics/technical.yml exists.
+# Swap this file and the system ranks for a different fund without a line of
+# code changing. `rules` and `banned` are sent verbatim to the judge, so edits
+# here change the labels and should land as a new `version`.
 
 name: investment
 version: 1

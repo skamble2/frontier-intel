@@ -1,12 +1,10 @@
-# Register seed data — the tracked labs, their founding people, and the curated
-# X-handle candidate list. Moved out of fli/knowledge/register/{seeding,
-# x_identities}.py so the tracked universe is config, editable without a code
-# change, alongside register_overrides.yml.
+# The tracked universe: labs, their founding people, and the curated X-handle
+# candidate list. This is the file to edit to track a different set of labs.
 #
-# Everything here is a CANDIDATE, not a fact. Seeding is gated on a VERBATIM
-# name match in a fetched lab page; an X handle is admitted only if the live
-# profile corroborates it. Failures land in `rejections`, so the miss rate is
-# a number in the report rather than a silent gap.
+# Everything here is a CANDIDATE, not a fact. A seed is admitted only on a
+# verbatim name match in a fetched lab page, and an X handle only if the live
+# profile corroborates it. Failures land in `rejections`, so the miss rate is a
+# number in the report rather than a silent gap.
 
 labs:
   - name: OpenAI

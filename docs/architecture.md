@@ -461,7 +461,7 @@ code is the checks battery's verdict, so it is still the release gate.
 existing `llm_span` nests inside it via OTel context, so Phoenix renders one run
 as `graph.run → node.<stage> → llm.<task>` — per-node latency and per-call token
 counts in one tree. Tracing is off by default and no-ops entirely when the
-OpenTelemetry packages are absent (`requirements-tracing.txt`, kept separate
+OpenTelemetry packages are absent (a commented-out block in `requirements.txt`, kept opt-in
 from `requirements.txt` for that reason).
 
 ## Corpus drift monitoring

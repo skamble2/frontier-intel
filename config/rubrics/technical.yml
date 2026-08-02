@@ -1,16 +1,9 @@
-# RUBRIC: AI engineering team
+# RUBRIC: AI engineering team — "what should we adopt or investigate?"
 #
-# "What should we adopt or investigate?"
-#
-# Contains NO fund content. No channels, no tickers, no positions, no thesis.
-# An AI team at any company could use this file unchanged — which is the test
-# of whether the audience split is real or cosmetic.
-#
-# The ordering is deliberately close to the inverse of the investment rubric on
-# the axis that matters most: a paper with a reproducible method and released
-# weights is the TOP of this ranking and near the bottom of the other one. If
-# both rubrics produced similar orderings, one of them would be redundant and
-# the two-persona design would be decoration.
+# Deliberately contains NO fund content: no channels, tickers, positions or
+# thesis. An AI team at any company could use it unchanged, which is the test of
+# whether the audience split is real. `rules` and `banned` are sent verbatim to
+# the judge, so edits here change the labels and should land as a new `version`.
 
 name: technical
 version: 1

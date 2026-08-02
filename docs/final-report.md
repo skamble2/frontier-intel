@@ -388,16 +388,17 @@ consequence of a measurement reported above, and each names what it would take.
 | **Re-extract the back corpus** | The quote-first prompt revision cut the partial-entailment rate on the 30 hardest documents from 65.6% to 47.9%, but it applies only to new extractions, so the reported corpus figures are the pre-revision audit. |
 | **Grow the channel benchmark** | 100 posts, one annotator, one policy version. |
 
-### 5. Deployment — unblocked, not done
+### 5. Deployment
 
-None of the following is implemented. They are listed as *unblocked* because
-nothing in the design prevents them: state is one SQLite file, the runtime is
-plain Python, and model routing is a single dictionary in `fli/ops/llm.py`.
+The system runs four ways today — CLI, Flask UI, MCP server, and a scheduled
+GitHub Actions job — and ships a `Dockerfile`, so a reviewer can build and run
+it without a Python environment at all. What remains is unimplemented but
+unblocked: state is one SQLite file, the runtime is plain Python, and model
+routing is a single dictionary in `fli/ops/llm.py`.
 
 | | |
 |---|---|
 | **Vertex AI / Bedrock inference** | A provider entry in `fli/ops/llm.py` — `KEY_ENV`, `provider_for` and `PRICES` — rather than a rewrite. The OpenAI path already proves the second-provider shape works. |
-| **Containerisation** | A Dockerfile over `requirements.txt`. The pipeline has no system dependencies; even the PDF renderer is dependency-free by design. |
 | **Durable checkpointing** | The graph compiles with an `InMemorySaver`, which is sufficient because the approval pause and its resume happen in one CLI process. A long-running or distributed runner would need a real checkpointer. |
 
 ### 6. Governance
