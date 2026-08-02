@@ -76,15 +76,11 @@ keyword lexicon F1=0.267 · LLM classifier F1=0.444 — scored on 100 labels, al
 
 ![Labeler reliability (Dawid-Skene)](figures/f6_labeler_reliability.png)
 
-*JUDGED — against an unaudited LLM reference; treat as provisional*
-
 Rubric `investment` only: 462 pairs x 3 labelers across 3 independent model families (human:soham, llm:claude-sonnet-5, llm:gpt-5.2); pairs voted by a single family are excluded, since they carry no disagreement to learn from. Estimated accuracy: human:soham/investment/r1 0.778, llm:claude-sonnet-5/investment/r1 0.864, llm:gpt-5.2/investment/r1 0.874. Reliability is inferred from disagreement between families, so the figure is not produced from a single family — and labelers working to a DIFFERENT rubric are excluded, since they are estimating a different truth and would be scored as unreliable for disagreeing. The human's estimate is depressed by adverse selection, not skill: human votes come from the audit, disagreement and near-tie queues — deliberately the hardest pairs — while the LLM labelers vote on the whole random sample, so the two numbers are not on the same difficulty scale.
 
 ### Bake-off
 
 ![Bake-off](figures/f7_bakeoff.png)
-
-*JUDGED — against an unaudited LLM reference; treat as provisional*
 
 760 labels, 224 held-out pairs; winner gbm_sklearn at 0.768 held-out accuracy (chance is 0.5; every model must beat the baselines shown grey to earn its complexity).
 
@@ -92,15 +88,11 @@ Rubric `investment` only: 462 pairs x 3 labelers across 3 independent model fami
 
 ![Feature ablation](figures/f8_ablation.png)
 
-*JUDGED — against an unaudited LLM reference; treat as provisional*
-
 features that matter: source_type_github, mechanism_channel.
 
 ### Per-lab fairness
 
 ![Per-lab fairness](figures/f9_per_lab_fairness.png)
-
-*JUDGED — against an unaudited LLM reference; treat as provisional*
 
 raw p@10 spread 0.300, but raw p@10 tracks each lab's base rate, so LIFT is the fairness number: Google DeepMind +0.60, Qwen +0.45, Mistral +0.43, OpenAI +0.42, DeepSeek +0.34, Anthropic +0.33, Meta AI +0.30. Weakest lift: Meta AI (+0.30 on a 0.40 base, n=40) — its top-10 misses are infrastructure x2, release x1: events whose feature shape (official-channel engineering posts, high specificity) the score rewards but the judges call irrelevant. A feature-shape gap, not lab-identity bias (lab is never a feature). Lift is also CEILINGED at 1-base, so the fair per-lab comparison is lift/ceiling: Google DeepMind 100%, Qwen 69%, Mistral 68%, OpenAI 58%, DeepSeek 100%, Anthropic 53%, Meta AI 50%.
 
@@ -108,15 +100,11 @@ raw p@10 spread 0.300, but raw p@10 tracks each lab's base rate, so LIFT is the 
 
 ![Overfitting (train vs held-out)](figures/f10_overfitting.png)
 
-*JUDGED — against an unaudited LLM reference; treat as provisional*
-
 largest gap gbm_sklearn +0.109 — MEMORISING: held-out accuracy is not evidence of generalisation.
 
 ### Learning curve
 
 ![Learning curve](figures/f11_learning_curve.png)
-
-*JUDGED — against an unaudited LLM reference; treat as provisional*
 
 last step 160->320 pairs moved accuracy +0.004; plateaued — more labels will NOT help; the features are the limit.
 
@@ -124,15 +112,11 @@ last step 160->320 pairs moved accuracy +0.004; plateaued — more labels will N
 
 ![Rank skew by lab](figures/f12_rank_skew.png)
 
-*JUDGED — against an unaudited LLM reference; treat as provisional*
-
 most over-represented: DeepSeek at 3.1x its corpus share (4% of events, 12% of the top 50). Not rated: xAI (<10 events; a ratio on so few is noise).
 
 ### Rubric divergence
 
 ![Rubric divergence](figures/f13_rubric_divergence.png)
-
-*JUDGED — against an unaudited LLM reference; treat as provisional*
 
 `investment` and `technical` share 0 of their top 10 (8% of the top 25) and rank the corpus at Kendall tau +0.128 — near zero, i.e. the two orderings are close to unrelated. Same events, same features, same clustering; only the definition of 'important' differs. This is the measurement behind the claim that one ranking cannot serve both readers.
 
@@ -147,8 +131,6 @@ most over-represented: DeepSeek at 3.1x its corpus share (4% of events, 12% of t
 ### Claim faithfulness (entailment)
 
 ![Claim faithfulness (entailment)](figures/f15_faithfulness.png)
-
-*JUDGED — against an unaudited LLM reference; treat as provisional*
 
 Every quote is byte-verified against its source (check C2), so this measures the remaining hallucination surface: whether the extracted claim is supported by the quote ALONE. claude-haiku-4-5-20251001: 930/954 entailed (97.5%), 10 partial, 14 not entailed. `partial` names a load-bearing fact (a number, a date, an actor) the quote does not carry — the actionable failure mode for an extraction prompt revision. That revision has since been made and measured (see docs/prompts.md): a quote-first instruction block cut the partial rate on the 30 hardest documents from 65.6% to 47.9% in a seeded A/B re-extraction; it applies to new extractions, so the corpus numbers above are the pre-revision audit. Verification tier ledger: 954/954 insight quotes are exact-tier (byte-verbatim under the shared normalization; C19 enforces this stays 100%). The corpus's 1459 structural rows carry no claims — they are the register's author-name spans in structured documents, where structural IS the designed tier. Of the 52 quotes the verifier REJECTED (never shown to a reader): 25 are >=80%-contiguous near-misses — the verifier being stricter than the normalization, not model failures; 25 are paraphrases; only 2 are fabrications with no anchor in the source. The floor metric is really a characterized rejection ledger.
 

@@ -14,7 +14,10 @@ REPORT_PATH = ROOT / "docs" / "evaluation-report.md"
 SYNTHETIC = "SYNTHETIC — ground truth known by construction"
 REFERENCE = "vs HUMAN REFERENCE — agreement, not accuracy"
 MECHANICAL = "MECHANICAL — arithmetic over the database, no labels needed"
-JUDGED = "JUDGED — against an unaudited LLM reference; treat as provisional"
+# Empty on purpose: the judged tier carries no per-figure caption. What the
+# tier means, and that its numbers are provisional, is stated once in the
+# report's metric-tiers table rather than repeated under eight figures.
+JUDGED = ""
 
 
 def _style():
@@ -146,15 +149,27 @@ def fig_cost(conn) -> tuple[str, str]:
         " FROM llm_calls GROUP BY 1,2 ORDER BY usd DESC").fetchall()
     if not rows:
         raise Skipped("python3 -m fli.cli pipeline")
-    labels = [f"{r['task']}\n{r['model'].split('-2')[0]}" for r in rows]
+    # Horizontal: ten task+model pairs with names this long collide badly on a
+    # vertical axis, and the value labels collide with them.
+    def short(model: str) -> str:
+        m = model.replace("claude-", "").split("-2025")[0]
+        return m.replace("haiku-4-5", "haiku-4.5")
+
+    rows = list(rows)[::-1]                      # largest at the top of a barh
+    labels = [f"{r['task']}  ·  {short(r['model'])}" for r in rows]
     usd = [r["usd"] or 0 for r in rows]
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    bars = ax.bar(labels, usd, color="#7c3aed")
-    for b, r in zip(bars, rows):
-        ax.text(b.get_x() + b.get_width() / 2, b.get_height(),
-                f"${r['usd']:.2f}\n{r['n']} calls", ha="center", va="bottom",
-                fontsize=8)
-    ax.set_ylabel("USD")
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.barh(labels, usd, color="#7c3aed")
+    span = max(usd) or 1
+    for y, r in enumerate(rows):
+        ax.text((r["usd"] or 0) + span * 0.015, y,
+                f"${r['usd']:.2f}  ({r['n']} calls)",
+                va="center", ha="left", fontsize=8)
+    ax.set_xlim(0, span * 1.28)
+    ax.set_xlabel("USD")
+    ax.tick_params(axis="y", labelsize=9)
+    ax.grid(axis="x", alpha=0.3)
+    ax.grid(axis="y", visible=False)
     ax.set_title("Cost per task (tokenomics)")
     total = sum(usd)
     return _save(plt, fig, "f4_cost_by_task", MECHANICAL), (

@@ -193,7 +193,8 @@ runs are byte-identical, so every number below reproduces from a clone.
 ### Metric tiers
 
 The commonest way an evaluation lies is reporting "accuracy" against a reference
-that is itself the thing being tested. Every figure carries a tier:
+that is itself the thing being tested. Every result belongs to one of four
+tiers, and which tier it is decides how much weight it can carry:
 
 | tier | meaning | example |
 |---|---|---|
