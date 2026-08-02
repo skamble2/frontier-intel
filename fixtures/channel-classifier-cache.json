@@ -6388,5 +6388,677 @@
   "quantity": null,
   "confidence": "high",
   "reason": "This is a product licensing/deployment announcement with no quantified compute, energy, data economics, competitive displacement in external markets, or research talent movement that affects the fund's portfolio."
+ },
+ "e664751d9add3d60:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Research results on theoretical problems have no direct portfolio transmission mechanism; no compute, energy, market displacement, or talent movement is quantified or implied."
+ },
+ "e33d52e3d614a12f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Generic governance/process topic with no specific quantity, commitment, or market-moving event described."
+ },
+ "394a3db497595014:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a mission statement or strategic positioning claim with no specific quantity, commitment, or external market/resource impact disclosed."
+ },
+ "576885a4849780d0:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a law-enforcement/safety action by OpenAI against external bad actors; it does not change compute, energy, data economics, competitive displacement, or talent quantities that a tech fund's portfolio companies must respond to."
+ },
+ "314bc93c030fa53b:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "low",
+  "reason": "unparseable"
+ },
+ "b5dff6a91209c809:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product launch announcement with no disclosed compute, energy, talent, data economics, or competitive displacement quantities."
+ },
+ "6e09bf06bb469e86:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product availability announcement with no quantified resource commitment, compute allocation, energy contract, talent movement, or market displacement."
+ },
+ "a83caf6a9d446bbb:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance improvement is a research result with no direct quantity impact on fund portfolio companies' operations, costs, or market share."
+ },
+ "c78c1de3c2e7e7bb:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Performance metrics on a benchmark task; no external quantity (compute procurement, energy contract, talent hire, or market displacement) that a fund's portfolio must respond to."
+ },
+ "1fb820905b9ddae2:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Safety feature demonstration in a product; no quantity commitment, market displacement, talent movement, or resource constraint change for external parties."
+ },
+ "ce77bbc48add4f2d:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance claims are product/research announcements with no quantified resource commitment, market displacement, or talent movement affecting external parties."
+ },
+ "2bd68e25fe425941:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Speculative pricing discussion with no announced commitment, contract, or quantity; no external party faces a binding change in cost or capacity."
+ },
+ "d7c8c4b3e03e4485:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Security incident at evaluation partner; no quantity commitment or market-moving change to fund portfolio exposure"
+ },
+ "6754f5c20565e2d1:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Model names and incident dates are topical; no quantity commitment or market-moving change is specified."
+ },
+ "4b65b9bf7cdebf1c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a security incident report/case study with no transmission mechanism to fund portfolio: no compute procurement, energy commitment, market displacement, talent movement, or supply-chain quantity change."
+ },
+ "2ca8bc49c6261561:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This describes a security incident with no bearing on compute procurement, energy contracts, data economics, competitive market share, or talent movement that a tech fund would track."
+ },
+ "0202663ae01505e5:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Security incident and internal audit trigger no quantified change in compute, energy, data economics, competitive position, or talent movement affecting fund portfolio."
+ },
+ "a425dd8923049df2:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature release with no disclosed compute, energy, talent, or market-displacement quantities affecting external parties."
+ },
+ "eebaf579bc98416e:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature improvement in audio generation; no external quantity (compute, energy, talent, market share) that fund portfolio companies must respond to."
+ },
+ "072da031ea4c932c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a product feature announcement about lyric generation quality—no external quantity (compute, energy, talent, market share, or data economics) has moved."
+ },
+ "eacf949024f5faf9:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature improvement announcement with no impact on compute, energy, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "1b0d00b091535c88:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Feature announcement about user interface controls; no external quantity commitment or market impact."
+ },
+ "170c4494a7138f81:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Internal model tuning and benchmark performance improvements have no direct quantity impact on external compute, energy, data, talent, or competitive market positions that a tech fund portfolio must respond to."
+ },
+ "91e2b06c6d8d4f81:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Marketing claim about product efficiency improvement with no concrete quantities, commitments, or external market/resource changes specified."
+ },
+ "ef50c2491c044984:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no quantified resource commitment, market displacement, or talent/compute/energy transaction affecting external parties."
+ },
+ "cb5ae62f7bb1488f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product availability announcement with no quantified resource commitment, compute allocation, energy contract, talent movement, or market displacement."
+ },
+ "8a4f5e9c258c02d1:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability demonstration with no quantity commitment, procurement, or market displacement signal."
+ },
+ "0359d9bffcdb87d9:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Describes model capability improvement on specific robotic hardware; no quantity commitment, market displacement, or resource constraint that external parties must respond to."
+ },
+ "0f9ca70c9e42d031:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Technical capability improvement in robotics adaptation; no quantity commitment, market displacement, talent movement, or resource consumption change that affects external parties."
+ },
+ "c6baba50eaec3ad5:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Partnership announcement and certification program are marketing/relationship moves with no quantified resource commitment or market displacement visible to external parties."
+ },
+ "2abc7df6a20da01f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Internal productivity gain at a frontier lab does not transmit to external portfolio companies; no market quantity, compute demand, energy commitment, talent movement, or competitive displacement is described."
+ },
+ "7d23f5b91da6c57f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a call for proposals describing eligibility criteria; it announces no commitment, allocation, or quantity that moves in response to frontier-AI events."
+ },
+ "2424598d8c4decdf:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Policy framework publication is governance/positioning; no quantity commitment or market-moving event for fund portfolio."
+ },
+ "a7c2fb46c5cc2c2d:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark comparisons and cost metrics are product positioning; no external quantity (compute, energy, talent, market share) that fund portfolio companies must respond to has moved."
+ },
+ "8ec67dc31ae644aa:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product specification and pricing announcement with no commitment of resources, capacity change, or market displacement signal—standard model release marketing."
+ },
+ "4c031ddef6802b8e:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no quantity commitment, compute allocation, energy contract, market displacement, or talent movement affecting external parties."
+ },
+ "a39bd7f1ea8414d3:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no disclosed compute, energy, talent, data economics, or market displacement quantities."
+ },
+ "866c5981c10a7a0e:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance comparison (issues found) is a research result with no direct quantity impact on fund portfolio companies' operations, procurement, or market position."
+ },
+ "c0f15aeb3e0c0c2e:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance claim with no external quantity impact; evaluation methodology is internal research output, not a market-moving commitment or resource allocation."
+ },
+ "071654964c5a79c6:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This describes a research capability demonstration (vulnerability discovery speed/reliability) with no external quantity commitment, market displacement, or resource obligation that a fund's portfolio companies must respond to."
+ },
+ "a65030e880c0847a:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability claim with no quantified commitment, procurement, or market displacement—no external quantity moved."
+ },
+ "d32fe758ad325ff9:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Historical record collection is archival work with no direct impact on compute, energy, data economics, competitive displacement, or talent movement in AI labs."
+ },
+ "1b64f7d158b0cc40:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Internal tool refinement and product feature development; no external quantity commitment, market displacement, or resource allocation that affects portfolio holdings."
+ },
+ "371e70f6d6aba1b0:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Customer adoption announcement with no quantified compute, energy, data economics, displacement metrics, or talent movement."
+ },
+ "ace1f57206a17a12:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no quantified resource commitment, market displacement, or talent/compute/energy quantity that external parties must respond to."
+ },
+ "3c5b7c21cfd28c92:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product launch announcements with no disclosed compute commitments, energy contracts, market displacement figures, or talent movements."
+ },
+ "e5ac5a23647b36be:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature announcement with no impact on compute, energy, data economics, talent, or competitive displacement outside the lab."
+ },
+ "065f5c69ee07a02c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature announcement (watermarking tech) with no quantified resource commitment, market displacement, or talent movement affecting external parties."
+ },
+ "53ee0d59e6519b95:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature announcement with no quantified resource commitment, market displacement, or talent/compute/energy quantity that external parties must respond to."
+ },
+ "cb20ad3bb1f42569:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Feature integration into existing model; no change to compute procurement, energy contracts, market share, or talent movement outside the lab."
+ },
+ "7a8029ed5a0c7630:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This describes a safety technique applied to an existing model; no quantity (compute, energy, talent, market share) changed hands or was committed."
+ },
+ "7d7117159c233080:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Partnership announcement with no disclosed compute, energy, data economics, talent movement, or competitive displacement quantities."
+ },
+ "dad2e5d2704d09ac:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Google's investment in A24 (a film/entertainment company) has no direct transmission mechanism to a technology fund's AI-lab-exposed portfolio; it does not affect compute, energy, data economics, competitive displacement in AI markets, or frontier-lab talent."
+ },
+ "75c205bb3bb1326b:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Study launch is research validation activity with no immediate quantity commitment (compute, energy, talent hire, or market displacement) that a tech fund portfolio must respond to."
+ },
+ "6671075ac1b6795b:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Government efficiency project with no direct impact on compute, energy, data economics, talent, or competitive displacement in the fund's portfolio sectors."
+ },
+ "8cd400a10069f9e5:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Government planning tool rollout is policy/procurement, not a quantity that moves a tech fund's portfolio holdings or market exposure."
+ },
+ "bca007b9a0174c68:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product deployment to public sector is operational/marketing; no quantity affecting fund portfolio (no compute, energy, data economics, displacement, or talent movement)."
+ },
+ "065ca6e9f5912c92:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Internal tool development with no external quantity commitment, market displacement, talent movement, or resource procurement signal."
+ },
+ "eb03a3e5f7e96736:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Policy framework publication on agent security architecture; no quantity commitment, resource allocation, or market-moving event for external parties."
+ },
+ "4da9ad5cc346d36b:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Performance benchmark improvement (tokens/sec) is a product capability claim with no external quantity commitment or market impact on fund portfolio."
+ },
+ "af61fbf14dca0396:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Model release announcement with deployment options; no quantity commitment, market displacement, or resource allocation that affects fund portfolio companies."
+ },
+ "6a1c31c1366bbd2c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product availability announcements (preview access, platform rollout) do not constitute quantity commitments that affect fund portfolio companies' operational decisions."
+ },
+ "2484a22c4df36bbe:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature announcement with no impact on external quantities (compute, energy, data economics, talent, or competitive displacement)."
+ },
+ "387f1a50509127b1:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Technical capability claim about model efficiency; no quantity commitment, resource procurement, or market displacement triggered."
+ },
+ "9184bb3ed6946184:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Licensing and ecosystem support are governance/distribution choices with no direct impact on compute, energy, data economics, competitive displacement, or talent movement."
+ },
+ "2f4dffdb1de8c188:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Educational pilot study with no impact on compute procurement, energy contracts, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "cb46005d92a0274c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Educational efficacy metrics from a trial; no quantity that external parties must respond to (no compute contracted, talent moved, market displaced, or supply chain affected)."
+ },
+ "0646e9889c44d5d0:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Educational trial results (engagement %, learning gains) do not create a quantity that portfolio companies must respond to; no market, compute, energy, talent, or supply-chain commitment moved."
+ },
+ "61f5f7cc19be1373:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Educational material release and collaboration announcement; no quantity commitment, resource allocation, or market-moving event for fund portfolio."
+ },
+ "e9404e683bd6ef61:v3:claude-haiku-4-5-20251001": {
+  "channel": "competitive_displacement",
+  "quantity": null,
+  "confidence": "medium",
+  "reason": "Default model selection affects user traffic distribution across AI products, shifting competitive positioning in consumer AI market."
+ },
+ "e9d64c44e209c210:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product availability announcement with no disclosed quantity of compute, energy, talent, or market displacement."
+ },
+ "398fd16f8871e74b:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Partnership announcement describing a joint R&D initiative; no quantity commitment, resource allocation, or market-moving number disclosed."
+ },
+ "562457f0a9962c48:v3:claude-haiku-4-5-20251001": {
+  "channel": "compute_memory",
+  "quantity": "10 MW inference capacity",
+  "confidence": "high",
+  "reason": "New dedicated datacenter facility adds quantified compute supply to the market, directly affecting available inference capacity and hardware access for external parties."
+ },
+ "d1ffb4a069acec50:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Marketing announcement of capability/product positioning with no quantified commitment, resource allocation, or market shift affecting external parties."
+ },
+ "b395f76ff906c748:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Statement describes research capability and application domains without disclosing any quantity commitment, resource allocation, or market-moving event."
+ },
+ "5b364e029e909dc0:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature announcement for accessibility use case; no quantity commitment, compute allocation, energy contract, market displacement, or talent movement disclosed."
+ },
+ "10e260376da7b01a:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature description (smartphone-based running guide with audio feedback); no quantity commitment, compute procurement, energy contract, market displacement, or talent movement."
+ },
+ "c06341a75efa9094:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no disclosed compute commitment, energy contract, market displacement, talent movement, or data economics impact."
+ },
+ "770d90426a54c5b9:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This describes a product feature (multi-agent framework for running assistance) with no impact on compute procurement, energy contracts, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "f6a8159b6ac31fea:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "SynthID watermarking is a product feature deployment; the scale metrics (100B images, 60k years audio) describe usage volume, not a quantity that external parties must respond to operationally."
+ },
+ "03fd7fe0276cd3e4:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Feature deployment and usage metrics; no external quantity constraint or market response required from fund portfolio companies"
+ },
+ "117b2427efb4fb61:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a product feature announcement (content labeling) with no impact on compute, energy, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "1faed6f2c7269aaa:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature rollout (Street View in Genie) has no direct impact on compute, energy, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "a22819dc73445508:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Internal research productivity gain with no external quantity commitment, market displacement, or resource reallocation affecting portfolio companies."
+ },
+ "f68aa99d789e3041:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Validation of a research hypothesis is a scientific result with no direct impact on compute, energy, data economics, competitive market share, or talent movement outside the lab."
+ },
+ "5e6268fc222176be:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Describes internal research productivity improvement (6 months → days) with no external quantity commitment, market displacement, or resource demand that affects portfolio companies."
+ },
+ "fb26806215235921:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Subjective productivity claim about internal tool capability; no external quantity (headcount, compute, energy, market share, or talent movement) that a fund portfolio must respond to."
+ },
+ "f793f8de23c16d13:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no quantified resource commitment, compute procurement, energy contract, talent hire, or market displacement—Waymo simulation use is internal application, not a portfolio-facing transaction."
+ },
+ "613589df2dbd5981:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product launch announcement with no disclosed compute, energy, talent, or market-displacement quantities."
+ },
+ "87b7226f14fa1109:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no quantified resource commitment, compute allocation, energy contract, talent movement, or market displacement affecting external parties."
+ },
+ "822bfd4006702c67:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "These are product adoption announcements with no disclosed quantities (compute, energy, talent, or market displacement) that would require external response."
+ },
+ "3d0ea5346d070751:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Announcement of tool adoption by external organizations; no quantity commitment, compute allocation, energy contract, talent movement, or market displacement disclosed."
+ },
+ "b93dc4dcfbe3511f:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "SynthID watermarking is a product feature deployment; the scale metrics (100B images, 60K years audio) describe usage volume, not a quantity that external parties must respond to or that affects fund portfolio companies."
+ },
+ "fa95eccf3e6842fa:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product announcement of a research tool with no disclosed compute contracts, energy commitments, market displacement, or talent movement."
+ },
+ "1e1e2f532949f3a4:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product safety feature release with no quantified resource commitment, market displacement, or talent/compute/energy impact on external parties."
+ },
+ "c8435432c7a5f8ed:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance metrics (0.715, 0.813 scores) are research results with no direct quantity commitment or market impact outside the lab."
+ },
+ "283c4cfb3b70a338:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark score improvement is a capability claim with no external quantity commitment or market impact mechanism."
+ },
+ "ac6ecf8a7a6aeb52:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark improvement is a capability claim with no direct quantity impact on fund portfolio companies' costs, revenues, or resource constraints."
+ },
+ "ca98e47b263a2c9c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product capability announcement with no quantified resource commitment, compute allocation, energy contract, talent hire, or market displacement signal."
+ },
+ "4114d327d6acb954:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Research publication on measurement frameworks has no direct impact on compute, energy, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "8630ea5fe6f0b3b7:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Taxonomic framework for AI capabilities; no quantity moved in markets, compute, energy, data, or talent."
+ },
+ "17be211335de2449:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a call-for-submissions announcement with dates; no quantity moved in any portfolio-relevant mechanism."
+ },
+ "ff99d87b95fe2820:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Curriculum localization is educational outreach with no direct impact on compute, energy, data economics, competitive displacement, or talent movement affecting the fund's portfolio companies."
+ },
+ "d089bc5109530c50:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a pricing announcement for API access; it does not represent a quantity commitment or market movement that a technology fund's portfolio companies must respond to."
+ },
+ "0eecace973d5e89c:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance comparison between models; no quantity affecting external parties' resource commitments or market displacement."
+ },
+ "3d6a8be84cdaa237:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Product feature announcement (connector capabilities) with no impact on compute, energy, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "3f44f2006eee67de:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Technical capability announcement about API integration standards; no quantity commitment, resource allocation, or market-moving event described."
+ },
+ "7786486c860f9283:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Benchmark performance claim is topical marketing; no quantity moved in compute, energy, data economics, talent, or competitive displacement outside the lab."
+ },
+ "018bf189d1738d98:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Open-source model release is a product/capability announcement with no direct impact on compute procurement, energy contracts, market displacement, or talent movement outside the lab."
+ },
+ "d5402fcbef7f066a:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Opening communication channels is governance/process infrastructure with no direct impact on compute, energy, data economics, competitive displacement, or talent movement outside the lab."
+ },
+ "84e7adc71eb34314:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "This is a product/deployment strategy announcement with no quantified commitment, resource allocation, or market shift that requires external response."
+ },
+ "5233fffdd0ce0ac5:v3:claude-haiku-4-5-20251001": {
+  "channel": "none",
+  "quantity": null,
+  "confidence": "high",
+  "reason": "Forward-looking product roadmap statement with no specific quantity, commitment, or external market impact disclosed."
  }
 }
