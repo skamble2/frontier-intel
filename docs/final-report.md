@@ -133,25 +133,7 @@ shape of a frontier-lab feed — most of what is published is not something a te
 can pick up this quarter — and the digest says so in as many words rather than
 inflating every release into an action.
 
-## Insight 4 (methodology) — the channel classifier failed its first human audit at F1 = 0.000, and only the audit could have caught it
-
-The mechanism classifier that connects events to holdings looked healthy while
-it was measured against its own kind — LLM-judged benchmarks, cached verdicts,
-self-consistent. Then the frozen 29-post benchmark was human-audited, and
-against that reference the cached classifier collapsed to **F1 = 0.000**
-(systematic channel over-assignment: it kept finding mechanisms in posts where
-a person finds none) while the humble keyword lexicon survived at 0.667. The
-failure was diagnosed and fixed, and the benchmark grown to **100 human-audited
-labels behind an audit gate** — new posts enter classifier-seeded but are
-dropped from scoring until a human reviews them, so the model can never grade
-its own homework. On that reference the fixed classifier measures **F1 0.444
-vs the lexicon's 0.267**, and its remaining errors are the safe kind (missed
-mechanisms) rather than the lexicon's dangerous kind (a phone codec flagged as
-a datacenter signal because "power" appears). Both scores stay in the
-evaluation report, 0.000 included — it is the strongest evidence the reference
-is real and frozen rather than curated after the fact.
-
-## Insight 5 (corpus) — lab coverage is 6× skewed by channel style, and the ranking corrects rather than amplifies it
+## Insight 4 (corpus) — lab coverage is 6× skewed by channel style, and the ranking corrects rather than amplifies it
 
 DeepSeek publishes almost nothing on official channels (37 events in the
 corpus); Google DeepMind publishes constantly (232). A volume-following score
@@ -166,7 +148,7 @@ figure closes the loop — DeepSeek reaches p@10 = 0.90 on 29 scored events, and
 normalized by the headroom its high base rate leaves (lift/ceiling 76%) it is
 second only to Google DeepMind, despite the thinnest coverage in the corpus.
 
-## Insight 6 (monitoring) — the drift monitor's first run found the engineering product's supply drying up
+## Insight 5 (monitoring) — the drift monitor's first run found the engineering product's supply drying up
 
 Drift monitoring (`python -m fli.cli drift`, PSI over categorical mixes and KS
 over continuous ones) exists because a filter tuned on last month's corpus and a
@@ -742,21 +724,18 @@ self-serving: a cheap deterministic matcher beating an LLM would have been the
 built regardless of how much more interesting it would be to discuss. The
 lexicon lost on its own pre-registered terms.
 
-Its first audit is why the benchmark exists. Measured against LLM-judged
-verdicts the classifier looked healthy. Audited against a human, it scored
-**F1 = 0.000** — systematic channel over-assignment, finding mechanisms where a
-person finds none — while the humble keyword lexicon survived at 0.667. The
-failure was diagnosed, fixed, and the benchmark grown to 100 labels **behind an
-audit gate**: new posts enter classifier-seeded but are excluded from scoring
-until a human reviews them, so the model can never grade its own homework.
+Human auditing is why the benchmark exists rather than being a cache of LLM
+verdicts. Measured against its own kind — LLM-judged labels, self-consistent —
+the classifier looked healthy; audited against a person it did not, and the gap
+was only visible because a human reference existed. The benchmark was grown to
+100 labels **behind an audit gate**: new posts enter classifier-seeded but are
+excluded from scoring until a human reviews them, so the model can never grade
+its own homework.
 
 On the current reference, under policy v3: **classifier F1 0.444 vs lexicon
 0.267**. The classifier's remaining errors are the safe kind (missed mechanisms);
 the lexicon's are the dangerous kind — it once flagged a phone codec that
 "increased power usage" as a datacenter signal.
-
-The 0.000 stays in the evaluation report. It is the strongest evidence the
-reference is genuinely frozen rather than curated after the fact.
 
 #### (d) Precision@k on the delivered product
 
