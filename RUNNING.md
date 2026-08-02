@@ -127,4 +127,4 @@ fix land?" against the previous run's numbers.
 in it — a truncate+rebuild resets `fetch_log` to all-ok, erasing the failure
 history — the finding was written into prose and the working binary discarded.
 The four ingestion failure modes and their counts are in
-[architecture.md](docs/architecture.md#ingestion-layer-2).
+[architecture.md](docs/architecture.md#the-pipeline).
