@@ -140,11 +140,18 @@ python3 -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\ac
 pip install -r requirements.txt
 echo 'ANTHROPIC_API_KEY=sk-...' > .env   # optional; see RUNNING.md for the rest
 
-python3 -m fli.cli pipeline      # the full daily cycle
-python3 -m fli.cli graph         # the same run as one graph (--spend adds the paid stages)
-python3 -m fli.cli checks        # invariant battery; exit 0 = green
+python3 -m fli.cli checks        # invariant battery over the shipped DB; exit 0 = green
+python3 -m fli.cli evaluate      # rebuild all 17 figures + the evaluation report ($0)
+python3 -m fli.cli graph         # the whole run (--spend adds the paid stages)
+python3 -m fli.cli digest        # the delivered report, Markdown + PDF
 python3 -m fli.cli web           # browse the register, scores and past reports
 python3 -m fli.cli mcp           # serve the same intelligence to an agent client
+```
+
+Or without a Python environment at all:
+
+```bash
+docker build -t frontier-intel . && docker run --rm frontier-intel
 ```
 
 > [!NOTE]
@@ -156,40 +163,26 @@ Full operational detail in [RUNNING.md](RUNNING.md).
 
 ## CLI reference
 
-One entry point, one command per layer — every layer also runs alone.
+One entry point. Every layer also runs alone, because they communicate only
+through the database.
 
-| Command | Layer | What it does |
-|---|---|---|
-| `ingest` | L1 | Fetch all feeds, store immutably, hash-dedupe |
-| `x` | L1 | X/social ingestion (paid; `--dry-run` first) |
-| `filter` | L2 | Stage-1 deterministic filter (free) |
-| `register` | L2 | Approve / reject / inspect tracked people |
-| `expand` | L2 | arXiv co-author discovery from research seeds |
-| `cluster` | L3 | Jaccard clustering (`--histogram` shows the measured θ) |
-| `features` | L3 | Build the ML feature surface |
-| `label` | L3 | Human pairwise labeling (`--audit` for the audit pass) |
-| `judge` | L3 | LLM pairwise judge (**spends**; `--dry-run` previews). `--rubric` picks the audience, `--model` a second provider, `--agreement` reports Cohen's κ ($0) |
-| `channels` | L3 | LLM channel classifier over the corpus |
-| `score` | L3 | Bake-off and ranking (`--all-rubrics`, `--top K --rubric NAME`) |
-| `contributors` | L3 | Rank tracked people by their linked events' validated scores (`--review` for keep/cut) |
-| `xbench` | — | The frozen X reference set used by the evaluation figures ($0) |
-| `evaluate` | — | Figures + evaluation report |
-| `checks` | — | C1–C20 invariant battery |
-| `drift` | — | PSI/KS corpus drift vs history ($0; monitoring, never gates the build) |
-| `verify` | — | Claim↔quote entailment check over all insights (`--repair` rewrites `partial` claims to what their quote supports) |
-| `positions` | L4 | Map events to holdings (ticker + mechanism edges) |
-| `personas` | L4 | Per-audience readings (threat/tailwind · adopt/investigate) |
-| `digest` | L4 | Periodic digest, Markdown + PDF (`--review` for keep/cut) |
-| `alerts` | L4 | Push material events to a sink (fires on signed direction) |
-| `web` | — | Web UI over the DB (browse + candidate approve/reject) |
-| `mcp` | L4 | Read-only MCP server over stdio: slate, claim search, drift, digests |
-| `pipeline` | — | The full daily cycle (free stages) |
-| `graph` | — | The same run as a LangGraph graph, paid stages included behind `--spend` + an approval pause (`--yes` to skip it). `--mermaid` prints the topology and runs nothing |
-| `skeleton` | — | One doc → one insight, end to end |
+| Layer | Commands |
+|---|---|
+| **L1** ingest | `ingest` · `x` |
+| **L2** knowledge | `filter` · `extract` · `register` · `expand` |
+| **L3** intelligence | `cluster` · `features` · `label` · `judge` · `channels` · `score` · `contributors` |
+| **L4** delivery | `positions` · `personas` · `digest` · `alerts` · `mcp` · `web` |
+| validation | `checks` · `verify` · `faithfulness` · `drift` · `xbench` · `evaluate` |
+| orchestration | `pipeline` · `graph` · `skeleton` |
 
 ```bash
-python -m fli.cli <command> --help   # each layer's own options
+python3 -m fli.cli --help            # the full list
+python3 -m fli.cli <command> --help  # that layer's own options
 ```
+
+Two conventions: anything that spends money previews the cost and refuses a run
+it cannot afford, and `--dry-run` exists wherever spending does. Runbooks for
+each layer are in [RUNNING.md](RUNNING.md).
 
 ## Project layout
 
@@ -257,9 +250,6 @@ in [future scope](docs/final-report.md#future-scope).
   provisional until one signs off, and the system says so on every run.
 
 ## Documentation
-
-Start with the final report — it is the answer to "did this surface something
-worth knowing, and did it keep the noise out?"
 
 | File | What it covers |
 |---|---|
