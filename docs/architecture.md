@@ -3,10 +3,8 @@
 Frontier Lab Intelligence tracks eight frontier AI labs and the people inside
 them, turns their public output into evidence-backed events, ranks those events
 for two different readers, and delivers a cited report and an alert path for
-each. This document explains how the system is built and why it is built that
-way. It is written to be read alongside the code; every claim of behaviour here
-is enforced somewhere by a test or an invariant check, and the relevant name is
-given.
+each. Every claim of behaviour below is enforced somewhere by a test or an
+invariant check, and the relevant name is given.
 
 ## The one idea the whole system is organised around
 
@@ -617,10 +615,8 @@ so a committed DB never silently misses the writes of the run that produced it.
 
 ## Design notes, by module
 
-The sections above explain how the system is built and why. This appendix
-records the non-obvious decision behind each individual module, keyed by
-package, so the source itself can stay short. Each entry states a decision and
-the measurement or failure behind it.
+One entry per module: the non-obvious decision behind it, and the measurement or
+failure that produced it. Keeping these here is what lets the source stay short.
 
 [Layering](#layering) · [core](#core) · [ingestion](#ingestion) · [knowledge](#knowledge) ·
 [register](#register) · [intelligence](#intelligence) · [delivery](#delivery) ·
