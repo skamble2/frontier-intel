@@ -154,6 +154,23 @@ pairs available as an out-of-sample audit:
 | baseline_corroboration | 0.404 | 0.547 | 0.30 | 0.219 |
 | baseline_recency | 0.317 | 0.340 | 0.30 | 0.258 |
 
+**How this result would be reported was also fixed in advance.** The underlying
+question is uncomfortable: *how much of a written editorial policy is
+recoverable from a handful of cheap numeric features?* The labeler reads the
+full document; the ranker sees twenty numbers. There was no guarantee the gap
+was closable, so the reporting rule was written before the bake-off ran:
+
+| held-out accuracy vs best baseline | how it gets reported |
+|---|---|
+| clearly better (≥ +0.10) | ship it; lead with the coefficients and what they say |
+| marginal (+0.02 to +0.10) | ship it, but state plainly the margin is within what this many labels can resolve |
+| no better (< +0.02) | **lead with the negative result**, ship the simplest baseline that matches it |
+
+The measured margin is **+0.198** (0.835 against the best baseline's 0.637), so
+the first row applies and the coefficients are reported below. Had the third row
+happened, the headline of this document would have been "twenty features do not
+capture this policy" — and that was committed to before the number existed.
+
 Three things worth reading off these tables:
 
 **The hand-weighted sum is worse than chance.** 0.462 and 0.468 held-out, on a
@@ -330,10 +347,34 @@ The practical reading: the models are a usable ranking signal — κ 0.29 with a
 human on the *hardest* pairs is real agreement, not noise — but they are not
 ground truth, and the highest-value labels to buy next are human ones.
 
-### (c) A frozen human-audited benchmark
+### (c) A frozen human-audited benchmark, with the verdict pre-registered
 
 The mechanism classifier that connects events to holdings is scored against a
 frozen, human-audited reference set of 100 X posts.
+
+**The threshold was fixed before the classifier existed.** The first live X call
+returned 29 real posts for $0.175; those were frozen to
+`fixtures/x-benchmark-29-frozen.json` — a JSON fixture rather than a database,
+so the whole experiment re-runs offline at zero cost forever. There is
+deliberately no generator to rebuild it: regenerating would spend money to
+produce a *different* reference and silently invalidate every number measured
+against the old one. Four hypotheses were then
+written down *before any code was changed*, on the principle that a result which
+can be graded after the fact is not a result. The decisive one was:
+
+> **H4.** Even after the lexicon is repaired, channel-assignment F1 stays below
+> **0.80**, because channel membership is semantic ("does this move a number in
+> a thesis?") and not lexical.
+> **If F1 ≥ 0.80 the lexicon is sufficient — ship it and build no classifier**,
+> and write that up as the result. If F1 < 0.80 the bottleneck is
+> representational; build the classifier and report the lexicon's F1 as the
+> baseline it must beat. Cost: $0.
+
+That commitment is what makes the eventual classifier defensible rather than
+self-serving: a cheap deterministic matcher beating an LLM would have been the
+*better* outcome, and it was pre-committed that the classifier would not get
+built regardless of how much more interesting it would be to discuss. The
+lexicon lost on its own pre-registered terms.
 
 Its first audit is why the benchmark exists. Measured against LLM-judged
 verdicts the classifier looked healthy. Audited against a human, it scored

@@ -64,12 +64,9 @@ Thumbs.db
 .claude/
 CLAUDE.md
 
-# Working notes, not deliverables
-docs/day5-scoring-spec.md
-docs/evaluation-plan.md
-docs/report-notes.md
-docs/x-source-hypotheses.md
-docs/refactor-spec.md
-docs/expansion-run.md
+# Working notes, not deliverables. The docs/ working notes (day-5 scoring spec,
+# evaluation plan, report notes, X source hypotheses, refactor spec, expansion
+# run) were deleted once their durable content was folded into the shipped
+# write-ups, so there is nothing left here to ignore under docs/.
 research/one-pager.md
 scripts/

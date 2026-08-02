@@ -148,6 +148,19 @@ invocation and costs **$0** — PSI and KS are computed directly from SQL, with 
 scipy and no model call. Monitoring that costs money gets switched off, so the
 corpus-shape signal was built to have no per-run price.
 
+**The one source that is not an LLM cost at all.** X is the only paid *source*,
+and it was originally postponed on price: X Basic was a $200/month
+subscription, which is not defensible for one signal on a €100 budget. X moved
+new developers to pay-per-use in early 2026 — $0.005 per post read, $0.010 per
+user read, no minimum, deduplicated within a 24-hour UTC window — which puts a
+full sweep of the tracked lab accounts at about **$0.77**. The decision reversed
+because the input changed, not because the reasoning did.
+
+The first live run cost **$0.175** for 29 posts, and those 29 were immediately
+frozen into a JSON fixture. Every number measured against them since has cost
+nothing, which is the general pattern worth copying: pay once for real data,
+then make the evaluation re-runnable offline forever.
+
 ## Cache and batch: built, barely used
 
 Both discounts are implemented and both are visible in the schema

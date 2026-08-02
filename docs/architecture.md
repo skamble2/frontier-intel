@@ -70,6 +70,71 @@ rows keyed by content hash; a `latest_documents` view answers "which version is
 current" without ever mutating history. The one paid source (the X API) is
 gated behind a `--dry-run` cost estimate and a hard cap.
 
+**Ingestion depth, and why it is a filtering problem.** An early audit of
+`low_substance` rejections found the classifier was mostly judging *non-article
+input* rather than genuine noise, from two distinct causes. Several blog RSS
+feeds carry only a 250–430-character teaser, so the stored document was a
+marketing tagline — 31 of 40 rejections at the time traced to four such thin
+feeds. Separately, newsroom pages stored the full 135–290k of raw HTML, but
+stage 2 capped its input at the first 6,000 characters *before* extracting text,
+so the model read `<head>` and nav boilerplate instead of the article. Both
+produced false rejections of substantive articles that were never actually shown
+to the model.
+
+The fix keeps the evidence invariant intact: HTML→text extraction runs on stored
+pages *before* stage 2, and quotes verify against that same cleaned text, so raw
+HTML stays immutable and text extraction is a pure function applied at read
+time. For teaser-only feeds the linked article body is fetched and stored as a
+new immutable version rather than the teaser being trusted.
+
+**The residual boundary is triaged rather than asserted.** After those fixes the
+remaining `low_substance` rejections at that audit were characterised one by
+one:
+
+| bucket | n | verdict |
+|---|---:|---|
+| JS-rendered (OpenAI blog, Mistral newsroom) | 19 | hard wall — static fetch returns an empty client-side shell |
+| GitHub release notes | 13 | legitimate noise floor (version bumps) — correct rejection |
+| other blog / newsroom | 9 | genuine thin marketing — correct rejection |
+
+So roughly half the suppressed items are the noise floor working as designed and
+half are one documented limitation. Three decisions follow, and the ones *not*
+taken matter most:
+
+- **No "trust the headline."** Admitting an insight from a 243-character teaser
+  because the headline names a product would rest a claim on evidence that only
+  asserts it, breaking the verbatim-quote invariant that the whole hallucination
+  story depends on. Coverage is not traded for the evidence guarantee.
+- **No headless browser.** A ~300 MB dependency for two sites would damage the
+  runnable demo for a small coverage gain. Playwright behind a flag is the
+  scoped next step, and `fetch_log` already names exactly which sources need
+  it — an evidence-driven extension rather than infrastructure added on spec.
+- **The one high-value event behind the wall was captured manually** and stored
+  under the same immutability rules, so it flows through the normal
+  filter → extract → verify path and is fully cited rather than being a teaser
+  exception.
+
+**Four failure modes, all handled, none fatal.** Rate limits and source
+messiness are recorded rather than described. From the preserved robustness
+snapshot (`docs/ingestion-robustness-evidence.txt`; `fetch_log` 458 ok / 20
+error / 9 empty):
+
+| failure mode | where | how the system behaved |
+|---|---|---|
+| HTTP 429 rate limit | arXiv API queries | logged `error`, run continued, other sources unaffected |
+| read timeout | arXiv API queries | logged `error`, run continued |
+| blocked / bad request | `ai.meta.com/research/` → HTTP 400 | logged `error`; a substitute channel was configured |
+| empty feed (valid response, zero items) | a GitHub `releases.atom` | logged `empty` with `items_found=0` — absence recorded, not a silent gap |
+
+Every fetch attempt is a row, including the ones that returned nothing, so an
+empty feed and a failed feed are *different* recorded states and a source going
+quiet is visible rather than indistinguishable from "no news". Rate limits are
+handled by politeness — a fixed inter-request delay on the arXiv API — rather
+than a retry storm. Because a truncate-and-rebuild resets `fetch_log`, that
+evidence is preserved as a text export of a named snapshot instead of being
+re-manufactured; the live database shows its own current tally (733 ok / 148
+error / 16 empty).
+
 ### Knowledge (layer 2)
 
 **Filtering** is a two-stage funnel. A cheap Haiku classifier decides whether a

@@ -220,7 +220,7 @@ pipeline will find it from n\* judgements. It says nothing about whether nine
 surface features can express what a real PM actually means by "important".
 
 That question is answered — negatively or positively — by the `lexicographic`
-row of §2 and by the ablation in `day5-scoring-spec.md`. If a linear model over
+row of §2 and by the ablation in [evaluation.md](evaluation.md). If a linear model over
 nine features cannot recover even a *known* lexicographic rubric, then it will
 not recover a real PM's policy either, and the correct conclusion is:
 
