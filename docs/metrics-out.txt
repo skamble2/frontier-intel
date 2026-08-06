@@ -35,7 +35,7 @@
 ┌──────────────────┬───────────────────┬────────────────┬──────────┐
 │ insight_evidence │ register_evidence │ total_evidence │ insights │
 ├──────────────────┼───────────────────┼────────────────┼──────────┤
-│ 954              │ 1998              │ 2952           │ 954      │
+│ 954              │ 2064              │ 3018           │ 954      │
 └──────────────────┴───────────────────┴────────────────┴──────────┘
 
 --- G4 · cap binding: is n=5 concentrated in LONG docs (legit) or SHORT (splitting)? ---
@@ -82,7 +82,7 @@
 ┌──────────────┬─────────────────┬─────────────────┬───────────────────┬──────────┐
 │ content_docs │ stage1_rejected │ stage2_rejected │ docs_with_insight │ insights │
 ├──────────────┼─────────────────┼─────────────────┼───────────────────┼──────────┤
-│ 1458         │ 961             │ 120             │ 372               │ 954      │
+│ 1471         │ 972             │ 120             │ 372               │ 954      │
 └──────────────┴─────────────────┴─────────────────┴───────────────────┴──────────┘
 
 ================ M1b · REJECTION REASONS (noise-floor appendix) ================
@@ -91,7 +91,7 @@
 ├──────────────┼────────────────────────────┼─────┤
 │ stage1       │ no_tracked_entity          │ 523 │
 │ verification │ claim_rewritten            │ 445 │
-│ stage1       │ not_lab_authored           │ 312 │
+│ stage1       │ not_lab_authored           │ 323 │
 │ stage1       │ gh_login_unverified        │ 124 │
 │ stage2       │ low_substance              │ 119 │
 │ verification │ quote_unverified           │ 52  │
@@ -109,10 +109,10 @@
 ┌─────────────┬──────┬──────────┬──────────────────┐
 │ source_type │ docs │ insights │ insights_per_doc │
 ├─────────────┼──────┼──────────┼──────────────────┤
-│ blog        │ 293  │ 599      │ 2.04             │
+│ blog        │ 295  │ 599      │ 2.03             │
 │ newsroom    │ 67   │ 153      │ 2.28             │
 │ social      │ 704  │ 114      │ 0.16             │
-│ arxiv       │ 338  │ 46       │ 0.14             │
+│ arxiv       │ 349  │ 46       │ 0.13             │
 │ github      │ 56   │ 42       │ 0.75             │
 └─────────────┴──────┴──────────┴──────────────────┘
 
@@ -122,7 +122,7 @@
 ┌─────────────┬────────────────┬──────────┬───────────────────┐
 │ source_type │ surviving_docs │ insights │ per_surviving_doc │
 ├─────────────┼────────────────┼──────────┼───────────────────┤
-│ blog        │ 125            │ 599      │ 4.79              │
+│ blog        │ 126            │ 599      │ 4.75              │
 │ newsroom    │ 21             │ 153      │ 7.29              │
 │ social      │ 168            │ 114      │ 0.68              │
 │ arxiv       │ 24             │ 46       │ 1.92              │
@@ -144,8 +144,8 @@
 │      population      │ verification │  n   │
 ├──────────────────────┼──────────────┼──────┤
 │ insight (extraction) │ exact        │ 954  │
-│ register (entity)    │ exact        │ 367  │
-│ register (entity)    │ structural   │ 1631 │
+│ register (entity)    │ exact        │ 398  │
+│ register (entity)    │ structural   │ 1666 │
 └──────────────────────┴──────────────┴──────┘
 
 ================ M3a · INSIGHTS PER DOCUMENT (distribution) ================
@@ -190,7 +190,7 @@
 ┌─────────┬──────┐
 │  month  │ docs │
 ├─────────┼──────┤
-│ 2026-08 │ 66   │
+│ 2026-08 │ 78   │
 │ 2026-07 │ 569  │
 │ 2026-06 │ 152  │
 │ 2026-05 │ 96   │
@@ -222,14 +222,14 @@
 ┌─────────────────┬───────┬─────────────┬──────────┐
 │       lab       │ seeds │ layer_below │ insights │
 ├─────────────────┼───────┼─────────────┼──────────┤
-│ Google DeepMind │ 60    │ 15          │ 392      │
-│ Anthropic       │ 49    │ 15          │ 149      │
-│ Qwen            │ 12    │ 31          │ 140      │
-│ OpenAI          │ 54    │ 16          │ 127      │
-│ Mistral         │ 28    │ 50          │ 57       │
-│ Meta AI         │ 65    │ 19          │ 50       │
-│ DeepSeek        │ 9     │ 0           │ 37       │
-│ xAI             │ 39    │ 0           │ 2        │
+│ Google DeepMind │ 63    │ 15          │ 392      │
+│ Anthropic       │ 57    │ 15          │ 149      │
+│ Qwen            │ 13    │ 31          │ 140      │
+│ OpenAI          │ 59    │ 16          │ 127      │
+│ Mistral         │ 31    │ 63          │ 57       │
+│ Meta AI         │ 67    │ 23          │ 50       │
+│ DeepSeek        │ 10    │ 0           │ 37       │
+│ xAI             │ 45    │ 0           │ 2        │
 └─────────────────┴───────┴─────────────┴──────────┘
 
 ================ M4c · PERSON-LEVEL ATTRIBUTION COVERAGE (W1) ================
@@ -238,14 +238,14 @@
 ┌──────────┬─────────────┬──────────┬──────────────┬────────────────────┐
 │ insights │ with_person │ with_lab │ unattributed │ people_in_register │
 ├──────────┼─────────────┼──────────┼──────────────┼────────────────────┤
-│ 954      │ 17          │ 954      │ 0            │ 337                │
+│ 954      │ 17          │ 954      │ 0            │ 354                │
 └──────────┴─────────────┴──────────┴──────────────┴────────────────────┘
 
 ================ M4d · ENTITY RESOLUTION BY TIER / METHOD ================
 ┌──────────┬─────────────────┬───────────────────┬─────┐
 │ platform │ confidence_tier │ resolution_method │  n  │
 ├──────────┼─────────────────┼───────────────────┼─────┤
-│ arxiv    │ corroborated    │ coauthor_overlap  │ 157 │
+│ arxiv    │ corroborated    │ coauthor_overlap  │ 174 │
 │ github   │ verbatim        │ self_link         │ 145 │
 │ x        │ verbatim        │ self_link         │ 33  │
 │ lab_page │ verbatim        │ exact             │ 23  │
@@ -311,24 +311,27 @@
 ┌────────┬─────┐
 │ status │  n  │
 ├────────┼─────┤
-│ empty  │ 28  │
-│ error  │ 168 │
-│ ok     │ 875 │
+│ empty  │ 32  │
+│ error  │ 170 │
+│ ok     │ 927 │
 └────────┴─────┘
 
 ================ M6b · NON-OK FETCHES BY SOURCE ================
 ┌──────────────────────────────┬─────────────┬────────┬────┬───────────────────────────┐
 │             name             │ source_type │ status │ n  │         last_try          │
 ├──────────────────────────────┼─────────────┼────────┼────┼───────────────────────────┤
-│ xAI blog: x.ai               │ blog        │ error  │ 10 │ 2026-08-05T08:42:31+00:00 │
-│ xAI github: github.com       │ github      │ empty  │ 10 │ 2026-08-05T08:42:31+00:00 │
-│ xAI page: x.ai               │ blog        │ error  │ 8  │ 2026-08-05T08:44:10+00:00 │
+│ xAI blog: x.ai               │ blog        │ error  │ 11 │ 2026-08-06T08:43:45+00:00 │
+│ xAI github: github.com       │ github      │ empty  │ 11 │ 2026-08-06T08:43:45+00:00 │
+│ xAI page: x.ai               │ blog        │ error  │ 9  │ 2026-08-06T08:45:23+00:00 │
 │ arXiv au:"Chris Olah"        │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:54+00:00 │
+│ arXiv au:"Greg Yang"         │ arxiv       │ empty  │ 6  │ 2026-08-06T08:44:55+00:00 │
+│ arXiv au:"Igor Babuschkin"   │ arxiv       │ empty  │ 6  │ 2026-08-06T08:45:08+00:00 │
 │ arXiv au:"Jakub Pachocki"    │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:38+00:00 │
 │ arXiv au:"Jared Kaplan"      │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:51+00:00 │
 │ arXiv au:"Koray Kavukcuoglu" │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:57+00:00 │
 │ arXiv au:"Mark Chen"         │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:44+00:00 │
 │ arXiv au:"Yann LeCun"        │ arxiv       │ error  │ 6  │ 2026-08-02T08:58:00+00:00 │
+│ arXiv au:"Yuhuai Wu"         │ arxiv       │ empty  │ 6  │ 2026-08-06T08:45:01+00:00 │
 │ arXiv abs:"Anthropic"        │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:30+00:00 │
 │ arXiv abs:"DeepMind"         │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:33+00:00 │
 │ arXiv abs:"DeepSeek"         │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:42+00:00 │
@@ -340,10 +343,8 @@
 │ arXiv au:"Christian Szegedy" │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:24+00:00 │
 │ arXiv au:"DeepSeek-AI"       │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:48+00:00 │
 │ arXiv au:"Gemini Team"       │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:54+00:00 │
-│ arXiv au:"Greg Yang"         │ arxiv       │ empty  │ 5  │ 2026-08-05T08:43:45+00:00 │
 │ arXiv au:"Greg Yang"         │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:15+00:00 │
 │ arXiv au:"Guillaume Lample"  │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:06+00:00 │
-│ arXiv au:"Igor Babuschkin"   │ arxiv       │ empty  │ 5  │ 2026-08-05T08:43:58+00:00 │
 │ arXiv au:"Igor Babuschkin"   │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:27+00:00 │
 │ arXiv au:"Jimmy Ba"          │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:18+00:00 │
 │ arXiv au:"Junyang Lin"       │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:12+00:00 │
@@ -351,7 +352,6 @@
 │ arXiv au:"OpenAI"            │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:58+00:00 │
 │ arXiv au:"Qwen Team"         │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:51+00:00 │
 │ arXiv au:"Timothée Lacroix"  │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:09+00:00 │
-│ arXiv au:"Yuhuai Wu"         │ arxiv       │ empty  │ 5  │ 2026-08-05T08:43:51+00:00 │
 │ arXiv au:"Yuhuai Wu"         │ arxiv       │ error  │ 5  │ 2026-08-02T08:58:21+00:00 │
 │ arXiv au:"xAI"               │ arxiv       │ error  │ 5  │ 2026-07-30T10:27:04+00:00 │
 │ @MikeLewis_Ai profile        │ social      │ error  │ 2  │ 2026-07-29T04:15:44+00:00 │
@@ -383,50 +383,50 @@
 │               model               │ events │ min_s  │ max_s │
 ├───────────────────────────────────┼────────┼────────┼───────┤
 │ investment:baseline_corroboration │ 954    │ 1.0    │ 7.0   │
-│ investment:baseline_recency       │ 954    │ 0.0    │ 0.875 │
-│ investment:gbm_sklearn            │ 954    │ 0.015  │ 0.995 │
-│ investment:hand_weights           │ 954    │ -3.895 │ 4.85  │
-│ investment:logistic               │ 954    │ -2.655 │ 5.073 │
+│ investment:baseline_recency       │ 954    │ 0.0    │ 0.846 │
+│ investment:gbm_sklearn            │ 954    │ 0.023  │ 0.997 │
+│ investment:hand_weights           │ 954    │ -3.895 │ 4.848 │
+│ investment:logistic               │ 954    │ -2.733 │ 5.086 │
 │ technical:baseline_corroboration  │ 954    │ 1.0    │ 7.0   │
-│ technical:baseline_recency        │ 954    │ 0.0    │ 0.875 │
-│ technical:gbm_sklearn             │ 954    │ 0.001  │ 0.99  │
-│ technical:hand_weights            │ 954    │ -3.895 │ 4.85  │
-│ technical:logistic                │ 954    │ -9.5   │ 3.996 │
+│ technical:baseline_recency        │ 954    │ 0.0    │ 0.846 │
+│ technical:gbm_sklearn             │ 954    │ 0.002  │ 0.978 │
+│ technical:hand_weights            │ 954    │ -3.895 │ 4.848 │
+│ technical:logistic                │ 954    │ -9.525 │ 3.984 │
 └───────────────────────────────────┴────────┴────────┴───────┘
 
 ================ S2 · TOP-10 EVENTS (winning model, from insights.score) ================
 ┌───────┬─────────────────┬────────────────┬──────────────────────────────────────────────────────────────┐
 │ score │       lab       │   event_type   │                            claim                             │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 5.073 │ DeepSeek        │ release        │ DeepSeek-AI released DeepSeek-V2, a 236B-parameter Mixture-o │
+│ 5.086 │ DeepSeek        │ release        │ DeepSeek-AI released DeepSeek-V2, a 236B-parameter Mixture-o │
 │       │                 │                │ f-Expe                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.926 │ Mistral         │ infrastructure │ Mistral is building a new 10 MW Les Ulis data center dedicat │
+│ 5.066 │ Mistral         │ infrastructure │ Mistral is building a new 10 MW Les Ulis data center dedicat │
 │       │                 │                │ ed to                                                        │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.76  │ Mistral         │ infrastructure │ Mistral AI is building a new 10 MW data center in Les Ulis,  │
+│ 4.911 │ Mistral         │ infrastructure │ Mistral AI is building a new 10 MW data center in Les Ulis,  │
 │       │                 │                │ France                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.734 │ OpenAI          │ commercial     │ GPT-4o matches GPT-4 Turbo's performance on English text and │
+│ 4.855 │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
+│       │                 │                │ rs and                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 4.752 │ OpenAI          │ commercial     │ GPT-4o matches GPT-4 Turbo's performance on English text and │
 │       │                 │                │  code                                                        │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.673 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B total paramete │
+│ 4.723 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B total paramete │
 │       │                 │                │ rs dur                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.673 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B parameters dur │
+│ 4.723 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B parameters dur │
 │       │                 │                │ ing in                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.673 │ Google DeepMind │ release        │ DiffusionGemma is a 26B total parameter MoE model that activ │
+│ 4.723 │ Google DeepMind │ release        │ DiffusionGemma is a 26B total parameter MoE model that activ │
 │       │                 │                │ ates o                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.62  │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
+│ 4.662 │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
 │       │                 │                │ rs and                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.613 │ Meta AI         │ infrastructure │ Meta achieved a 28% reduction in ads retrieval stage tail (9 │
+│ 4.648 │ Meta AI         │ infrastructure │ Meta achieved a 28% reduction in ads retrieval stage tail (9 │
 │       │                 │                │ 9th pe                                                       │
-├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.419 │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
-│       │                 │                │ rs and                                                       │
 └───────┴─────────────────┴────────────────┴──────────────────────────────────────────────────────────────┘
 
 ================ S3 · PER-LAB SHARE OF TOP-30 (ranked-output fairness view) ================
@@ -460,8 +460,8 @@
 ┌───────────────────────────┬──────┬──────────┬────────────┐
 │          cohort           │ docs │ mean_lag │ median_lag │
 ├───────────────────────────┼──────┼──────────┼────────────┤
-│ all documents             │ 1448 │ 109.6    │ 28.8       │
-│ steady state (lag <= 14d) │ 590  │ 5.4      │ 4.0        │
+│ all documents             │ 1461 │ 108.6    │ 26.8       │
+│ steady state (lag <= 14d) │ 603  │ 5.3      │ 4.0        │
 └───────────────────────────┴──────┴──────────┴────────────┘
 
     NOTE: held-out pairwise accuracy, precision@10 / NDCG@20 per model,
