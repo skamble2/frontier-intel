@@ -27,7 +27,7 @@
 ├──────────────┼─────────────────────┼─────┤
 │ verification │ claim_rewritten     │ 445 │
 │ verification │ quote_unverified    │ 52  │
-│ stage1       │ near_duplicate      │ 20  │
+│ stage1       │ near_duplicate      │ 23  │
 │ verification │ no_verified_insight │ 5   │
 └──────────────┴─────────────────────┴─────┘
 
@@ -35,7 +35,7 @@
 ┌──────────────────┬───────────────────┬────────────────┬──────────┐
 │ insight_evidence │ register_evidence │ total_evidence │ insights │
 ├──────────────────┼───────────────────┼────────────────┼──────────┤
-│ 954              │ 2064              │ 3018           │ 954      │
+│ 954              │ 2144              │ 3098           │ 954      │
 └──────────────────┴───────────────────┴────────────────┴──────────┘
 
 --- G4 · cap binding: is n=5 concentrated in LONG docs (legit) or SHORT (splitting)? ---
@@ -82,7 +82,7 @@
 ┌──────────────┬─────────────────┬─────────────────┬───────────────────┬──────────┐
 │ content_docs │ stage1_rejected │ stage2_rejected │ docs_with_insight │ insights │
 ├──────────────┼─────────────────┼─────────────────┼───────────────────┼──────────┤
-│ 1471         │ 972             │ 120             │ 372               │ 954      │
+│ 1525         │ 992             │ 120             │ 372               │ 954      │
 └──────────────┴─────────────────┴─────────────────┴───────────────────┴──────────┘
 
 ================ M1b · REJECTION REASONS (noise-floor appendix) ================
@@ -91,11 +91,11 @@
 ├──────────────┼────────────────────────────┼─────┤
 │ stage1       │ no_tracked_entity          │ 523 │
 │ verification │ claim_rewritten            │ 445 │
-│ stage1       │ not_lab_authored           │ 323 │
+│ stage1       │ not_lab_authored           │ 340 │
 │ stage1       │ gh_login_unverified        │ 124 │
 │ stage2       │ low_substance              │ 119 │
 │ verification │ quote_unverified           │ 52  │
-│ stage1       │ near_duplicate             │ 20  │
+│ stage1       │ near_duplicate             │ 23  │
 │ stage1       │ x_handle_unverified        │ 18  │
 │ stage1       │ social_thread_continuation │ 13  │
 │ stage2       │ classify_parse_error       │ 10  │
@@ -109,10 +109,10 @@
 ┌─────────────┬──────┬──────────┬──────────────────┐
 │ source_type │ docs │ insights │ insights_per_doc │
 ├─────────────┼──────┼──────────┼──────────────────┤
-│ blog        │ 295  │ 599      │ 2.03             │
-│ newsroom    │ 67   │ 153      │ 2.28             │
+│ blog        │ 324  │ 599      │ 1.85             │
+│ newsroom    │ 75   │ 153      │ 2.04             │
 │ social      │ 704  │ 114      │ 0.16             │
-│ arxiv       │ 349  │ 46       │ 0.13             │
+│ arxiv       │ 366  │ 46       │ 0.13             │
 │ github      │ 56   │ 42       │ 0.75             │
 └─────────────┴──────┴──────────┴──────────────────┘
 
@@ -122,8 +122,8 @@
 ┌─────────────┬────────────────┬──────────┬───────────────────┐
 │ source_type │ surviving_docs │ insights │ per_surviving_doc │
 ├─────────────┼────────────────┼──────────┼───────────────────┤
-│ blog        │ 126            │ 599      │ 4.75              │
-│ newsroom    │ 21             │ 153      │ 7.29              │
+│ blog        │ 131            │ 599      │ 4.57              │
+│ newsroom    │ 22             │ 153      │ 6.95              │
 │ social      │ 168            │ 114      │ 0.68              │
 │ arxiv       │ 24             │ 46       │ 1.92              │
 │ github      │ 56             │ 42       │ 0.75              │
@@ -144,7 +144,7 @@
 │      population      │ verification │  n   │
 ├──────────────────────┼──────────────┼──────┤
 │ insight (extraction) │ exact        │ 954  │
-│ register (entity)    │ exact        │ 398  │
+│ register (entity)    │ exact        │ 478  │
 │ register (entity)    │ structural   │ 1666 │
 └──────────────────────┴──────────────┴──────┘
 
@@ -190,7 +190,7 @@
 ┌─────────┬──────┐
 │  month  │ docs │
 ├─────────┼──────┤
-│ 2026-08 │ 78   │
+│ 2026-08 │ 100  │
 │ 2026-07 │ 569  │
 │ 2026-06 │ 152  │
 │ 2026-05 │ 96   │
@@ -201,7 +201,7 @@
 │ 2025-12 │ 34   │
 │ 2025-11 │ 27   │
 │ 2025-10 │ 7    │
-│ 2025-09 │ 13   │
+│ 2025-09 │ 14   │
 └─────────┴──────┘
 
 ================ M3e · EVENT TYPE DISTRIBUTION (D2) ================
@@ -222,14 +222,14 @@
 ┌─────────────────┬───────┬─────────────┬──────────┐
 │       lab       │ seeds │ layer_below │ insights │
 ├─────────────────┼───────┼─────────────┼──────────┤
-│ Google DeepMind │ 63    │ 15          │ 392      │
-│ Anthropic       │ 57    │ 15          │ 149      │
-│ Qwen            │ 13    │ 31          │ 140      │
-│ OpenAI          │ 59    │ 16          │ 127      │
-│ Mistral         │ 31    │ 63          │ 57       │
-│ Meta AI         │ 67    │ 23          │ 50       │
-│ DeepSeek        │ 10    │ 0           │ 37       │
-│ xAI             │ 45    │ 0           │ 2        │
+│ Google DeepMind │ 81    │ 15          │ 392      │
+│ Anthropic       │ 67    │ 15          │ 149      │
+│ Qwen            │ 15    │ 31          │ 140      │
+│ OpenAI          │ 72    │ 16          │ 127      │
+│ Mistral         │ 39    │ 63          │ 57       │
+│ Meta AI         │ 84    │ 23          │ 50       │
+│ DeepSeek        │ 12    │ 0           │ 37       │
+│ xAI             │ 53    │ 0           │ 2        │
 └─────────────────┴───────┴─────────────┴──────────┘
 
 ================ M4c · PERSON-LEVEL ATTRIBUTION COVERAGE (W1) ================
@@ -308,30 +308,30 @@
     NOTE: a truncate+rebuild erases prior error/empty rows. If this shows only
     ok, the error-handling paths are no longer *demonstrated* in the committed DB —
     keep a prior DB or a log excerpt as the artifact.
-┌────────┬─────┐
-│ status │  n  │
-├────────┼─────┤
-│ empty  │ 32  │
-│ error  │ 170 │
-│ ok     │ 927 │
-└────────┴─────┘
+┌────────┬──────┐
+│ status │  n   │
+├────────┼──────┤
+│ empty  │ 36   │
+│ error  │ 172  │
+│ ok     │ 1033 │
+└────────┴──────┘
 
 ================ M6b · NON-OK FETCHES BY SOURCE ================
 ┌──────────────────────────────┬─────────────┬────────┬────┬───────────────────────────┐
 │             name             │ source_type │ status │ n  │         last_try          │
 ├──────────────────────────────┼─────────────┼────────┼────┼───────────────────────────┤
-│ xAI blog: x.ai               │ blog        │ error  │ 11 │ 2026-08-06T08:43:45+00:00 │
-│ xAI github: github.com       │ github      │ empty  │ 11 │ 2026-08-06T08:43:45+00:00 │
-│ xAI page: x.ai               │ blog        │ error  │ 9  │ 2026-08-06T08:45:23+00:00 │
+│ xAI blog: x.ai               │ blog        │ error  │ 12 │ 2026-08-07T07:22:18+00:00 │
+│ xAI github: github.com       │ github      │ empty  │ 12 │ 2026-08-07T07:22:18+00:00 │
+│ xAI page: x.ai               │ blog        │ error  │ 10 │ 2026-08-07T07:23:47+00:00 │
+│ arXiv au:"Greg Yang"         │ arxiv       │ empty  │ 7  │ 2026-08-07T07:23:29+00:00 │
+│ arXiv au:"Igor Babuschkin"   │ arxiv       │ empty  │ 7  │ 2026-08-07T07:23:43+00:00 │
+│ arXiv au:"Yuhuai Wu"         │ arxiv       │ empty  │ 7  │ 2026-08-07T07:23:36+00:00 │
 │ arXiv au:"Chris Olah"        │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:54+00:00 │
-│ arXiv au:"Greg Yang"         │ arxiv       │ empty  │ 6  │ 2026-08-06T08:44:55+00:00 │
-│ arXiv au:"Igor Babuschkin"   │ arxiv       │ empty  │ 6  │ 2026-08-06T08:45:08+00:00 │
 │ arXiv au:"Jakub Pachocki"    │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:38+00:00 │
 │ arXiv au:"Jared Kaplan"      │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:51+00:00 │
 │ arXiv au:"Koray Kavukcuoglu" │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:57+00:00 │
 │ arXiv au:"Mark Chen"         │ arxiv       │ error  │ 6  │ 2026-08-02T08:57:44+00:00 │
 │ arXiv au:"Yann LeCun"        │ arxiv       │ error  │ 6  │ 2026-08-02T08:58:00+00:00 │
-│ arXiv au:"Yuhuai Wu"         │ arxiv       │ empty  │ 6  │ 2026-08-06T08:45:01+00:00 │
 │ arXiv abs:"Anthropic"        │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:30+00:00 │
 │ arXiv abs:"DeepMind"         │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:33+00:00 │
 │ arXiv abs:"DeepSeek"         │ arxiv       │ error  │ 5  │ 2026-07-30T10:26:42+00:00 │
@@ -383,63 +383,63 @@
 │               model               │ events │ min_s  │ max_s │
 ├───────────────────────────────────┼────────┼────────┼───────┤
 │ investment:baseline_corroboration │ 954    │ 1.0    │ 7.0   │
-│ investment:baseline_recency       │ 954    │ 0.0    │ 0.846 │
-│ investment:gbm_sklearn            │ 954    │ 0.023  │ 0.997 │
-│ investment:hand_weights           │ 954    │ -3.895 │ 4.848 │
-│ investment:logistic               │ 954    │ -2.733 │ 5.086 │
+│ investment:baseline_recency       │ 954    │ 0.0    │ 0.819 │
+│ investment:gbm_sklearn            │ 954    │ 0.012  │ 0.996 │
+│ investment:hand_weights           │ 954    │ -3.895 │ 4.845 │
+│ investment:logistic               │ 954    │ -2.727 │ 5.084 │
 │ technical:baseline_corroboration  │ 954    │ 1.0    │ 7.0   │
-│ technical:baseline_recency        │ 954    │ 0.0    │ 0.846 │
-│ technical:gbm_sklearn             │ 954    │ 0.002  │ 0.978 │
-│ technical:hand_weights            │ 954    │ -3.895 │ 4.848 │
-│ technical:logistic                │ 954    │ -9.525 │ 3.984 │
+│ technical:baseline_recency        │ 954    │ 0.0    │ 0.819 │
+│ technical:gbm_sklearn             │ 954    │ 0.002  │ 0.983 │
+│ technical:hand_weights            │ 954    │ -3.895 │ 4.845 │
+│ technical:logistic                │ 954    │ -9.537 │ 3.986 │
 └───────────────────────────────────┴────────┴────────┴───────┘
 
 ================ S2 · TOP-10 EVENTS (winning model, from insights.score) ================
 ┌───────┬─────────────────┬────────────────┬──────────────────────────────────────────────────────────────┐
 │ score │       lab       │   event_type   │                            claim                             │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 5.086 │ DeepSeek        │ release        │ DeepSeek-AI released DeepSeek-V2, a 236B-parameter Mixture-o │
-│       │                 │                │ f-Expe                                                       │
-├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 5.066 │ Mistral         │ infrastructure │ Mistral is building a new 10 MW Les Ulis data center dedicat │
-│       │                 │                │ ed to                                                        │
-├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.911 │ Mistral         │ infrastructure │ Mistral AI is building a new 10 MW data center in Les Ulis,  │
+│ 0.996 │ Mistral         │ infrastructure │ Mistral AI is building a new 10 MW data center in Les Ulis,  │
 │       │                 │                │ France                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.855 │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
+│ 0.995 │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
 │       │                 │                │ rs and                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.752 │ OpenAI          │ commercial     │ GPT-4o matches GPT-4 Turbo's performance on English text and │
-│       │                 │                │  code                                                        │
+│ 0.994 │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
+│       │                 │                │ rs and                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.723 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B total paramete │
+│ 0.993 │ Mistral         │ infrastructure │ Mistral is building a new 10 MW Les Ulis data center dedicat │
+│       │                 │                │ ed to                                                        │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.992 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B total paramete │
 │       │                 │                │ rs dur                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.723 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B parameters dur │
+│ 0.992 │ Google DeepMind │ release        │ DiffusionGemma activates only 3.8B of its 26B parameters dur │
 │       │                 │                │ ing in                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.723 │ Google DeepMind │ release        │ DiffusionGemma is a 26B total parameter MoE model that activ │
+│ 0.992 │ Google DeepMind │ release        │ DiffusionGemma is a 26B total parameter MoE model that activ │
 │       │                 │                │ ates o                                                       │
 ├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.662 │ Mistral         │ personnel      │ Emmi AI's co-founders and its team of more than 30 researche │
-│       │                 │                │ rs and                                                       │
-├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
-│ 4.648 │ Meta AI         │ infrastructure │ Meta achieved a 28% reduction in ads retrieval stage tail (9 │
+│ 0.992 │ Meta AI         │ infrastructure │ Meta achieved a 28% reduction in ads retrieval stage tail (9 │
 │       │                 │                │ 9th pe                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.991 │ OpenAI          │ infrastructure │ OpenAI is designing and developing Project Camellia, a long- │
+│       │                 │                │ term d                                                       │
+├───────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────────────┤
+│ 0.99  │ DeepSeek        │ release        │ DeepSeek-AI released DeepSeek-V2, a 236B-parameter Mixture-o │
+│       │                 │                │ f-Expe                                                       │
 └───────┴─────────────────┴────────────────┴──────────────────────────────────────────────────────────────┘
 
 ================ S3 · PER-LAB SHARE OF TOP-30 (ranked-output fairness view) ================
 ┌─────────────────┬──────────┐
 │       lab       │ in_top30 │
 ├─────────────────┼──────────┤
-│ Google DeepMind │ 14       │
-│ OpenAI          │ 5        │
-│ Mistral         │ 4        │
-│ DeepSeek        │ 4        │
+│ Google DeepMind │ 13       │
+│ OpenAI          │ 6        │
+│ Mistral         │ 5        │
+│ DeepSeek        │ 2        │
+│ Anthropic       │ 2        │
 │ Qwen            │ 1        │
 │ Meta AI         │ 1        │
-│ Anthropic       │ 1        │
 └─────────────────┴──────────┘
 
 ================ S4 · PAIRWISE LABELS (ground truth) ================
@@ -460,8 +460,8 @@
 ┌───────────────────────────┬──────┬──────────┬────────────┐
 │          cohort           │ docs │ mean_lag │ median_lag │
 ├───────────────────────────┼──────┼──────────┼────────────┤
-│ all documents             │ 1461 │ 108.6    │ 26.8       │
-│ steady state (lag <= 14d) │ 603  │ 5.3      │ 4.0        │
+│ all documents             │ 1515 │ 106.1    │ 25.3       │
+│ steady state (lag <= 14d) │ 634  │ 5.2      │ 3.9        │
 └───────────────────────────┴──────┴──────────┴────────────┘
 
     NOTE: held-out pairwise accuracy, precision@10 / NDCG@20 per model,
